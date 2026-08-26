@@ -14,7 +14,7 @@ export default function AdminPage() {
   const ADMIN_PASS = 'tonystark@1986'
   
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false)
-  const [authStep, setAuthStep] = useState<'credentials' | 'otp'>('credentials')
+  const [authStep, setAuthStep] = useState<'credentials' | 'otp' | 'forgot_password'>('credentials')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -50,11 +50,9 @@ export default function AdminPage() {
   const [viewingProduct, setViewingProduct] = useState<any | null>(null)
   const [activePreviewImage, setActivePreviewImage] = useState('')
 
-  // Stock Audit Logs Modal State
   const [auditingProduct, setAuditingProduct] = useState<any | null>(null)
   const [productAuditLogs, setProductAuditLogs] = useState<any[]>([])
 
-  // Amazon-style Image Gallery Modal State
   const [activeOrderGalleryImages, setActiveOrderGalleryImages] = useState<string[] | null>(null)
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0)
 
@@ -93,6 +91,32 @@ export default function AdminPage() {
         setAuthStep('otp')
       } else {
         setErrorMsg(`Failed to send email: ${data.error || 'Check server configuration'}`)
+      }
+    } catch (err: any) {
+      setErrorMsg(`Network error: ${err.message}`)
+    }
+    setLoading(false)
+  }
+
+  const handleAdminForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMsg('')
+    setSuccessMsg('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/admin-forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setGeneratedOtp(data.otp)
+        setSuccessMsg(`Admin access OTP has been sent to ${email.trim()}!`)
+        setAuthStep('otp')
+      } else {
+        setErrorMsg(data.error || 'Failed to send recovery OTP.')
       }
     } catch (err: any) {
       setErrorMsg(`Network error: ${err.message}`)
@@ -378,13 +402,13 @@ export default function AdminPage() {
         <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-xl font-black text-indigo-900 leading-tight">Mahin's One-Stop One-Store</h1>
-            <p className="text-xs text-gray-500 font-semibold mt-1">Admin Control Portal</p>
+            <p className="text-xs text-gray-500 font-semibold mt-1">Admin Security Portal</p>
           </div>
 
           {errorMsg && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">{errorMsg}</div>}
           {successMsg && <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">{successMsg}</div>}
 
-          {authStep === 'credentials' ? (
+          {authStep === 'credentials' && (
             <form onSubmit={handleSendEmailOtp} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Admin Email</label>
@@ -399,7 +423,16 @@ export default function AdminPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Admin Password</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-bold text-gray-700">Admin Password</label>
+                  <button 
+                    type="button" 
+                    onClick={() => { setAuthStep('forgot_password'); setErrorMsg(''); setSuccessMsg(''); }}
+                    className="text-[11px] font-bold text-indigo-600 hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
                 <div className="relative">
                   <input 
                     type={showPassword ? "text" : "password"} 
@@ -423,15 +456,49 @@ export default function AdminPage() {
                 {loading ? 'Sending OTP to Email...' : 'Send OTP to Email →'}
               </button>
             </form>
-          ) : (
-            <form onSubmit={handleVerifyEmailOtp} className="space-y-4">
-              <div className="bg-indigo-50 p-4 rounded-xl text-center mb-4">
-                <p className="text-xs text-indigo-900 font-medium">An email OTP has been dispatched to <span className="font-bold">{email}</span></p>
-                <p className="text-[10px] text-gray-500 mt-1">Please check your inbox (and spam folder)</p>
+          )}
+
+          {authStep === 'forgot_password' && (
+            <form onSubmit={handleAdminForgotPassword} className="space-y-4">
+              <div className="bg-amber-50 p-4 rounded-xl text-center mb-2 border border-amber-200">
+                <p className="text-xs text-amber-900 font-medium">Enter your registered admin email address to receive an instant recovery code.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Enter Email OTP Token</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Admin Email Address</label>
+                <input 
+                  type="email" 
+                  required 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  placeholder="mahinsonestoponestore@gmail.com" 
+                  className="w-full border border-gray-300 p-3 rounded-lg text-sm text-gray-900 focus:outline-indigo-600" 
+                />
+              </div>
+
+              <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg text-sm shadow transition disabled:opacity-50">
+                {loading ? 'Dispatching Recovery OTP...' : 'Send Recovery OTP to Email'}
+              </button>
+
+              <button 
+                type="button" 
+                onClick={() => { setAuthStep('credentials'); setErrorMsg(''); setSuccessMsg(''); }} 
+                className="w-full text-xs text-gray-500 hover:underline mt-2 text-center block"
+              >
+                ← Back to Password Login
+              </button>
+            </form>
+          )}
+
+          {authStep === 'otp' && (
+            <form onSubmit={handleVerifyEmailOtp} className="space-y-4">
+              <div className="bg-indigo-50 p-4 rounded-xl text-center mb-4">
+                <p className="text-xs text-indigo-900 font-medium">A security OTP was sent to <span className="font-bold">{email}</span></p>
+                <p className="text-[10px] text-gray-500 mt-1">Please check your inbox or spam folder</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Enter 6-Digit OTP Token</label>
                 <input 
                   type="text" 
                   required 
@@ -443,7 +510,7 @@ export default function AdminPage() {
               </div>
 
               <button type="submit" disabled={loading} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold p-3 rounded-lg text-sm shadow-lg transition disabled:opacity-50">
-                {loading ? 'Verifying...' : 'Verify & Login to Dashboard'}
+                {loading ? 'Verifying...' : 'Verify & Enter Dashboard'}
               </button>
               
               <button 
@@ -451,7 +518,7 @@ export default function AdminPage() {
                 onClick={() => { setAuthStep('credentials'); setOtpToken(''); setSuccessMsg(''); }} 
                 className="w-full text-xs text-gray-500 hover:underline mt-2 text-center block"
               >
-                ← Back to Login Credentials
+                ← Back to Login
               </button>
             </form>
           )}
@@ -676,11 +743,9 @@ export default function AdminPage() {
             </div>
           </div>
         ) : (
-          /* Orders Management Tab */
           <div className="bg-white p-6 rounded-2xl shadow-md">
             <h2 className="text-lg font-bold text-gray-900 mb-4">Customer Orders ({orders.length})</h2>
 
-            {/* Admin Order Status Filter Tabs */}
             <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
               {['ALL', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => {
                 const count = getAdminOrderCount(status)

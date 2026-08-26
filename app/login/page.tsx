@@ -6,12 +6,21 @@ import { createClient } from '../../lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotMsg, setForgotMsg] = useState('')
+  const [forgotError, setForgotError] = useState('')
+
   const router = useRouter()
   const supabase = createClient()
 
@@ -19,9 +28,10 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
+    setSuccessMsg('')
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password,
     })
 
@@ -32,6 +42,26 @@ export default function LoginPage() {
       router.push('/')
       router.refresh()
     }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotLoading(true)
+    setForgotMsg('')
+    setForgotError('')
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.mahinsonestoponestore.in'
+
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${origin}/reset-password`,
+    })
+
+    if (error) {
+      setForgotError(error.message)
+    } else {
+      setForgotMsg('Password reset link sent! Please check your email inbox and spam folder.')
+    }
+    setForgotLoading(false)
   }
 
   return (
@@ -46,6 +76,7 @@ export default function LoginPage() {
         <p className="text-xs text-gray-500 text-center mb-6">Log in to access your account & orders</p>
 
         {errorMsg && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">{errorMsg}</div>}
+        {successMsg && <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">{successMsg}</div>}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
@@ -61,7 +92,21 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Password</label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs font-bold text-gray-700">Password</label>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(email)
+                  setForgotMsg('')
+                  setForgotError('')
+                  setIsForgotModalOpen(true)
+                }}
+                className="text-[11px] font-bold text-indigo-600 hover:underline"
+              >
+                Forgot Password?
+              </button>
+            </div>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -91,13 +136,60 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-center text-xs text-gray-600">
+        <div className="mt-6 text-center text-xs text-gray-600 border-t pt-4">
           Don't have an account?{' '}
           <Link href="/signup" className="font-semibold text-indigo-600 hover:underline">
             Sign Up
           </Link>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {isForgotModalOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl relative">
+            <div className="flex justify-between items-center mb-4 border-b pb-2">
+              <h3 className="text-base font-bold text-gray-900">Reset Password</h3>
+              <button
+                type="button"
+                onClick={() => setIsForgotModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-600 mb-4">
+              Enter your registered account email. We will email you a secure link to reset your password.
+            </p>
+
+            {forgotError && <div className="mb-3 p-2.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">{forgotError}</div>}
+            {forgotMsg && <div className="mb-3 p-2.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">{forgotMsg}</div>}
+
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Account Email</label>
+                <input
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={forgotLoading}
+                className="w-full rounded-lg bg-indigo-600 py-2.5 font-bold text-white hover:bg-indigo-700 transition disabled:opacity-50 text-xs shadow"
+              >
+                {forgotLoading ? 'Sending Link...' : 'Send Reset Link'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
