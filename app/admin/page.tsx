@@ -54,7 +54,7 @@ export default function AdminPage() {
   const [auditingProduct, setAuditingProduct] = useState<any | null>(null)
   const [productAuditLogs, setProductAuditLogs] = useState<any[]>([])
 
-  // Amazon-style Image Gallery Modal State
+  // Image Gallery Modal State
   const [activeOrderGalleryImages, setActiveOrderGalleryImages] = useState<string[] | null>(null)
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0)
 
@@ -151,13 +151,34 @@ export default function AdminPage() {
   const fetchAdminData = async () => {
     setLoading(true)
     if (activeTab === 'products') {
-      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false })
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+
       if (error) setErrorMsg(error.message)
       else setProducts(data || [])
     } else {
-      const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
-      if (error) setErrorMsg(error.message)
-      else setOrders(data || [])
+      try {
+        const res = await fetch('/api/admin/orders')
+        const data = await res.json()
+        if (data.success) {
+          setOrders(data.orders || [])
+        } else {
+          const { data: clientOrders, error } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false })
+          if (error) setErrorMsg(error.message)
+          else setOrders(clientOrders || [])
+        }
+      } catch {
+        const { data: clientOrders } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false })
+        setOrders(clientOrders || [])
+      }
     }
     setLoading(false)
   }
@@ -233,15 +254,21 @@ export default function AdminPage() {
 
   const openStockAuditModal = async (p: any) => {
     setAuditingProduct(p)
-    const { data: allOrders } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
-    if (allOrders) {
-      const matchingLogs = allOrders.filter(order => {
+    try {
+      const res = await fetch('/api/admin/orders')
+      const data = await res.json()
+      const allOrders = data.success ? data.orders : orders
+      const matchingLogs = allOrders.filter((order: any) => {
         if (!Array.isArray(order.items)) return false
         return order.items.some((item: any) => (item.id || item.product_id) === p.id || item.name === p.name)
       })
       setProductAuditLogs(matchingLogs)
-    } else {
-      setProductAuditLogs([])
+    } catch {
+      const matchingLogs = orders.filter((order: any) => {
+        if (!Array.isArray(order.items)) return false
+        return order.items.some((item: any) => (item.id || item.product_id) === p.id || item.name === p.name)
+      })
+      setProductAuditLogs(matchingLogs)
     }
   }
 
@@ -330,7 +357,6 @@ export default function AdminPage() {
       }
     }
 
-    // Customer email lookup (matches customer_email or email columns)
     const targetCustomerEmail = currentOrder.customer_email || currentOrder.email || ''
 
     try {
