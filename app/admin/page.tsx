@@ -50,9 +50,11 @@ export default function AdminPage() {
   const [viewingProduct, setViewingProduct] = useState<any | null>(null)
   const [activePreviewImage, setActivePreviewImage] = useState('')
 
+  // Stock Audit Logs Modal State
   const [auditingProduct, setAuditingProduct] = useState<any | null>(null)
   const [productAuditLogs, setProductAuditLogs] = useState<any[]>([])
 
+  // Amazon-style Image Gallery Modal State
   const [activeOrderGalleryImages, setActiveOrderGalleryImages] = useState<string[] | null>(null)
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0)
 
@@ -328,13 +330,16 @@ export default function AdminPage() {
       }
     }
 
+    // Customer email lookup (matches customer_email or email columns)
+    const targetCustomerEmail = currentOrder.customer_email || currentOrder.email || ''
+
     try {
       await fetch('/api/send-order-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'STATUS_UPDATE',
-          customerEmail: ADMIN_EMAIL,
+          customerEmail: targetCustomerEmail,
           orderDetails: {
             tracking_id: currentOrder.tracking_id,
             status: newStatus,
@@ -346,7 +351,7 @@ export default function AdminPage() {
       console.error('Failed to trigger status update email notification:', err)
     }
 
-    setSuccessMsg(`Order status successfully updated to "${newStatus}"!`)
+    setSuccessMsg(`Order status successfully updated to "${newStatus}"! Notification sent to ${targetCustomerEmail || 'customer'}.`)
     fetchAdminData()
   }
 

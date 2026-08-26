@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
+  
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
@@ -46,20 +47,48 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    setForgotLoading(true)
     setForgotMsg('')
     setForgotError('')
 
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.mahinsonestoponestore.in'
+    const targetEmail = forgotEmail.trim().toLowerCase()
+    if (!targetEmail) {
+      setForgotError('Please enter your account email address.')
+      return
+    }
 
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
-      redirectTo: `${origin}/reset-password`,
-    })
+    setForgotLoading(true)
 
-    if (error) {
-      setForgotError(error.message)
-    } else {
-      setForgotMsg('Password reset link sent! Please check your email inbox and spam folder.')
+    try {
+      // 1. Verify if user is registered in the database
+      const checkRes = await fetch('/api/auth/check-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail })
+      })
+      const checkData = await checkRes.json()
+
+      if (!checkData.exists) {
+        setForgotError('No account found with this email address. Please sign up to create a new account.')
+        setForgotLoading(false)
+        return
+      }
+
+      // 2. Dispatch reset email with explicit production redirect URL
+      const redirectUrl = typeof window !== 'undefined' && window.location.origin.includes('mahinsonestoponestore.in')
+        ? 'https://www.mahinsonestoponestore.in/reset-password'
+        : `${window.location.origin}/reset-password`
+
+      const { error } = await supabase.auth.resetPasswordForEmail(targetEmail, {
+        redirectTo: redirectUrl,
+      })
+
+      if (error) {
+        setForgotError(error.message)
+      } else {
+        setForgotMsg('Password reset link sent! Please check your inbox and spam folder.')
+      }
+    } catch (err: any) {
+      setForgotError('Failed to process request. Please try again.')
     }
     setForgotLoading(false)
   }
@@ -67,7 +96,6 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-        {/* Store Branding Header */}
         <div className="text-center mb-6 pb-4 border-b">
           <h1 className="text-2xl font-black text-indigo-900">Mahin's One-Stop One-Store</h1>
         </div>
@@ -160,10 +188,19 @@ export default function LoginPage() {
             </div>
 
             <p className="text-xs text-gray-600 mb-4">
-              Enter your registered account email. We will email you a secure link to reset your password.
+              Enter your registered account email. We will check our records and send a secure reset link.
             </p>
 
-            {forgotError && <div className="mb-3 p-2.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">{forgotError}</div>}
+            {forgotError && (
+              <div className="mb-3 p-2.5 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">
+                {forgotError}
+                {forgotError.includes('Sign Up') && (
+                  <Link href="/signup" className="block mt-1 text-indigo-700 underline font-bold">
+                    Go to Sign Up Page →
+                  </Link>
+                )}
+              </div>
+            )}
             {forgotMsg && <div className="mb-3 p-2.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">{forgotMsg}</div>}
 
             <form onSubmit={handleForgotPassword} className="space-y-4">
@@ -184,7 +221,7 @@ export default function LoginPage() {
                 disabled={forgotLoading}
                 className="w-full rounded-lg bg-indigo-600 py-2.5 font-bold text-white hover:bg-indigo-700 transition disabled:opacity-50 text-xs shadow"
               >
-                {forgotLoading ? 'Sending Link...' : 'Send Reset Link'}
+                {forgotLoading ? 'Checking Records...' : 'Send Reset Link'}
               </button>
             </form>
           </div>
