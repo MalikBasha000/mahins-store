@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
     const FROM_SENDER = "Mahin's One-Stop One-Store <orders@mahinsonestoponestore.in>"
     
-    // Website URLs (Ensured valid absolute URLs)
+    // Website URLs
     const baseUrl = 'https://mahinsonestoponestore.in'
     const adminLoginUrl = 'https://mahinsonestoponestore.in/admin'
 
@@ -89,14 +89,14 @@ export async function POST(req: Request) {
               </p>
             </div>
 
-            <!-- Bulletproof Button -->
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+            <!-- Clean Action Button -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0 10px 0;">
               <tr>
                 <td align="center">
                   <table border="0" cellpadding="0" cellspacing="0">
                     <tr>
                       <td align="center" bgcolor="#4f46e5" style="border-radius: 8px;">
-                        <a href="${baseUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 14px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; border: 1px solid #4f46e5; display: inline-block;">
+                        <a href="${baseUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 14px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; border: 1px solid #4f46e5; display: inline-block;">
                           Visit Website 🌐
                         </a>
                       </td>
@@ -105,10 +105,6 @@ export async function POST(req: Request) {
                 </td>
               </tr>
             </table>
-
-            <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 10px;">
-              Direct Link: <a href="${baseUrl}" target="_blank" style="color: #4f46e5; text-decoration: underline;">${baseUrl}</a>
-            </p>
           </div>
 
           <div style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
@@ -161,14 +157,14 @@ export async function POST(req: Request) {
               ${itemsHtml || '<tr><td colspan="4" style="padding: 10px; text-align: center; color: #9ca3af;">Item details available in dashboard</td></tr>'}
             </table>
 
-            <!-- Bulletproof Button -->
+            <!-- Clean Action Button -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0 10px 0;">
               <tr>
                 <td align="center">
                   <table border="0" cellpadding="0" cellspacing="0">
                     <tr>
                       <td align="center" bgcolor="#1e1b4b" style="border-radius: 6px;">
-                        <a href="${adminLoginUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; border: 1px solid #1e1b4b; display: inline-block;">
+                        <a href="${adminLoginUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; border: 1px solid #1e1b4b; display: inline-block;">
                           Admin Login 🔒
                         </a>
                       </td>
@@ -177,10 +173,6 @@ export async function POST(req: Request) {
                 </td>
               </tr>
             </table>
-
-            <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 6px;">
-              Direct Link: <a href="${adminLoginUrl}" target="_blank" style="color: #4338ca; text-decoration: underline;">${adminLoginUrl}</a>
-            </p>
           </div>
         </div>
       `
@@ -236,14 +228,14 @@ export async function POST(req: Request) {
               </p>
             </div>
 
-            <!-- Bulletproof Button -->
+            <!-- Clean Action Button -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 16px 0 10px 0;">
               <tr>
                 <td align="center">
                   <table border="0" cellpadding="0" cellspacing="0">
                     <tr>
                       <td align="center" bgcolor="#4f46e5" style="border-radius: 8px;">
-                        <a href="${baseUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; border: 1px solid #4f46e5; display: inline-block;">
+                        <a href="${baseUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; border: 1px solid #4f46e5; display: inline-block;">
                           Go to Website 🌐
                         </a>
                       </td>
@@ -252,10 +244,6 @@ export async function POST(req: Request) {
                 </td>
               </tr>
             </table>
-
-            <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 6px;">
-              Direct Link: <a href="${baseUrl}" target="_blank" style="color: #4f46e5; text-decoration: underline;">${baseUrl}</a>
-            </p>
           </div>
         </div>
       `
