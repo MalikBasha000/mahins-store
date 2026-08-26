@@ -10,12 +10,12 @@ export async function POST(req: Request) {
     const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
     const FROM_SENDER = "Mahin's One-Stop One-Store <orders@mahinsonestoponestore.in>"
     
-    // Website URLs
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mahinsonestoponestore.in'
-    const adminLoginUrl = `${baseUrl}/admin`
+    // Website URLs (Ensured valid absolute URLs)
+    const baseUrl = 'https://mahinsonestoponestore.in'
+    const adminLoginUrl = 'https://mahinsonestoponestore.in/admin'
 
     // Parse items list
-    const items = Array.isArray(orderDetails.items) ? orderDetails.items : []
+    const items = Array.isArray(orderDetails?.items) ? orderDetails.items : []
 
     // 1. Generate Items HTML Table with Images & Calculations
     const itemsHtml = items.map((item: any) => {
@@ -83,17 +83,32 @@ export async function POST(req: Request) {
               </tr>
             </table>
 
-            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin: 24px 0 16px 0; text-align: center;">
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin: 24px 0 20px 0; text-align: center;">
               <p style="margin: 0; font-size: 14px; color: #166534; font-weight: 500;">
                 To check your complete order details, history, and status updates, please visit our website:
               </p>
             </div>
 
-            <div style="margin: 0 0 16px 0; text-align: center;">
-              <a href="${baseUrl}" target="_blank" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">
-                Visit Website 🌐
-              </a>
-            </div>
+            <!-- Bulletproof Button -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+              <tr>
+                <td align="center">
+                  <table border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td align="center" bgcolor="#4f46e5" style="border-radius: 8px;">
+                        <a href="${baseUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 14px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 8px; border: 1px solid #4f46e5; display: inline-block;">
+                          Visit Website 🌐
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 10px;">
+              Direct Link: <a href="${baseUrl}" target="_blank" style="color: #4f46e5; text-decoration: underline;">${baseUrl}</a>
+            </p>
           </div>
 
           <div style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
@@ -146,11 +161,26 @@ export async function POST(req: Request) {
               ${itemsHtml || '<tr><td colspan="4" style="padding: 10px; text-align: center; color: #9ca3af;">Item details available in dashboard</td></tr>'}
             </table>
 
-            <div style="text-align: center; margin-top: 24px;">
-              <a href="${adminLoginUrl}" target="_blank" style="background-color: #1e1b4b; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 13px; font-weight: bold; display: inline-block;">
-                Admin Login 🔒
-              </a>
-            </div>
+            <!-- Bulletproof Button -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0 10px 0;">
+              <tr>
+                <td align="center">
+                  <table border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td align="center" bgcolor="#1e1b4b" style="border-radius: 6px;">
+                        <a href="${adminLoginUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; border: 1px solid #1e1b4b; display: inline-block;">
+                          Admin Login 🔒
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 6px;">
+              Direct Link: <a href="${adminLoginUrl}" target="_blank" style="color: #4338ca; text-decoration: underline;">${adminLoginUrl}</a>
+            </p>
           </div>
         </div>
       `
@@ -206,11 +236,26 @@ export async function POST(req: Request) {
               </p>
             </div>
 
-            <div style="margin: 0 0 12px 0; text-align: center;">
-              <a href="${baseUrl}" target="_blank" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 13px; display: inline-block;">
-                Go to Website 🌐
-              </a>
-            </div>
+            <!-- Bulletproof Button -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 16px 0 10px 0;">
+              <tr>
+                <td align="center">
+                  <table border="0" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td align="center" bgcolor="#4f46e5" style="border-radius: 8px;">
+                        <a href="${baseUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; border: 1px solid #4f46e5; display: inline-block;">
+                          Go to Website 🌐
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 6px;">
+              Direct Link: <a href="${baseUrl}" target="_blank" style="color: #4f46e5; text-decoration: underline;">${baseUrl}</a>
+            </p>
           </div>
         </div>
       `
