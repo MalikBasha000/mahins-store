@@ -10,9 +10,9 @@ export async function POST(req: Request) {
     const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
     const FROM_SENDER = "Mahin's One-Stop One-Store <orders@mahinsonestoponestore.in>"
     
-    // Website URLs
-    const baseUrl = 'https://mahinsonestoponestore.in'
-    const adminLoginUrl = 'https://mahinsonestoponestore.in/admin'
+    // Website URLs pointing directly to primary domain
+    const baseUrl = 'https://www.mahinsonestoponestore.in'
+    const adminLoginUrl = 'https://www.mahinsonestoponestore.in/admin'
 
     // Parse items list
     const items = Array.isArray(orderDetails?.items) ? orderDetails.items : []
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
               </p>
             </div>
 
-            <!-- Clean Action Button -->
+            <!-- Action Button -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0 10px 0;">
               <tr>
                 <td align="center">
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
               ${itemsHtml || '<tr><td colspan="4" style="padding: 10px; text-align: center; color: #9ca3af;">Item details available in dashboard</td></tr>'}
             </table>
 
-            <!-- Clean Action Button -->
+            <!-- Action Button -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0 10px 0;">
               <tr>
                 <td align="center">
@@ -228,7 +228,7 @@ export async function POST(req: Request) {
               </p>
             </div>
 
-            <!-- Clean Action Button -->
+            <!-- Action Button -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 16px 0 10px 0;">
               <tr>
                 <td align="center">
