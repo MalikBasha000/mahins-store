@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default function AdminPage() {
   const supabase = createClient()
   
@@ -376,6 +378,7 @@ export default function AdminPage() {
         <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
           <div className="text-center mb-8">
             <h1 className="text-xl font-black text-indigo-900 leading-tight">Mahin's One-Stop One-Store</h1>
+            <p className="text-xs text-gray-500 font-semibold mt-1">Admin Control Portal</p>
           </div>
 
           {errorMsg && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">{errorMsg}</div>}
@@ -470,7 +473,7 @@ export default function AdminPage() {
             <span className="text-xs bg-green-100 text-green-800 font-bold px-3 py-1 rounded-full">Secure Admin Active</span>
             <Link href="/" className="text-sm font-semibold text-indigo-600 hover:underline">Store</Link>
             <button 
-              onClick={handleLogout}
+              onClick={handleLogout} 
               className="bg-red-50 text-red-600 hover:bg-red-100 font-bold text-xs px-3 py-1.5 rounded-lg transition"
             >
               Logout 🔒
