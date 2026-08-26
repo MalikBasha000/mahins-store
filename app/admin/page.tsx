@@ -315,7 +315,8 @@ export default function AdminPage() {
       customReason = `Admin cancelled due to: ${reasonInput.trim() || 'No reason provided'}`
     }
 
-    const { data: currentOrder } = await supabase.from('orders').select('*').eq('id', orderId).single()
+    // Get order from current memory state first
+    const currentOrder = orders.find(o => o.id === orderId)
     if (!currentOrder) return
 
     const oldStatus = currentOrder.status
@@ -331,6 +332,7 @@ export default function AdminPage() {
       return
     }
 
+    // Stock replenishment / deduction handling
     if (newStatus === 'Cancelled' && oldStatus !== 'Cancelled') {
       if (Array.isArray(currentOrder.items)) {
         for (const item of currentOrder.items) {
@@ -357,7 +359,12 @@ export default function AdminPage() {
       }
     }
 
-    const targetCustomerEmail = currentOrder.customer_email || currentOrder.email || ''
+    // Extract customer email with fallbacks
+    const targetCustomerEmail =
+      currentOrder.customer_email ||
+      currentOrder.email ||
+      currentOrder.user_email ||
+      ''
 
     try {
       await fetch('/api/send-order-email', {
@@ -369,7 +376,8 @@ export default function AdminPage() {
           orderDetails: {
             tracking_id: currentOrder.tracking_id,
             status: newStatus,
-            reason: customReason || currentOrder.cancellation_reason
+            reason: customReason || currentOrder.cancellation_reason,
+            items: currentOrder.items || []
           }
         })
       })
@@ -377,7 +385,7 @@ export default function AdminPage() {
       console.error('Failed to trigger status update email notification:', err)
     }
 
-    setSuccessMsg(`Order status successfully updated to "${newStatus}"! Notification sent to ${targetCustomerEmail || 'customer'}.`)
+    setSuccessMsg(`Order #${currentOrder.tracking_id} updated to "${newStatus}"! Notifications dispatched.`)
     fetchAdminData()
   }
 

@@ -10,14 +10,14 @@ export async function POST(req: Request) {
     const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
     const FROM_SENDER = "Mahin's One-Stop One-Store <orders@mahinsonestoponestore.in>"
     
-    // Website URLs pointing directly to primary domain
+    // Website URLs
     const baseUrl = 'https://www.mahinsonestoponestore.in'
     const adminLoginUrl = 'https://www.mahinsonestoponestore.in/admin'
 
     // Parse items list
     const items = Array.isArray(orderDetails?.items) ? orderDetails.items : []
 
-    // 1. Generate Items HTML Table with Images & Calculations
+    // Generate Items HTML Table with Images & Calculations
     const itemsHtml = items.map((item: any) => {
       const itemImg = item.image_url 
         ? item.image_url.split(',')[0].trim() 
@@ -248,6 +248,7 @@ export async function POST(req: Request) {
         </div>
       `
 
+      // 1. Send to customer if available
       if (customerEmail && customerEmail.trim() !== '') {
         await resend.emails.send({
           from: FROM_SENDER,
@@ -256,6 +257,14 @@ export async function POST(req: Request) {
           html: statusHtml,
         })
       }
+
+      // 2. Always send status change confirmation to admin
+      await resend.emails.send({
+        from: FROM_SENDER,
+        to: [ADMIN_EMAIL],
+        subject: `[STATUS UPDATED] #${orderDetails.tracking_id} → ${orderDetails.status}`,
+        html: statusHtml,
+      })
     }
 
     return NextResponse.json({ success: true, message: 'Emails dispatched successfully' })
