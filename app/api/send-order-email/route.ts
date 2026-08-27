@@ -179,21 +179,29 @@ export async function POST(req: Request) {
 
       // Dispatch Customer Email
       if (customerEmail && customerEmail.trim() !== '') {
-        await resend.emails.send({
-          from: FROM_SENDER,
-          to: [customerEmail.trim()],
-          subject: `Order Confirmation - #${orderDetails.tracking_id} | Mahin's One-Stop One-Store`,
-          html: customerHtml,
-        })
+        try {
+          await resend.emails.send({
+            from: FROM_SENDER,
+            to: [customerEmail.trim()],
+            subject: `Order Confirmation - #${orderDetails.tracking_id} | Mahin's One-Stop One-Store`,
+            html: customerHtml,
+          })
+        } catch (e) {
+          console.error('Customer email send error:', e)
+        }
       }
 
       // Dispatch Admin Email
-      await resend.emails.send({
-        from: FROM_SENDER,
-        to: [ADMIN_EMAIL],
-        subject: `🚨 [NEW ORDER] ₹${orderDetails.total_amount} - #${orderDetails.tracking_id} (${orderDetails.customer_name})`,
-        html: adminHtml,
-      })
+      try {
+        await resend.emails.send({
+          from: FROM_SENDER,
+          to: [ADMIN_EMAIL],
+          subject: `🚨 [NEW ORDER] ₹${orderDetails.total_amount} - #${orderDetails.tracking_id} (${orderDetails.customer_name})`,
+          html: adminHtml,
+        })
+      } catch (e) {
+        console.error('Admin email send error:', e)
+      }
 
     } else if (type === 'STATUS_UPDATE') {
       // -------------------------------------------------------------
@@ -248,26 +256,36 @@ export async function POST(req: Request) {
         </div>
       `
 
-      // 1. Send to customer if available
-      if (customerEmail && customerEmail.trim() !== '') {
-        await resend.emails.send({
-          from: FROM_SENDER,
-          to: [customerEmail.trim()],
-          subject: `Status Update: ${orderDetails.status} - #${orderDetails.tracking_id}`,
-          html: statusHtml,
-        })
+      // Send to Customer if valid email provided
+      const validCustomerEmail = customerEmail && typeof customerEmail === 'string' && customerEmail.includes('@') ? customerEmail.trim() : null
+
+      if (validCustomerEmail) {
+        try {
+          await resend.emails.send({
+            from: FROM_SENDER,
+            to: [validCustomerEmail],
+            subject: `Status Update: ${orderDetails.status} - #${orderDetails.tracking_id} | Mahin's Store`,
+            html: statusHtml,
+          })
+        } catch (e) {
+          console.error('Failed sending status email to customer:', e)
+        }
       }
 
-      // 2. Always send status change confirmation to admin
-      await resend.emails.send({
-        from: FROM_SENDER,
-        to: [ADMIN_EMAIL],
-        subject: `[STATUS UPDATED] #${orderDetails.tracking_id} → ${orderDetails.status}`,
-        html: statusHtml,
-      })
+      // Always send notification copy to Admin
+      try {
+        await resend.emails.send({
+          from: FROM_SENDER,
+          to: [ADMIN_EMAIL],
+          subject: `[STATUS UPDATED] #${orderDetails.tracking_id} → ${orderDetails.status}`,
+          html: statusHtml,
+        })
+      } catch (e) {
+        console.error('Failed sending status email to admin:', e)
+      }
     }
 
-    return NextResponse.json({ success: true, message: 'Emails dispatched successfully' })
+    return NextResponse.json({ success: true, message: 'Emails processed successfully' })
   } catch (error: any) {
     console.error('Email Dispatch Error:', error)
     return NextResponse.json(

@@ -315,7 +315,7 @@ export default function AdminPage() {
       customReason = `Admin cancelled due to: ${reasonInput.trim() || 'No reason provided'}`
     }
 
-    // Get order from current memory state first
+    // 1. Get order from current memory state first
     const currentOrder = orders.find(o => o.id === orderId)
     if (!currentOrder) return
 
@@ -326,13 +326,14 @@ export default function AdminPage() {
       updatePayload.cancellation_reason = customReason
     }
 
+    // 2. Update Supabase order status
     const { error } = await supabase.from('orders').update(updatePayload).eq('id', orderId)
     if (error) {
       setErrorMsg(`Failed to update order status: ${error.message}`)
       return
     }
 
-    // Stock replenishment / deduction handling
+    // 3. Stock replenishment / deduction handling
     if (newStatus === 'Cancelled' && oldStatus !== 'Cancelled') {
       if (Array.isArray(currentOrder.items)) {
         for (const item of currentOrder.items) {
@@ -359,13 +360,23 @@ export default function AdminPage() {
       }
     }
 
-    // Extract customer email with fallbacks
-    const targetCustomerEmail =
+    // 4. Resolve customer email across all potential schema keys
+    let targetCustomerEmail =
       currentOrder.customer_email ||
       currentOrder.email ||
       currentOrder.user_email ||
+      currentOrder.customerEmail ||
       ''
 
+    // If missing from direct fields, extract from address text if available
+    if (!targetCustomerEmail && typeof currentOrder.shipping_address === 'string') {
+      const emailMatch = currentOrder.shipping_address.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
+      if (emailMatch) {
+        targetCustomerEmail = emailMatch[0]
+      }
+    }
+
+    // 5. Dispatch email notification
     try {
       await fetch('/api/send-order-email', {
         method: 'POST',
@@ -385,7 +396,11 @@ export default function AdminPage() {
       console.error('Failed to trigger status update email notification:', err)
     }
 
-    setSuccessMsg(`Order #${currentOrder.tracking_id} updated to "${newStatus}"! Notifications dispatched.`)
+    setSuccessMsg(
+      `Order #${currentOrder.tracking_id} updated to "${newStatus}"! ${
+        targetCustomerEmail ? `Email sent to ${targetCustomerEmail}` : 'Status updated.'
+      }`
+    )
     fetchAdminData()
   }
 
