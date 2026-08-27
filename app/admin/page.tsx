@@ -203,6 +203,7 @@ export default function AdminPage() {
     setEditImageInputs(editImageInputs.filter((_, i) => i !== index))
   }
 
+  // 1. SECURE PRODUCT ADD VIA SERVER API ROUTE
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
@@ -210,28 +211,36 @@ export default function AdminPage() {
 
     const filteredImages = imageInputs.filter(url => url.trim() !== '').join(',')
 
-    const { error } = await supabase.from('products').insert([
-      { 
-        name, 
-        price: parseFloat(price), 
-        stock: parseInt(stock), 
-        category: category.trim(), 
-        description,
-        image_url: filteredImages 
-      }
-    ])
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name, 
+          price: parseFloat(price), 
+          stock: parseInt(stock), 
+          category: category.trim(), 
+          description,
+          image_url: filteredImages 
+        })
+      })
 
-    if (error) {
-      setErrorMsg(`Error adding product: ${error.message}`)
-    } else {
-      setSuccessMsg('Product added successfully with timestamp!')
-      setName('')
-      setPrice('')
-      setStock('')
-      setCategory('')
-      setDescription('')
-      setImageInputs([''])
-      fetchAdminData()
+      const data = await res.json()
+
+      if (data.success) {
+        setSuccessMsg('Product added successfully via secure admin API!')
+        setName('')
+        setPrice('')
+        setStock('')
+        setCategory('')
+        setDescription('')
+        setImageInputs([''])
+        fetchAdminData()
+      } else {
+        setErrorMsg(`Failed to add product: ${data.error || 'Server error'}`)
+      }
+    } catch (err: any) {
+      setErrorMsg(`Network error: ${err.message}`)
     }
   }
 
@@ -272,6 +281,7 @@ export default function AdminPage() {
     }
   }
 
+  // 2. SECURE PRODUCT UPDATE VIA SERVER API ROUTE
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
@@ -279,34 +289,58 @@ export default function AdminPage() {
 
     const filteredImages = editImageInputs.filter(url => url.trim() !== '').join(',')
 
-    const { error } = await supabase
-      .from('products')
-      .update({
-        name: editName,
-        price: parseFloat(editPrice),
-        stock: parseInt(editStock),
-        category: editCategory.trim(),
-        description: editDescription,
-        image_url: filteredImages,
-        updated_at: new Date().toISOString()
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingProduct.id,
+          name: editName,
+          price: parseFloat(editPrice),
+          stock: parseInt(editStock),
+          category: editCategory.trim(),
+          description: editDescription,
+          image_url: filteredImages,
+          updated_at: new Date().toISOString()
+        })
       })
-      .eq('id', editingProduct.id)
 
-    if (error) {
-      setErrorMsg(`Error updating product: ${error.message}`)
-    } else {
-      setSuccessMsg('Product updated successfully and edit timestamp recorded!')
-      setEditingProduct(null)
-      fetchAdminData()
+      const data = await res.json()
+
+      if (data.success) {
+        setSuccessMsg('Product updated successfully!')
+        setEditingProduct(null)
+        fetchAdminData()
+      } else {
+        setErrorMsg(`Failed to update product: ${data.error}`)
+      }
+    } catch (err: any) {
+      setErrorMsg(`Network error: ${err.message}`)
     }
   }
 
+  // 3. SECURE PRODUCT DELETE VIA SERVER API ROUTE
   const handleDeleteProduct = async (id: string) => {
-    const { error } = await supabase.from('products').delete().eq('id', id)
-    if (error) setErrorMsg(error.message)
-    else fetchAdminData()
+    if (!confirm('Are you sure you want to delete this product?')) return
+
+    try {
+      const res = await fetch(`/api/admin/products?id=${id}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setSuccessMsg('Product deleted successfully!')
+        fetchAdminData()
+      } else {
+        setErrorMsg(`Failed to delete product: ${data.error}`)
+      }
+    } catch (err: any) {
+      setErrorMsg(`Network error: ${err.message}`)
+    }
   }
 
+  // 4. SECURE ORDER STATUS UPDATE VIA SERVER API ROUTE
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     let customReason = ''
     if (newStatus === 'Cancelled') {
@@ -331,7 +365,7 @@ export default function AdminPage() {
       const data = await res.json()
 
       if (data.success) {
-        setSuccessMsg(`Order status updated to "${newStatus}"! Email sent to ${data.customerEmail}.`)
+        setSuccessMsg(`Order status updated to "${newStatus}"! Notification sent to ${data.customerEmail}.`)
         fetchAdminData()
       } else {
         setErrorMsg(data.error || 'Failed to update order status.')
