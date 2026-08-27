@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
 
+  // Inventory Products State
   const [products, setProducts] = useState<any[]>([])
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
@@ -35,10 +36,12 @@ export default function AdminPage() {
   const [description, setDescription] = useState('')
   const [imageInputs, setImageInputs] = useState<string[]>([''])
 
+  // Products Filter State
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL')
   const [stockFilter, setStockFilter] = useState('ALL')
 
+  // Product Editing & Preview State
   const [editingProduct, setEditingProduct] = useState<any | null>(null)
   const [editName, setEditName] = useState('')
   const [editPrice, setEditPrice] = useState('')
@@ -58,7 +61,12 @@ export default function AdminPage() {
   const [activeOrderGalleryImages, setActiveOrderGalleryImages] = useState<string[] | null>(null)
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0)
 
+  // Orders State & Advanced Filter State
   const [orders, setOrders] = useState<any[]>([])
+  const [orderSearchQuery, setOrderSearchQuery] = useState('')
+  const [orderAmountSort, setOrderAmountSort] = useState<'DEFAULT' | 'HIGH_TO_LOW' | 'LOW_TO_HIGH'>('DEFAULT')
+  const [minAmountFilter, setMinAmountFilter] = useState('')
+  const [maxAmountFilter, setMaxAmountFilter] = useState('')
 
   useEffect(() => {
     if (isAdminAuthenticated) {
@@ -203,7 +211,6 @@ export default function AdminPage() {
     setEditImageInputs(editImageInputs.filter((_, i) => i !== index))
   }
 
-  // 1. SECURE PRODUCT ADD VIA SERVER API ROUTE
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
@@ -281,7 +288,6 @@ export default function AdminPage() {
     }
   }
 
-  // 2. SECURE PRODUCT UPDATE VIA SERVER API ROUTE
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
@@ -319,7 +325,6 @@ export default function AdminPage() {
     }
   }
 
-  // 3. SECURE PRODUCT DELETE VIA SERVER API ROUTE
   const handleDeleteProduct = async (id: string) => {
     if (!confirm('Are you sure you want to delete this product?')) return
 
@@ -340,7 +345,6 @@ export default function AdminPage() {
     }
   }
 
-  // 4. SECURE ORDER STATUS UPDATE VIA SERVER API ROUTE
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     let customReason = ''
     if (newStatus === 'Cancelled') {
@@ -413,10 +417,48 @@ export default function AdminPage() {
     return matchesSearch && matchesCategory && matchesStock
   })
 
-  const filteredAdminOrders = orders.filter(o => {
-    if (activeAdminOrderTab === 'ALL') return true
-    return (o.status || 'Pending').toUpperCase() === activeAdminOrderTab.toUpperCase()
-  })
+  // Advanced Customer Orders Filter Calculation
+  const filteredAdminOrders = orders
+    .filter(o => {
+      // 1. Status Tab filter
+      const matchesStatus = activeAdminOrderTab === 'ALL' || (o.status || 'Pending').toUpperCase() === activeAdminOrderTab.toUpperCase()
+      if (!matchesStatus) return false
+
+      // 2. Search query across Tracking ID, Customer Name, Email, Address, and Ordered Items
+      const searchTarget = orderSearchQuery.toLowerCase().trim()
+      let matchesSearch = true
+      if (searchTarget) {
+        const tracking = (o.tracking_id || '').toLowerCase()
+        const customerName = (o.customer_name || '').toLowerCase()
+        const customerEmail = (o.customer_email || '').toLowerCase()
+        const shippingAddr = (o.shipping_address || '').toLowerCase()
+        const itemsList = Array.isArray(o.items) ? o.items.map((i: any) => (i.name || '').toLowerCase()).join(' ') : ''
+        
+        matchesSearch = 
+          tracking.includes(searchTarget) || 
+          customerName.includes(searchTarget) || 
+          customerEmail.includes(searchTarget) || 
+          shippingAddr.includes(searchTarget) ||
+          itemsList.includes(searchTarget)
+      }
+      if (!matchesSearch) return false
+
+      // 3. Min/Max Amount Range Filter
+      const totalAmount = Number(o.total_amount || o.final_payable_amount || 0)
+      if (minAmountFilter && totalAmount < Number(minAmountFilter)) return false
+      if (maxAmountFilter && totalAmount > Number(maxAmountFilter)) return false
+
+      return true
+    })
+    .sort((a, b) => {
+      // 4. Amount Sorting
+      const amountA = Number(a.total_amount || a.final_payable_amount || 0)
+      const amountB = Number(b.total_amount || b.final_payable_amount || 0)
+
+      if (orderAmountSort === 'HIGH_TO_LOW') return amountB - amountA
+      if (orderAmountSort === 'LOW_TO_HIGH') return amountA - amountB
+      return 0
+    })
 
   const getAdminOrderCount = (status: string) => {
     if (status === 'ALL') return orders.length
@@ -771,8 +813,67 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="bg-white p-6 rounded-2xl shadow-md">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">Customer Orders ({orders.length})</h2>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Customer Orders ({orders.length})</h2>
+                <p className="text-xs text-gray-500">Showing {filteredAdminOrders.length} filtered results</p>
+              </div>
 
+              {/* Advanced Filter Toolbar */}
+              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                <input
+                  type="text"
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  placeholder="🔍 Search Tracking ID, Name, Email, Items..."
+                  className="border border-gray-300 p-2 rounded-lg text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 shadow-sm"
+                />
+
+                <select
+                  value={orderAmountSort}
+                  onChange={(e: any) => setOrderAmountSort(e.target.value)}
+                  className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium shadow-sm"
+                >
+                  <option value="DEFAULT">Sort Amount: Default</option>
+                  <option value="HIGH_TO_LOW">Amount: High to Low (₹₹₹)</option>
+                  <option value="LOW_TO_HIGH">Amount: Low to High (₹)</option>
+                </select>
+
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={minAmountFilter}
+                    onChange={(e) => setMinAmountFilter(e.target.value)}
+                    placeholder="Min ₹"
+                    className="border border-gray-300 p-2 rounded-lg text-xs w-20 text-gray-900 focus:outline-indigo-600 shadow-sm"
+                  />
+                  <span className="text-gray-400 text-xs">-</span>
+                  <input
+                    type="number"
+                    value={maxAmountFilter}
+                    onChange={(e) => setMaxAmountFilter(e.target.value)}
+                    placeholder="Max ₹"
+                    className="border border-gray-300 p-2 rounded-lg text-xs w-20 text-gray-900 focus:outline-indigo-600 shadow-sm"
+                  />
+                </div>
+
+                {(orderSearchQuery || orderAmountSort !== 'DEFAULT' || minAmountFilter || maxAmountFilter) && (
+                  <button
+                    onClick={() => {
+                      setOrderSearchQuery('')
+                      setOrderAmountSort('DEFAULT')
+                      setMinAmountFilter('')
+                      setMaxAmountFilter('')
+                    }}
+                    className="text-xs text-red-600 hover:underline font-bold px-2.5 py-1.5 bg-red-50 rounded-lg border border-red-200"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Status Tab Selectors */}
             <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
               {['ALL', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => {
                 const count = getAdminOrderCount(status)
@@ -795,14 +896,17 @@ export default function AdminPage() {
             {loading ? (
               <p className="text-gray-500">Loading orders...</p>
             ) : filteredAdminOrders.length === 0 ? (
-              <p className="text-gray-500">No orders found under "{activeAdminOrderTab}" status.</p>
+              <div className="py-12 text-center text-gray-500">
+                <p className="text-sm font-semibold">No orders match your filter criteria.</p>
+                <p className="text-xs text-gray-400 mt-1">Try clearing filters or switching status tabs.</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50 text-gray-600">
                       <th className="p-3">Tracking ID</th>
-                      <th className="p-3">Customer</th>
+                      <th className="p-3">Customer & Email</th>
                       <th className="p-3">Items Ordered & Images</th>
                       <th className="p-3">Total Amount</th>
                       <th className="p-3">Shipping Address</th>
@@ -812,8 +916,13 @@ export default function AdminPage() {
                   <tbody>
                     {filteredAdminOrders.map((o) => (
                       <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                        <td className="p-3 font-mono text-xs font-bold text-indigo-900 whitespace-nowrap">{o.tracking_id || 'N/A'}</td>
-                        <td className="p-3 font-semibold text-gray-900 whitespace-nowrap">{o.customer_name || 'Guest'}</td>
+                        <td className="p-3 font-mono text-xs font-bold text-indigo-900 whitespace-nowrap">
+                          {o.tracking_id || 'N/A'}
+                        </td>
+                        <td className="p-3 whitespace-nowrap">
+                          <div className="font-semibold text-gray-900">{o.customer_name || 'Guest'}</div>
+                          <div className="text-[11px] text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
+                        </td>
                         <td className="p-3 text-xs">
                           {Array.isArray(o.items) && o.items.length > 0 ? (
                             <div className="space-y-2">
@@ -855,7 +964,9 @@ export default function AdminPage() {
                             <span className="text-gray-400">No items data</span>
                           )}
                         </td>
-                        <td className="p-3 font-bold text-indigo-600 whitespace-nowrap">₹{o.total_amount || o.final_payable_amount}</td>
+                        <td className="p-3 font-bold text-indigo-600 whitespace-nowrap text-base">
+                          ₹{o.total_amount || o.final_payable_amount}
+                        </td>
                         <td className="p-3 text-gray-700 text-xs max-w-xs">
                           <div className="bg-gray-50 p-2.5 rounded border border-gray-200 leading-relaxed mb-2">
                             {o.shipping_address || 'No address provided'}
@@ -865,7 +976,7 @@ export default function AdminPage() {
                               navigator.clipboard.writeText(o.shipping_address || '')
                               alert('Shipping address copied to clipboard!')
                             }}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded transition border border-indigo-200"
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded transition border border-indigo-200 cursor-pointer"
                           >
                             📋 Copy Full Address
                           </button>
@@ -898,6 +1009,7 @@ export default function AdminPage() {
         )}
       </div>
 
+      {/* Stock Audit Logs Modal */}
       {auditingProduct && (
         <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
@@ -957,6 +1069,7 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Image Gallery Modal */}
       {activeOrderGalleryImages && (
         <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 relative">
@@ -982,6 +1095,7 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Customer View Modal */}
       {viewingProduct && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
@@ -1026,6 +1140,7 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Edit Product Modal */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
