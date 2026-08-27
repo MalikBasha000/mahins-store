@@ -315,93 +315,32 @@ export default function AdminPage() {
       customReason = `Admin cancelled due to: ${reasonInput.trim() || 'No reason provided'}`
     }
 
-    // 1. Get order from current memory state first
-    const currentOrder = orders.find(o => o.id === orderId)
-    if (!currentOrder) return
+    setLoading(true)
 
-    const oldStatus = currentOrder.status
-
-    const updatePayload: any = { status: newStatus }
-    if (newStatus === 'Cancelled') {
-      updatePayload.cancellation_reason = customReason
-    }
-
-    // 2. Update Supabase order status
-    const { error } = await supabase.from('orders').update(updatePayload).eq('id', orderId)
-    if (error) {
-      setErrorMsg(`Failed to update order status: ${error.message}`)
-      return
-    }
-
-    // 3. Stock replenishment / deduction handling
-    if (newStatus === 'Cancelled' && oldStatus !== 'Cancelled') {
-      if (Array.isArray(currentOrder.items)) {
-        for (const item of currentOrder.items) {
-          const prodId = item.id || item.product_id
-          const qty = item.quantity || 1
-          const { data: prod } = await supabase.from('products').select('stock').eq('id', prodId).single()
-          if (prod) {
-            await supabase.from('products').update({ stock: prod.stock + qty }).eq('id', prodId)
-          }
-        }
-      }
-    }
-
-    if (oldStatus === 'Cancelled' && newStatus !== 'Cancelled') {
-      if (Array.isArray(currentOrder.items)) {
-        for (const item of currentOrder.items) {
-          const prodId = item.id || item.product_id
-          const qty = item.quantity || 1
-          const { data: prod } = await supabase.from('products').select('stock').eq('id', prodId).single()
-          if (prod) {
-            await supabase.from('products').update({ stock: Math.max(0, prod.stock - qty) }).eq('id', prodId)
-          }
-        }
-      }
-    }
-
-    // 4. Resolve customer email across all potential schema keys
-    let targetCustomerEmail =
-      currentOrder.customer_email ||
-      currentOrder.email ||
-      currentOrder.user_email ||
-      currentOrder.customerEmail ||
-      ''
-
-    if (!targetCustomerEmail && typeof currentOrder.shipping_address === 'string') {
-      const emailMatch = currentOrder.shipping_address.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
-      if (emailMatch) {
-        targetCustomerEmail = emailMatch[0]
-      }
-    }
-
-    // 5. Dispatch email notification with orderId explicitly attached
     try {
-      await fetch('/api/send-order-email', {
-        method: 'POST',
+      const res = await fetch('/api/admin/orders', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'STATUS_UPDATE',
-          orderId: orderId,
-          customerEmail: targetCustomerEmail,
-          orderDetails: {
-            tracking_id: currentOrder.tracking_id,
-            status: newStatus,
-            reason: customReason || currentOrder.cancellation_reason,
-            items: currentOrder.items || []
-          }
-        })
+          orderId,
+          newStatus,
+          customReason,
+        }),
       })
-    } catch (err) {
-      console.error('Failed to trigger status update email notification:', err)
+
+      const data = await res.json()
+
+      if (data.success) {
+        setSuccessMsg(`Order status updated to "${newStatus}"! Email sent to ${data.customerEmail}.`)
+        fetchAdminData()
+      } else {
+        setErrorMsg(data.error || 'Failed to update order status.')
+      }
+    } catch (err: any) {
+      setErrorMsg(`Network error: ${err.message}`)
     }
 
-    setSuccessMsg(
-      `Order #${currentOrder.tracking_id} updated to "${newStatus}"! ${
-        targetCustomerEmail ? `Email sent to ${targetCustomerEmail}` : 'Status updated.'
-      }`
-    )
-    fetchAdminData()
+    setLoading(false)
   }
 
   const getTenDigitId = (id: string) => {
