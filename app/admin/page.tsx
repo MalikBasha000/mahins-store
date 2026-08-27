@@ -21,7 +21,7 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products')
+  const [activeTab, setActiveTab] = useState<'products' | 'orders'>('orders')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -813,47 +813,48 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="bg-white p-6 rounded-2xl shadow-md">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4">
+            {/* Header & Advanced Filter Bar */}
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Customer Orders ({orders.length})</h2>
                 <p className="text-xs text-gray-500">Showing {filteredAdminOrders.length} filtered results</p>
               </div>
 
               {/* Advanced Filter Toolbar */}
-              <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
                 <input
                   type="text"
                   value={orderSearchQuery}
                   onChange={(e) => setOrderSearchQuery(e.target.value)}
                   placeholder="🔍 Search Tracking ID, Name, Email, Items..."
-                  className="border border-gray-300 p-2 rounded-lg text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 shadow-sm"
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 shadow-sm"
                 />
 
                 <select
                   value={orderAmountSort}
                   onChange={(e: any) => setOrderAmountSort(e.target.value)}
-                  className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium shadow-sm"
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium shadow-sm"
                 >
                   <option value="DEFAULT">Sort Amount: Default</option>
                   <option value="HIGH_TO_LOW">Amount: High to Low (₹₹₹)</option>
                   <option value="LOW_TO_HIGH">Amount: Low to High (₹)</option>
                 </select>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
                   <input
                     type="number"
                     value={minAmountFilter}
                     onChange={(e) => setMinAmountFilter(e.target.value)}
                     placeholder="Min ₹"
-                    className="border border-gray-300 p-2 rounded-lg text-xs w-20 text-gray-900 focus:outline-indigo-600 shadow-sm"
+                    className="border border-gray-300 p-1.5 rounded-lg text-xs w-20 text-gray-900 bg-white focus:outline-indigo-600"
                   />
-                  <span className="text-gray-400 text-xs">-</span>
+                  <span className="text-gray-400 text-xs font-bold">-</span>
                   <input
                     type="number"
                     value={maxAmountFilter}
                     onChange={(e) => setMaxAmountFilter(e.target.value)}
                     placeholder="Max ₹"
-                    className="border border-gray-300 p-2 rounded-lg text-xs w-20 text-gray-900 focus:outline-indigo-600 shadow-sm"
+                    className="border border-gray-300 p-1.5 rounded-lg text-xs w-20 text-gray-900 bg-white focus:outline-indigo-600"
                   />
                 </div>
 
@@ -865,7 +866,7 @@ export default function AdminPage() {
                       setMinAmountFilter('')
                       setMaxAmountFilter('')
                     }}
-                    className="text-xs text-red-600 hover:underline font-bold px-2.5 py-1.5 bg-red-50 rounded-lg border border-red-200"
+                    className="text-xs text-red-600 hover:bg-red-100 font-bold px-3 py-2 bg-red-50 rounded-xl border border-red-200 transition"
                   >
                     Clear Filters
                   </button>
@@ -1095,7 +1096,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Customer View Modal */}
       {viewingProduct && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
@@ -1140,7 +1140,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Edit Product Modal */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
