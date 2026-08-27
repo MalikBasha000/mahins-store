@@ -6,17 +6,22 @@ export const dynamic = 'force-dynamic'
 
 function getSupabaseAdmin() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
+  const serviceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_KEY ||
+    process.env.SERVICE_ROLE_KEY
 
   if (!supabaseUrl) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL is missing')
+    throw new Error('Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL is missing.')
   }
 
-  if (!serviceRoleKey) {
-    console.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing from environment variables!')
+  if (!serviceKey) {
+    throw new Error(
+      'Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY is missing from Vercel Environment Variables. Please add the secret key in Project Settings -> API.'
+    )
   }
 
-  return createClient(supabaseUrl, serviceRoleKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  return createClient(supabaseUrl, serviceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -24,7 +29,7 @@ function getSupabaseAdmin() {
   })
 }
 
-// POST: Add new product
+// POST: Add new product (Bypasses RLS with service_role)
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -36,13 +41,11 @@ export async function POST(req: Request) {
       .select()
 
     if (error) {
-      console.error('Supabase Product Insert Error:', error)
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, product: data })
   } catch (err: any) {
-    console.error('Server error in POST /api/admin/products:', err)
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }
@@ -53,7 +56,7 @@ export async function PUT(req: Request) {
     const { id, ...updates } = await req.json()
 
     if (!id) {
-      return NextResponse.json({ success: false, error: 'Product ID is required' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Product ID is required.' }, { status: 400 })
     }
 
     const supabaseAdmin = getSupabaseAdmin()
@@ -64,13 +67,11 @@ export async function PUT(req: Request) {
       .eq('id', id)
 
     if (error) {
-      console.error('Supabase Product Update Error:', error)
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
-    console.error('Server error in PUT /api/admin/products:', err)
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }
@@ -82,20 +83,18 @@ export async function DELETE(req: Request) {
     const id = searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json({ success: false, error: 'Product ID is required' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Product ID is required.' }, { status: 400 })
     }
 
     const supabaseAdmin = getSupabaseAdmin()
     const { error } = await supabaseAdmin.from('products').delete().eq('id', id)
 
     if (error) {
-      console.error('Supabase Product Delete Error:', error)
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {
-    console.error('Server error in DELETE /api/admin/products:', err)
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }
