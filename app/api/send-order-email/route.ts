@@ -1,23 +1,55 @@
 // app/api/send-order-email/route.ts
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { createClient } from '@supabase/supabase-js'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: Request) {
   try {
-    const { type, customerEmail, orderDetails } = await req.json()
+    const { type, customerEmail, orderDetails, orderId } = await req.json()
     const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
     const FROM_SENDER = "Mahin's One-Stop One-Store <orders@mahinsonestoponestore.in>"
     
-    // Website URLs
     const baseUrl = 'https://www.mahinsonestoponestore.in'
     const adminLoginUrl = 'https://www.mahinsonestoponestore.in/admin'
 
-    // Parse items list
+    // Initialize backend Supabase admin client
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+
+    // Resolve customer email automatically if missing or invalid
+    let resolvedCustomerEmail = customerEmail && customerEmail.includes('@') ? customerEmail.trim() : ''
+
+    if (!resolvedCustomerEmail && (orderId || orderDetails?.tracking_id)) {
+      const query = supabaseAdmin.from('orders').select('*')
+      if (orderId) query.eq('id', orderId)
+      else if (orderDetails?.tracking_id) query.eq('tracking_id', orderDetails.tracking_id)
+
+      const { data: dbOrder } = await query.maybeSingle()
+
+      if (dbOrder) {
+        resolvedCustomerEmail = 
+          dbOrder.customer_email || 
+          dbOrder.email || 
+          dbOrder.user_email || 
+          dbOrder.customerEmail || 
+          ''
+
+        // Fallback: If user_id exists, fetch email from auth
+        if (!resolvedCustomerEmail && dbOrder.user_id) {
+          const { data: authUserData } = await supabaseAdmin.auth.admin.getUserById(dbOrder.user_id)
+          if (authUserData?.user?.email) {
+            resolvedCustomerEmail = authUserData.user.email
+          }
+        }
+      }
+    }
+
     const items = Array.isArray(orderDetails?.items) ? orderDetails.items : []
 
-    // Generate Items HTML Table with Images & Calculations
     const itemsHtml = items.map((item: any) => {
       const itemImg = item.image_url 
         ? item.image_url.split(',')[0].trim() 
@@ -46,9 +78,6 @@ export async function POST(req: Request) {
     }).join('')
 
     if (type === 'ORDER_PLACED') {
-      // -------------------------------------------------------------
-      // TEMPLATE A: CUSTOMER ORDER CONFIRMATION
-      // -------------------------------------------------------------
       const customerHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #312e81; padding: 24px; text-align: center;">
@@ -89,7 +118,6 @@ export async function POST(req: Request) {
               </p>
             </div>
 
-            <!-- Action Button -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0 10px 0;">
               <tr>
                 <td align="center">
@@ -113,9 +141,6 @@ export async function POST(req: Request) {
         </div>
       `
 
-      // -------------------------------------------------------------
-      // TEMPLATE B: ADMIN ORDER ALERT
-      // -------------------------------------------------------------
       const adminHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff; border: 2px solid #4338ca; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #1e1b4b; padding: 20px; color: #ffffff;">
@@ -131,7 +156,7 @@ export async function POST(req: Request) {
               </tr>
               <tr>
                 <td style="padding: 6px 12px; color: #6b7280;"><strong>Customer Email:</strong></td>
-                <td style="padding: 6px 12px; color: #111827;">${customerEmail || 'No email provided'}</td>
+                <td style="padding: 6px 12px; color: #111827;">${resolvedCustomerEmail || 'No email provided'}</td>
               </tr>
               <tr>
                 <td style="padding: 6px 12px; color: #6b7280;"><strong>Tracking ID:</strong></td>
@@ -157,7 +182,6 @@ export async function POST(req: Request) {
               ${itemsHtml || '<tr><td colspan="4" style="padding: 10px; text-align: center; color: #9ca3af;">Item details available in dashboard</td></tr>'}
             </table>
 
-            <!-- Action Button -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0 10px 0;">
               <tr>
                 <td align="center">
@@ -177,12 +201,11 @@ export async function POST(req: Request) {
         </div>
       `
 
-      // Dispatch Customer Email
-      if (customerEmail && customerEmail.trim() !== '') {
+      if (resolvedCustomerEmail) {
         try {
           await resend.emails.send({
             from: FROM_SENDER,
-            to: [customerEmail.trim()],
+            to: [resolvedCustomerEmail],
             subject: `Order Confirmation - #${orderDetails.tracking_id} | Mahin's One-Stop One-Store`,
             html: customerHtml,
           })
@@ -191,7 +214,6 @@ export async function POST(req: Request) {
         }
       }
 
-      // Dispatch Admin Email
       try {
         await resend.emails.send({
           from: FROM_SENDER,
@@ -204,9 +226,6 @@ export async function POST(req: Request) {
       }
 
     } else if (type === 'STATUS_UPDATE') {
-      // -------------------------------------------------------------
-      // TEMPLATE C: STATUS UPDATE NOTIFICATION
-      // -------------------------------------------------------------
       const statusHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #312e81; padding: 20px; text-align: center;">
@@ -236,7 +255,6 @@ export async function POST(req: Request) {
               </p>
             </div>
 
-            <!-- Action Button -->
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 16px 0 10px 0;">
               <tr>
                 <td align="center">
@@ -256,14 +274,12 @@ export async function POST(req: Request) {
         </div>
       `
 
-      // Send to Customer if valid email provided
-      const validCustomerEmail = customerEmail && typeof customerEmail === 'string' && customerEmail.includes('@') ? customerEmail.trim() : null
-
-      if (validCustomerEmail) {
+      // 1. Send status update to customer
+      if (resolvedCustomerEmail) {
         try {
           await resend.emails.send({
             from: FROM_SENDER,
-            to: [validCustomerEmail],
+            to: [resolvedCustomerEmail],
             subject: `Status Update: ${orderDetails.status} - #${orderDetails.tracking_id} | Mahin's Store`,
             html: statusHtml,
           })
@@ -272,7 +288,7 @@ export async function POST(req: Request) {
         }
       }
 
-      // Always send notification copy to Admin
+      // 2. Send status confirmation to admin
       try {
         await resend.emails.send({
           from: FROM_SENDER,
@@ -285,7 +301,11 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, message: 'Emails processed successfully' })
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Emails processed', 
+      customerSentTo: resolvedCustomerEmail 
+    })
   } catch (error: any) {
     console.error('Email Dispatch Error:', error)
     return NextResponse.json(

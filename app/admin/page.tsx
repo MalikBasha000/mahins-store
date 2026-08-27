@@ -368,7 +368,6 @@ export default function AdminPage() {
       currentOrder.customerEmail ||
       ''
 
-    // If missing from direct fields, extract from address text if available
     if (!targetCustomerEmail && typeof currentOrder.shipping_address === 'string') {
       const emailMatch = currentOrder.shipping_address.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
       if (emailMatch) {
@@ -376,13 +375,14 @@ export default function AdminPage() {
       }
     }
 
-    // 5. Dispatch email notification
+    // 5. Dispatch email notification with orderId explicitly attached
     try {
       await fetch('/api/send-order-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'STATUS_UPDATE',
+          orderId: orderId,
           customerEmail: targetCustomerEmail,
           orderDetails: {
             tracking_id: currentOrder.tracking_id,
