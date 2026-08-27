@@ -141,7 +141,6 @@ export default function CheckoutPage() {
       ].filter(Boolean).join(', ')
 
       const formattedPhone = `${countryCode} ${phone}`.trim()
-      // Include email cleanly in the snapshot and address
       const formattedAddress = `${housePlotPart}, Street: ${street}, City: ${city}, District: ${district}, State: ${stateName}, Pincode: ${pincode}, Phone: ${formattedPhone}`
 
       const addressSnapshotObj = {
@@ -159,7 +158,7 @@ export default function CheckoutPage() {
         formatted: formattedAddress
       }
 
-      // Safe Insert matching known table columns without non-existent top-level columns
+      // Safe order insert without non-existent top-level columns
       const orderPayload: any = {
         user_id: currentUserId,
         tracking_id: newTrackingId,
@@ -272,7 +271,7 @@ export default function CheckoutPage() {
               Return to Store
             </Link>
             <Link
-              href={`/track-order?id=${trackingId}`}
+              href={`/track?id=${trackingId}`}
               className="w-1/2 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm shadow-md transition flex items-center justify-center gap-1.5"
             >
               Track Order 📦
@@ -482,6 +481,7 @@ export default function CheckoutPage() {
             </form>
           </div>
 
+          {/* Sidebar */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 h-fit">
             <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-3 mb-4">
               Order Summary ({cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)} items)

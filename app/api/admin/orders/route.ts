@@ -36,7 +36,7 @@ async function extractOrderEmail(order: any, supabaseAdmin: any): Promise<string
         }
       }
     } catch {
-      // ignore JSON parse error
+      // Ignore JSON parse error
     }
   }
 
@@ -141,7 +141,7 @@ export async function PATCH(req: Request) {
     // 2. Resolve Customer Email
     const customerEmail = await extractOrderEmail(order, supabaseAdmin)
 
-    // 3. Update status in Database (only columns guaranteed to exist)
+    // 3. Update status in Database
     const updatePayload: any = { status: newStatus }
     if (newStatus === 'Cancelled') {
       updatePayload.cancellation_reason = customReason
@@ -179,7 +179,7 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // 5. CUSTOMER EMAIL (Direct Live Track Link)
+    // 5. CUSTOMER EMAIL (Direct link to /track?id=)
     const customerStatusHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
         <div style="background-color: #312e81; padding: 24px; text-align: center;">
@@ -216,7 +216,7 @@ export async function PATCH(req: Request) {
                 <table border="0" cellpadding="0" cellspacing="0">
                   <tr>
                     <td align="center" bgcolor="#4f46e5" style="border-radius: 8px;">
-                      <a href="${baseUrl}/track-order?id=${order.tracking_id}" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; border: 1px solid #4f46e5; display: inline-block;">
+                      <a href="${baseUrl}/track?id=${order.tracking_id}" target="_blank" rel="noopener noreferrer" style="font-size: 13px; font-family: sans-serif; font-weight: bold; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; border: 1px solid #4f46e5; display: inline-block;">
                         Track Order Live 📦
                       </a>
                     </td>
