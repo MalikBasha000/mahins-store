@@ -394,15 +394,18 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  const getTenDigitId = (id: string) => {
-    if (!id) return '1000000000'
-    let hash = 0
+  // 12-Digit Numeric ID Generator for Customer and Product Display
+  const getTwelveDigitId = (id: string) => {
+    if (!id) return '100000000000'
+    let hash1 = 5381
+    let hash2 = 52711
     for (let i = 0; i < id.length; i++) {
-      hash = (hash << 5) - hash + id.charCodeAt(i)
-      hash |= 0
+      const char = id.charCodeAt(i)
+      hash1 = (hash1 * 33) ^ char
+      hash2 = (hash2 * 33) ^ char
     }
-    const positive = Math.abs(hash)
-    return String(positive).padStart(10, '0').slice(0, 10)
+    const combined = Math.abs(hash1).toString().padStart(6, '0') + Math.abs(hash2).toString().padStart(6, '0')
+    return combined.slice(0, 12)
   }
 
   const categoriesList = Array.from(
@@ -414,11 +417,11 @@ export default function AdminPage() {
   ).sort((a: any, b: any) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
 
   const filteredProducts = products.filter(p => {
-    const tenId = getTenDigitId(p.id)
+    const twelveId = getTwelveDigitId(p.id)
     const matchesSearch = 
       (p.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (p.category || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tenId.includes(searchQuery)
+      twelveId.includes(searchQuery)
 
     const matchesCategory = selectedCategoryFilter === 'ALL' || (p.category && p.category.trim().toLowerCase() === selectedCategoryFilter.toLowerCase())
 
@@ -473,13 +476,13 @@ export default function AdminPage() {
   const filteredCustomers = customers.filter((c) => {
     const q = customerSearchQuery.toLowerCase().trim()
     if (!q) return true
-    const tenId = getTenDigitId(c.id)
+    const twelveId = getTwelveDigitId(c.id)
     return (
       (c.name || '').toLowerCase().includes(q) ||
       (c.email || '').toLowerCase().includes(q) ||
       (c.phone || '').toLowerCase().includes(q) ||
       (c.current_profile_address || '').toLowerCase().includes(q) ||
-      tenId.includes(q)
+      twelveId.includes(q)
     )
   })
 
@@ -804,7 +807,7 @@ export default function AdminPage() {
                         const firstImage = p.image_url ? p.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
                         const addedDate = p.created_at ? new Date(p.created_at).toLocaleString() : 'N/A'
                         const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleString() : null
-                        const tenDigitId = getTenDigitId(p.id)
+                        const twelveDigitId = getTwelveDigitId(p.id)
 
                         return (
                           <tr key={p.id} className="border-b hover:bg-gray-50 align-top">
@@ -814,7 +817,7 @@ export default function AdminPage() {
                                 <button onClick={() => openCustomerPreview(p)} className="font-bold text-indigo-600 hover:underline text-left block cursor-pointer">
                                   {p.name || p.title || 'Unnamed'}
                                 </button>
-                                <span className="text-[10px] text-gray-400 font-mono tracking-wider block">ID: {tenDigitId}</span>
+                                <span className="text-[10px] text-gray-400 font-mono tracking-wider block">ID: {twelveDigitId}</span>
                                 <span className="text-xs text-gray-500">{p.category || 'General'}</span>
                               </div>
                             </td>
@@ -966,7 +969,7 @@ export default function AdminPage() {
                             <div className="space-y-2">
                               {o.items.map((item: any, idx: number) => {
                                 const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
-                                const tenDigitId = getTenDigitId(item.id || item.product_id || '')
+                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
                                 return (
                                   <div key={idx} className="flex items-center gap-3 bg-gray-50 p-2 rounded border border-gray-200">
                                     <div 
@@ -992,7 +995,7 @@ export default function AdminPage() {
 
                                     <div>
                                       <div className="font-bold text-gray-900">{item.name} × <span className="text-indigo-600">{item.quantity}</span></div>
-                                      <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {tenDigitId}</div>
+                                      <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
                                     </div>
                                   </div>
                                 )
@@ -1077,7 +1080,7 @@ export default function AdminPage() {
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50 text-gray-600 text-xs">
-                      <th className="p-3">Customer ID & Name</th>
+                      <th className="p-3">12-Digit Customer ID & Name</th>
                       <th className="p-3">Email & Contact</th>
                       <th className="p-3">Current Dynamic Address</th>
                       <th className="p-3">Orders & Lifetime Spend</th>
@@ -1086,22 +1089,37 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {filteredCustomers.map((c) => {
-                      const tenDigitId = getTenDigitId(c.id)
+                      const twelveDigitId = getTwelveDigitId(c.id)
+                      const isRealAddress = c.current_profile_address && !c.current_profile_address.includes('No dynamic address saved')
+
                       return (
                         <tr key={c.id} className="border-b hover:bg-gray-50 align-top">
                           <td className="p-3">
                             <div className="font-bold text-gray-900 text-sm">{c.name}</div>
-                            <span className="text-[11px] font-mono text-indigo-600 font-bold">ID: {tenDigitId}</span>
-                            <span className="text-[10px] text-gray-400 block mt-0.5 truncate max-w-[140px]" title={c.id}>UUID: {c.id}</span>
+                            <span className="text-xs font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 block w-fit mt-1">
+                              ID: {twelveDigitId}
+                            </span>
+                            <span className="text-[10px] text-gray-400 block mt-1 truncate max-w-[140px]" title={c.id}>UUID: {c.id}</span>
                           </td>
                           <td className="p-3 text-xs">
                             <div className="font-semibold text-gray-800">{c.email || 'No email provided'}</div>
                             <div className="text-gray-500 mt-1 font-mono">{c.phone}</div>
                           </td>
-                          <td className="p-3 text-xs max-w-xs text-gray-700">
-                            <div className="bg-gray-50 p-2 rounded border border-gray-200 line-clamp-3 leading-relaxed">
+                          <td className="p-3 text-xs max-w-sm text-gray-700">
+                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 leading-relaxed">
                               {c.current_profile_address}
                             </div>
+                            {isRealAddress && (
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(c.current_profile_address)
+                                  alert(`Dynamic address for ${c.name} copied to clipboard!`)
+                                }}
+                                className="mt-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer flex items-center gap-1"
+                              >
+                                📋 Copy Address
+                              </button>
+                            )}
                           </td>
                           <td className="p-3 text-xs whitespace-nowrap">
                             <div className="font-bold text-gray-900">{c.total_orders_count} Orders Placed</div>
@@ -1110,7 +1128,7 @@ export default function AdminPage() {
                           <td className="p-3 text-right whitespace-nowrap">
                             <button
                               onClick={() => setViewingCustomer(c)}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg border border-indigo-200 transition cursor-pointer"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition cursor-pointer"
                             >
                               View Full Profile & Logs 📋
                             </button>
@@ -1134,7 +1152,9 @@ export default function AdminPage() {
               <div>
                 <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Customer Profile Details</span>
                 <h3 className="text-2xl font-black text-gray-900 mt-1">{viewingCustomer.name}</h3>
-                <span className="text-xs font-mono text-gray-400">Customer ID: {getTenDigitId(viewingCustomer.id)}</span>
+                <span className="text-xs font-mono text-indigo-800 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                  Customer ID: {getTwelveDigitId(viewingCustomer.id)}
+                </span>
               </div>
               <button
                 onClick={() => setViewingCustomer(null)}
@@ -1155,14 +1175,27 @@ export default function AdminPage() {
                 <span className="text-sm font-bold text-gray-900">{viewingCustomer.phone || 'N/A'}</span>
               </div>
               <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase block">Total Net Spend</span>
+                <span className="text-[11px] font-bold text-gray-500 uppercase block">Total Lifetime Spend</span>
                 <span className="text-base font-extrabold text-indigo-900">₹{viewingCustomer.total_spent}</span>
               </div>
             </div>
 
             {/* Current Dynamic Profile Address Card */}
             <div className="mb-6">
-              <h4 className="text-xs font-bold text-gray-700 uppercase mb-2">Current Active Dynamic Address (Profile)</h4>
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-xs font-bold text-gray-700 uppercase">Current Active Dynamic Address (Profile)</h4>
+                {viewingCustomer.current_profile_address && !viewingCustomer.current_profile_address.includes('No dynamic address saved') && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(viewingCustomer.current_profile_address)
+                      alert(`Address copied to clipboard!`)
+                    }}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer"
+                  >
+                    📋 Copy Address
+                  </button>
+                )}
+              </div>
               <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 text-xs text-gray-800 leading-relaxed">
                 {viewingCustomer.current_profile_address}
               </div>
@@ -1377,7 +1410,7 @@ export default function AdminPage() {
                   <div key={index} className="flex gap-2 mb-2">
                     <input type="url" value={url} onChange={(e) => handleEditImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
                     {editImageInputs.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveEditImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100 cursor-pointer">✕</button>
+                      <button type="button" onClick={() => handleRemoveEditImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100">✕</button>
                     )}
                   </div>
                 ))}
