@@ -141,11 +141,13 @@ export default function CheckoutPage() {
       ].filter(Boolean).join(', ')
 
       const formattedPhone = `${countryCode} ${phone}`.trim()
+      // Include email cleanly in the snapshot and address
       const formattedAddress = `${housePlotPart}, Street: ${street}, City: ${city}, District: ${district}, State: ${stateName}, Pincode: ${pincode}, Phone: ${formattedPhone}`
 
       const addressSnapshotObj = {
         full_name: name,
         email: userEmail,
+        customer_email: userEmail,
         phone: formattedPhone,
         house_no: houseNo,
         plot_no: plotNo,
@@ -157,35 +159,33 @@ export default function CheckoutPage() {
         formatted: formattedAddress
       }
 
-      // 1. Insert Order with explicit customer_email field
-      const { error: orderError } = await supabase.from('orders').insert([
-        {
-          user_id: currentUserId,
-          customer_email: userEmail,
-          email: userEmail,
-          tracking_id: newTrackingId,
-          customer_name: name,
-          shipping_address: formattedAddress,
-          shipping_address_snapshot: addressSnapshotObj,
-          payment_method: paymentMethod,
-          total_amount: totalPrice,
-          final_payable_amount: totalPrice,
-          status: 'Pending',
-          items: cart.map((item) => ({
-            id: item.id,
-            name: item.name,
-            price: Number(item.price),
-            quantity: Number(item.quantity) || 1,
-            image_url: item.image_url || '',
-          })),
-        },
-      ])
+      // Safe Insert matching known table columns without non-existent top-level columns
+      const orderPayload: any = {
+        user_id: currentUserId,
+        tracking_id: newTrackingId,
+        customer_name: name,
+        shipping_address: formattedAddress,
+        shipping_address_snapshot: addressSnapshotObj,
+        payment_method: paymentMethod,
+        total_amount: totalPrice,
+        final_payable_amount: totalPrice,
+        status: 'Pending',
+        items: cart.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: Number(item.price),
+          quantity: Number(item.quantity) || 1,
+          image_url: item.image_url || '',
+        })),
+      }
+
+      const { error: orderError } = await supabase.from('orders').insert([orderPayload])
 
       if (orderError) {
         throw new Error(orderError.message)
       }
 
-      // 2. Decrement product stock in Supabase
+      // Decrement product stock in Supabase
       for (const item of cart) {
         const qty = Number(item.quantity) || 1
         const { data: currentProduct } = await supabase
@@ -202,7 +202,7 @@ export default function CheckoutPage() {
         }
       }
 
-      // 3. Dispatch Live Transactional Emails
+      // Dispatch Confirmation Emails
       try {
         await fetch('/api/send-order-email', {
           method: 'POST',
@@ -232,7 +232,6 @@ export default function CheckoutPage() {
         console.error('Email API Error:', err)
       }
 
-      // 4. Clear Cart & Finalize Order
       clearCart()
       setTrackingId(newTrackingId)
       setOrderSuccess(true)
@@ -310,7 +309,6 @@ export default function CheckoutPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Checkout Form */}
           <div className="md:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <form onSubmit={handlePlaceOrder} className="space-y-4">
               <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-2">
@@ -484,7 +482,6 @@ export default function CheckoutPage() {
             </form>
           </div>
 
-          {/* Sidebar */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 h-fit">
             <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-3 mb-4">
               Order Summary ({cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)} items)

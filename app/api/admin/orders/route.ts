@@ -18,84 +18,60 @@ function getSupabaseAdmin() {
   })
 }
 
-// Helper: Extract email from order across ALL columns, JSON snapshots, and related tables
+// Deep extractor for customer email
 async function extractOrderEmail(order: any, supabaseAdmin: any): Promise<string> {
   const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
 
-  // 1. Direct table columns
-  const directCandidates = [
-    order.customer_email,
-    order.email,
-    order.user_email,
-    order.customerEmail,
-  ]
-
-  for (const candidate of directCandidates) {
-    if (typeof candidate === 'string' && candidate.includes('@') && candidate.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-      return candidate.trim()
-    }
-  }
-
-  // 2. Check shipping_address_snapshot (JSON or Object)
+  // 1. Check shipping_address_snapshot
   if (order.shipping_address_snapshot) {
     try {
-      const snapshot = typeof order.shipping_address_snapshot === 'string'
+      const snap = typeof order.shipping_address_snapshot === 'string'
         ? JSON.parse(order.shipping_address_snapshot)
         : order.shipping_address_snapshot
 
-      if (snapshot && typeof snapshot.email === 'string' && snapshot.email.includes('@')) {
-        if (snapshot.email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-          return snapshot.email.trim()
+      if (snap) {
+        const candidate = snap.email || snap.customer_email || snap.user_email
+        if (typeof candidate === 'string' && candidate.includes('@') && candidate.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+          return candidate.trim()
         }
       }
     } catch {
-      // Ignore JSON parse error
+      // ignore JSON parse error
+    }
+  }
+
+  // 2. Direct columns if present
+  const directCols = [order.customer_email, order.email, order.user_email, order.customerEmail]
+  for (const c of directCols) {
+    if (typeof c === 'string' && c.includes('@') && c.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      return c.trim()
     }
   }
 
   // 3. Check customer_addresses table by user_id
   if (order.user_id) {
     try {
-      const { data: addressData } = await supabaseAdmin
+      const { data: addr } = await supabaseAdmin
         .from('customer_addresses')
         .select('*')
         .eq('user_id', order.user_id)
         .maybeSingle()
 
-      if (addressData?.email && addressData.email.includes('@')) {
-        return addressData.email.trim()
+      if (addr?.email && addr.email.includes('@')) {
+        return addr.email.trim()
       }
-    } catch {
-      // Ignore
-    }
+    } catch {}
 
-    // 4. Check profiles table by user_id
+    // 4. Check auth.users table via Admin API
     try {
-      const { data: profileData } = await supabaseAdmin
-        .from('profiles')
-        .select('email')
-        .eq('id', order.user_id)
-        .maybeSingle()
-
-      if (profileData?.email && profileData.email.includes('@')) {
-        return profileData.email.trim()
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(order.user_id)
+      if (authUser?.user?.email && authUser.user.email.includes('@')) {
+        return authUser.user.email.trim()
       }
-    } catch {
-      // Ignore
-    }
-
-    // 5. Check Supabase Auth users via Admin API
-    try {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id)
-      if (userData?.user?.email && userData.user.email.includes('@')) {
-        return userData.user.email.trim()
-      }
-    } catch {
-      // Ignore
-    }
+    } catch {}
   }
 
-  // 6. Regex scan in shipping_address text string
+  // 5. Check regex match in shipping_address string
   if (typeof order.shipping_address === 'string') {
     const match = order.shipping_address.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
     if (match && match[0].toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
@@ -106,7 +82,7 @@ async function extractOrderEmail(order: any, supabaseAdmin: any): Promise<string
   return ''
 }
 
-// GET all orders for admin dashboard
+// GET: Return all orders
 export async function GET() {
   try {
     const supabaseAdmin = getSupabaseAdmin()
@@ -125,7 +101,7 @@ export async function GET() {
         const resolvedEmail = await extractOrderEmail(order, supabaseAdmin)
         return {
           ...order,
-          customer_email: resolvedEmail || order.customer_email || '',
+          customer_email: resolvedEmail || '',
         }
       })
     )
@@ -149,7 +125,7 @@ export async function PATCH(req: Request) {
     const baseUrl = 'https://www.mahinsonestoponestore.in'
     const adminLoginUrl = 'https://www.mahinsonestoponestore.in/admin'
 
-    // 1. Fetch current order from DB
+    // 1. Fetch current order
     const { data: order, error: fetchErr } = await supabaseAdmin
       .from('orders')
       .select('*')
@@ -162,16 +138,13 @@ export async function PATCH(req: Request) {
 
     const oldStatus = order.status
 
-    // 2. Extract Customer Email thoroughly
+    // 2. Resolve Customer Email
     const customerEmail = await extractOrderEmail(order, supabaseAdmin)
 
-    // 3. Update database status + save resolved customer_email permanently
+    // 3. Update status in Database (only columns guaranteed to exist)
     const updatePayload: any = { status: newStatus }
     if (newStatus === 'Cancelled') {
       updatePayload.cancellation_reason = customReason
-    }
-    if (customerEmail && !order.customer_email) {
-      updatePayload.customer_email = customerEmail
     }
 
     const { error: updateErr } = await supabaseAdmin
@@ -183,7 +156,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: false, error: updateErr.message }, { status: 500 })
     }
 
-    // 4. Handle inventory stock adjustments
+    // 4. Handle stock replenishments
     if (newStatus === 'Cancelled' && oldStatus !== 'Cancelled' && Array.isArray(order.items)) {
       for (const item of order.items) {
         const prodId = item.id || item.product_id
@@ -206,7 +179,7 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // 5. CUSTOMER EMAIL TEMPLATE (Points to Store Website & Order Tracking)
+    // 5. CUSTOMER EMAIL (Direct Live Track Link)
     const customerStatusHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
         <div style="background-color: #312e81; padding: 24px; text-align: center;">
@@ -256,7 +229,7 @@ export async function PATCH(req: Request) {
       </div>
     `
 
-    // 6. ADMIN AUDIT EMAIL TEMPLATE (Points directly to Admin Dashboard)
+    // 6. ADMIN EMAIL (Direct Admin Portal Button)
     const adminStatusHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff; border: 2px solid #312e81; border-radius: 12px; overflow: hidden;">
         <div style="background-color: #1e1b4b; padding: 20px; color: #ffffff;">
@@ -322,7 +295,7 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // 8. Dispatch Admin Email (with Admin Dashboard Button)
+    // 8. Dispatch Admin Audit Email
     try {
       await resend.emails.send({
         from: FROM_SENDER,
