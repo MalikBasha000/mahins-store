@@ -21,7 +21,8 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  const [activeTab, setActiveTab] = useState<'products' | 'orders'>('orders')
+  // Tabs: Products, Orders, Customers
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'customers'>('orders')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -61,12 +62,17 @@ export default function AdminPage() {
   const [activeOrderGalleryImages, setActiveOrderGalleryImages] = useState<string[] | null>(null)
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0)
 
-  // Orders State & Advanced Filter State
+  // Orders State & Filters
   const [orders, setOrders] = useState<any[]>([])
   const [orderSearchQuery, setOrderSearchQuery] = useState('')
   const [orderAmountSort, setOrderAmountSort] = useState<'DEFAULT' | 'HIGH_TO_LOW' | 'LOW_TO_HIGH'>('DEFAULT')
   const [minAmountFilter, setMinAmountFilter] = useState('')
   const [maxAmountFilter, setMaxAmountFilter] = useState('')
+
+  // Customers Tab State & Customer Details Modal
+  const [customers, setCustomers] = useState<any[]>([])
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('')
+  const [viewingCustomer, setViewingCustomer] = useState<any | null>(null)
 
   useEffect(() => {
     if (isAdminAuthenticated) {
@@ -158,6 +164,8 @@ export default function AdminPage() {
 
   const fetchAdminData = async () => {
     setLoading(true)
+    setErrorMsg('')
+
     if (activeTab === 'products') {
       const { data, error } = await supabase
         .from('products')
@@ -166,26 +174,31 @@ export default function AdminPage() {
 
       if (error) setErrorMsg(error.message)
       else setProducts(data || [])
-    } else {
+    } else if (activeTab === 'orders') {
       try {
         const res = await fetch('/api/admin/orders')
         const data = await res.json()
         if (data.success) {
           setOrders(data.orders || [])
         } else {
-          const { data: clientOrders, error } = await supabase
-            .from('orders')
-            .select('*')
-            .order('created_at', { ascending: false })
-          if (error) setErrorMsg(error.message)
-          else setOrders(clientOrders || [])
+          const { data: clientOrders } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
+          setOrders(clientOrders || [])
         }
       } catch {
-        const { data: clientOrders } = await supabase
-          .from('orders')
-          .select('*')
-          .order('created_at', { ascending: false })
+        const { data: clientOrders } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
         setOrders(clientOrders || [])
+      }
+    } else if (activeTab === 'customers') {
+      try {
+        const res = await fetch('/api/admin/customers')
+        const data = await res.json()
+        if (data.success) {
+          setCustomers(data.customers || [])
+        } else {
+          setErrorMsg(data.error || 'Failed to load customers')
+        }
+      } catch (err: any) {
+        setErrorMsg(`Failed to fetch customers: ${err.message}`)
       }
     }
     setLoading(false)
@@ -417,14 +430,12 @@ export default function AdminPage() {
     return matchesSearch && matchesCategory && matchesStock
   })
 
-  // Advanced Customer Orders Filter Calculation
+  // Filter Orders
   const filteredAdminOrders = orders
     .filter(o => {
-      // 1. Status Tab filter
       const matchesStatus = activeAdminOrderTab === 'ALL' || (o.status || 'Pending').toUpperCase() === activeAdminOrderTab.toUpperCase()
       if (!matchesStatus) return false
 
-      // 2. Search query across Tracking ID, Customer Name, Email, Address, and Ordered Items
       const searchTarget = orderSearchQuery.toLowerCase().trim()
       let matchesSearch = true
       if (searchTarget) {
@@ -443,7 +454,6 @@ export default function AdminPage() {
       }
       if (!matchesSearch) return false
 
-      // 3. Min/Max Amount Range Filter
       const totalAmount = Number(o.total_amount || o.final_payable_amount || 0)
       if (minAmountFilter && totalAmount < Number(minAmountFilter)) return false
       if (maxAmountFilter && totalAmount > Number(maxAmountFilter)) return false
@@ -451,7 +461,6 @@ export default function AdminPage() {
       return true
     })
     .sort((a, b) => {
-      // 4. Amount Sorting
       const amountA = Number(a.total_amount || a.final_payable_amount || 0)
       const amountB = Number(b.total_amount || b.final_payable_amount || 0)
 
@@ -459,6 +468,20 @@ export default function AdminPage() {
       if (orderAmountSort === 'LOW_TO_HIGH') return amountA - amountB
       return 0
     })
+
+  // Filter Customers
+  const filteredCustomers = customers.filter((c) => {
+    const q = customerSearchQuery.toLowerCase().trim()
+    if (!q) return true
+    const tenId = getTenDigitId(c.id)
+    return (
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q) ||
+      (c.phone || '').toLowerCase().includes(q) ||
+      (c.current_profile_address || '').toLowerCase().includes(q) ||
+      tenId.includes(q)
+    )
+  })
 
   const getAdminOrderCount = (status: string) => {
     if (status === 'ALL') return orders.length
@@ -610,7 +633,7 @@ export default function AdminPage() {
             <Link href="/" className="text-sm font-semibold text-indigo-600 hover:underline">Store</Link>
             <button 
               onClick={handleLogout} 
-              className="bg-red-50 text-red-600 hover:bg-red-100 font-bold text-xs px-3 py-1.5 rounded-lg transition"
+              className="bg-red-50 text-red-600 hover:bg-red-100 font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer"
             >
               Logout 🔒
             </button>
@@ -622,22 +645,36 @@ export default function AdminPage() {
         {errorMsg && <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg border border-red-300 font-medium">{errorMsg}</div>}
         {successMsg && <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg border border-green-300 font-medium">{successMsg}</div>}
 
-        <div className="flex gap-4 mb-8 border-b pb-4">
+        {/* 3 Main Navigation Tabs */}
+        <div className="flex flex-wrap gap-4 mb-8 border-b pb-4">
           <button
             onClick={() => setActiveTab('products')}
-            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition ${activeTab === 'products' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'}`}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer ${
+              activeTab === 'products' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
+            }`}
           >
             📦 Inventory Management
           </button>
           <button
             onClick={() => setActiveTab('orders')}
-            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition ${activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'}`}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer ${
+              activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
+            }`}
           >
             🛒 Customer Orders
           </button>
+          <button
+            onClick={() => setActiveTab('customers')}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer flex items-center gap-2 ${
+              activeTab === 'customers' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
+            }`}
+          >
+            👥 Customers Directory
+          </button>
         </div>
 
-        {activeTab === 'products' ? (
+        {/* ----------------- TAB 1: INVENTORY MANAGEMENT ----------------- */}
+        {activeTab === 'products' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-white p-6 rounded-2xl shadow-md h-fit">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Add New Product</h2>
@@ -774,7 +811,7 @@ export default function AdminPage() {
                             <td className="p-3 flex items-center gap-3">
                               <img src={firstImage} alt="" className="h-10 w-10 object-cover rounded border bg-white flex-shrink-0" />
                               <div>
-                                <button onClick={() => openCustomerPreview(p)} className="font-bold text-indigo-600 hover:underline text-left block">
+                                <button onClick={() => openCustomerPreview(p)} className="font-bold text-indigo-600 hover:underline text-left block cursor-pointer">
                                   {p.name || p.title || 'Unnamed'}
                                 </button>
                                 <span className="text-[10px] text-gray-400 font-mono tracking-wider block">ID: {tenDigitId}</span>
@@ -798,9 +835,9 @@ export default function AdminPage() {
                               {updatedDate && <div><span className="font-semibold text-indigo-700">Edited:</span> {updatedDate}</div>}
                             </td>
                             <td className="p-3 text-right space-x-1 whitespace-nowrap">
-                              <button onClick={() => openCustomerPreview(p)} className="text-green-600 hover:text-green-800 font-semibold text-xs bg-green-50 px-2 py-1.5 rounded">View</button>
-                              <button onClick={() => openEditModal(p)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-xs bg-indigo-50 px-2 py-1.5 rounded">Edit</button>
-                              <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs bg-red-50 px-2 py-1.5 rounded">Delete</button>
+                              <button onClick={() => openCustomerPreview(p)} className="text-green-600 hover:text-green-800 font-semibold text-xs bg-green-50 px-2 py-1.5 rounded cursor-pointer">View</button>
+                              <button onClick={() => openEditModal(p)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-xs bg-indigo-50 px-2 py-1.5 rounded cursor-pointer">Edit</button>
+                              <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs bg-red-50 px-2 py-1.5 rounded cursor-pointer">Delete</button>
                             </td>
                           </tr>
                         )
@@ -811,16 +848,17 @@ export default function AdminPage() {
               )}
             </div>
           </div>
-        ) : (
+        )}
+
+        {/* ----------------- TAB 2: CUSTOMER ORDERS ----------------- */}
+        {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-2xl shadow-md">
-            {/* Header & Advanced Filter Bar */}
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Customer Orders ({orders.length})</h2>
                 <p className="text-xs text-gray-500">Showing {filteredAdminOrders.length} filtered results</p>
               </div>
 
-              {/* Advanced Filter Toolbar */}
               <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
                 <input
                   type="text"
@@ -866,7 +904,7 @@ export default function AdminPage() {
                       setMinAmountFilter('')
                       setMaxAmountFilter('')
                     }}
-                    className="text-xs text-red-600 hover:bg-red-100 font-bold px-3 py-2 bg-red-50 rounded-xl border border-red-200 transition"
+                    className="text-xs text-red-600 hover:bg-red-100 font-bold px-3 py-2 bg-red-50 rounded-xl border border-red-200 transition cursor-pointer"
                   >
                     Clear Filters
                   </button>
@@ -874,7 +912,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Status Tab Selectors */}
             <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
               {['ALL', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => {
                 const count = getAdminOrderCount(status)
@@ -882,7 +919,7 @@ export default function AdminPage() {
                   <button
                     key={status}
                     onClick={() => setActiveAdminOrderTab(status)}
-                    className={`px-4 py-2 rounded-lg font-bold text-xs transition flex items-center gap-1.5 ${
+                    className={`px-4 py-2 rounded-lg font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
                       activeAdminOrderTab === status
                         ? 'bg-indigo-600 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -986,7 +1023,7 @@ export default function AdminPage() {
                           <select
                             value={o.status || 'Pending'}
                             onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                            className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block"
+                            className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block cursor-pointer"
                           >
                             <option value="Pending">Pending</option>
                             <option value="Processing">Processing</option>
@@ -1008,7 +1045,169 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
+        {/* ----------------- TAB 3: CUSTOMERS DIRECTORY ----------------- */}
+        {activeTab === 'customers' && (
+          <div className="bg-white p-6 rounded-2xl shadow-md">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Registered & Active Customers ({customers.length})</h2>
+                <p className="text-xs text-gray-500">Live directory aggregated from Supabase Auth and Order Records</p>
+              </div>
+
+              <div className="w-full md:w-80">
+                <input
+                  type="text"
+                  value={customerSearchQuery}
+                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                  placeholder="🔍 Search Customer Name, Email, ID, Phone..."
+                  className="w-full border border-gray-300 p-2.5 rounded-xl text-xs text-gray-900 focus:outline-indigo-600 shadow-sm"
+                />
+              </div>
+            </div>
+
+            {loading ? (
+              <p className="text-gray-500">Loading customers directory...</p>
+            ) : filteredCustomers.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
+                <p className="text-sm font-semibold">No customers match your search criteria.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b bg-gray-50 text-gray-600 text-xs">
+                      <th className="p-3">Customer ID & Name</th>
+                      <th className="p-3">Email & Contact</th>
+                      <th className="p-3">Current Dynamic Address</th>
+                      <th className="p-3">Orders & Lifetime Spend</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCustomers.map((c) => {
+                      const tenDigitId = getTenDigitId(c.id)
+                      return (
+                        <tr key={c.id} className="border-b hover:bg-gray-50 align-top">
+                          <td className="p-3">
+                            <div className="font-bold text-gray-900 text-sm">{c.name}</div>
+                            <span className="text-[11px] font-mono text-indigo-600 font-bold">ID: {tenDigitId}</span>
+                            <span className="text-[10px] text-gray-400 block mt-0.5 truncate max-w-[140px]" title={c.id}>UUID: {c.id}</span>
+                          </td>
+                          <td className="p-3 text-xs">
+                            <div className="font-semibold text-gray-800">{c.email || 'No email provided'}</div>
+                            <div className="text-gray-500 mt-1 font-mono">{c.phone}</div>
+                          </td>
+                          <td className="p-3 text-xs max-w-xs text-gray-700">
+                            <div className="bg-gray-50 p-2 rounded border border-gray-200 line-clamp-3 leading-relaxed">
+                              {c.current_profile_address}
+                            </div>
+                          </td>
+                          <td className="p-3 text-xs whitespace-nowrap">
+                            <div className="font-bold text-gray-900">{c.total_orders_count} Orders Placed</div>
+                            <div className="text-sm font-black text-indigo-700 mt-0.5">₹{c.total_spent}</div>
+                          </td>
+                          <td className="p-3 text-right whitespace-nowrap">
+                            <button
+                              onClick={() => setViewingCustomer(c)}
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg border border-indigo-200 transition cursor-pointer"
+                            >
+                              View Full Profile & Logs 📋
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* ----------------- MODAL: CUSTOMER PROFILE & ORDER LOGS ----------------- */}
+      {viewingCustomer && (
+        <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl p-6 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <div>
+                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Customer Profile Details</span>
+                <h3 className="text-2xl font-black text-gray-900 mt-1">{viewingCustomer.name}</h3>
+                <span className="text-xs font-mono text-gray-400">Customer ID: {getTenDigitId(viewingCustomer.id)}</span>
+              </div>
+              <button
+                onClick={() => setViewingCustomer(null)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Profile Overview Card */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+              <div>
+                <span className="text-[11px] font-bold text-gray-500 uppercase block">Contact Email</span>
+                <span className="text-sm font-bold text-gray-900">{viewingCustomer.email || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-gray-500 uppercase block">Phone Number</span>
+                <span className="text-sm font-bold text-gray-900">{viewingCustomer.phone || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-gray-500 uppercase block">Total Net Spend</span>
+                <span className="text-base font-extrabold text-indigo-900">₹{viewingCustomer.total_spent}</span>
+              </div>
+            </div>
+
+            {/* Current Dynamic Profile Address Card */}
+            <div className="mb-6">
+              <h4 className="text-xs font-bold text-gray-700 uppercase mb-2">Current Active Dynamic Address (Profile)</h4>
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 text-xs text-gray-800 leading-relaxed">
+                {viewingCustomer.current_profile_address}
+              </div>
+            </div>
+
+            {/* Customer Order Logs Table */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">
+                Order History Logs ({viewingCustomer.order_logs.length})
+              </h4>
+
+              {viewingCustomer.order_logs.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No orders logged under this customer account yet.</p>
+              ) : (
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {viewingCustomer.order_logs.map((log: any) => (
+                    <div key={log.id} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-wrap justify-between items-center gap-4 hover:border-indigo-300 transition">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                            log.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                            log.status === 'Delivered' ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800'
+                          }`}>
+                            {log.status || 'Pending'}
+                          </span>
+                          <span className="text-xs font-mono font-bold text-indigo-950">Tracking: {log.tracking_id}</span>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          Items: {Array.isArray(log.items) ? log.items.map((i: any) => `${i.name} (${i.quantity}x)`).join(', ') : 'No items data'}
+                        </p>
+                        <span className="text-[11px] text-gray-400 block mt-1">Date: {new Date(log.created_at).toLocaleString()}</span>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-sm font-black text-indigo-900 block">₹{log.total_amount || log.final_payable_amount}</span>
+                        <span className="text-[11px] text-gray-500">{log.payment_method || 'Online'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stock Audit Logs Modal */}
       {auditingProduct && (
@@ -1019,7 +1218,7 @@ export default function AdminPage() {
                 <h3 className="text-lg font-black text-indigo-900">Stock & Order Audit Logs</h3>
                 <p className="text-xs text-gray-500">Product: <span className="font-bold text-gray-800">{auditingProduct.name}</span> (Current Stock: <span className="font-bold text-indigo-600">{auditingProduct.stock}</span>)</p>
               </div>
-              <button onClick={() => setAuditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full">✕</button>
+              <button onClick={() => setAuditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer">✕</button>
             </div>
 
             {productAuditLogs.length === 0 ? (
@@ -1076,7 +1275,7 @@ export default function AdminPage() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 relative">
             <div className="flex justify-between items-center mb-4 border-b pb-3">
               <h3 className="text-sm font-bold text-indigo-900">Product Image Gallery ({activeGalleryIndex + 1} of {activeOrderGalleryImages.length})</h3>
-              <button onClick={() => setActiveOrderGalleryImages(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full">✕</button>
+              <button onClick={() => setActiveOrderGalleryImages(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer">✕</button>
             </div>
             <div className="bg-gray-100 rounded-xl overflow-hidden border h-96 flex items-center justify-center mb-4 relative">
               <img src={activeOrderGalleryImages[activeGalleryIndex]} alt="" className="w-full h-full object-contain p-4" />
@@ -1096,12 +1295,13 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Customer Preview Modal */}
       {viewingProduct && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6 border-b pb-3">
               <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-3 py-1 rounded-full">Customer View Preview</span>
-              <button onClick={() => setViewingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg">✕</button>
+              <button onClick={() => setViewingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer">✕</button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
@@ -1140,12 +1340,13 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* Edit Product Modal */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4 border-b pb-3">
               <h2 className="text-lg font-bold text-indigo-900">Edit Product: {editingProduct.name}</h2>
-              <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-sm">✕</button>
+              <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
             </div>
             <form onSubmit={handleUpdateProduct} className="space-y-4">
               <div>
@@ -1176,15 +1377,15 @@ export default function AdminPage() {
                   <div key={index} className="flex gap-2 mb-2">
                     <input type="url" value={url} onChange={(e) => handleEditImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
                     {editImageInputs.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveEditImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100">✕</button>
+                      <button type="button" onClick={() => handleRemoveEditImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100 cursor-pointer">✕</button>
                     )}
                   </div>
                 ))}
-                <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
+                <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300 cursor-pointer">+ Add Another Image URL</button>
               </div>
               <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition">Cancel</button>
-                <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-lg text-sm shadow transition">Save Changes</button>
+                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel</button>
+                <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-lg text-sm shadow transition cursor-pointer">Save Changes</button>
               </div>
             </form>
           </div>
