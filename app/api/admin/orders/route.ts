@@ -18,7 +18,7 @@ function getSupabaseAdmin() {
   })
 }
 
-// GET all orders for admin dashboard
+// GET all orders
 export async function GET() {
   try {
     const supabaseAdmin = getSupabaseAdmin()
@@ -32,35 +32,7 @@ export async function GET() {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
-    // Resolve emails for all orders
-    const resolvedOrders = await Promise.all(
-      (orders || []).map(async (order) => {
-        let email =
-          order.customer_email ||
-          order.email ||
-          order.user_email ||
-          order.customerEmail ||
-          ''
-
-        if (!email && order.user_id) {
-          try {
-            const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id)
-            if (userData?.user?.email) {
-              email = userData.user.email
-            }
-          } catch (e) {
-            console.error('Error fetching user email:', e)
-          }
-        }
-
-        return {
-          ...order,
-          customer_email: email,
-        }
-      })
-    )
-
-    return NextResponse.json({ success: true, orders: resolvedOrders })
+    return NextResponse.json({ success: true, orders: orders || [] })
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err.message || 'Failed to fetch orders' },
@@ -69,7 +41,7 @@ export async function GET() {
   }
 }
 
-// PATCH: Update order status & send emails to BOTH Customer and Admin
+// PATCH: Update order status & send emails
 export async function PATCH(req: Request) {
   try {
     const { orderId, newStatus, customReason } = await req.json()
@@ -78,7 +50,7 @@ export async function PATCH(req: Request) {
     const FROM_SENDER = "Mahin's One-Stop One-Store <orders@mahinsonestoponestore.in>"
     const baseUrl = 'https://www.mahinsonestoponestore.in'
 
-    // 1. Fetch current order from DB
+    // 1. Fetch the exact order row
     const { data: order, error: fetchErr } = await supabaseAdmin
       .from('orders')
       .select('*')
@@ -91,7 +63,7 @@ export async function PATCH(req: Request) {
 
     const oldStatus = order.status
 
-    // 2. Update status in database
+    // 2. Update status in DB
     const updatePayload: any = { status: newStatus }
     if (newStatus === 'Cancelled') {
       updatePayload.cancellation_reason = customReason
@@ -106,7 +78,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ success: false, error: updateErr.message }, { status: 500 })
     }
 
-    // 3. Handle stock replenishment / deduction
+    // 3. Stock replenishment / deduction
     if (newStatus === 'Cancelled' && oldStatus !== 'Cancelled' && Array.isArray(order.items)) {
       for (const item of order.items) {
         const prodId = item.id || item.product_id
@@ -129,31 +101,42 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // 4. Resolve customer email
-    let customerEmail =
-      order.customer_email ||
-      order.email ||
-      order.user_email ||
-      order.customerEmail ||
-      ''
+    // 4. Find Customer Email from ALL possible keys in the database row
+    let customerEmail = ''
 
+    // Scan all columns for an email string
+    for (const key of Object.keys(order)) {
+      const val = order[key]
+      if (typeof val === 'string' && val.includes('@') && val.includes('.')) {
+        // Exclude admin email if accidentally stored
+        if (val.trim().toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+          customerEmail = val.trim()
+          break
+        }
+      }
+    }
+
+    // Fallback: Check auth.users if user_id exists
     if (!customerEmail && order.user_id) {
       try {
         const { data: userData } = await supabaseAdmin.auth.admin.getUserById(order.user_id)
         if (userData?.user?.email) {
-          customerEmail = userData.user.email
+          customerEmail = userData.user.email.trim()
         }
       } catch (e) {
-        console.error('Error fetching user email from auth:', e)
+        console.error('Error fetching auth user:', e)
       }
     }
 
+    // Fallback: Extract from shipping_address string if user typed email inside address
     if (!customerEmail && typeof order.shipping_address === 'string') {
       const match = order.shipping_address.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
-      if (match) customerEmail = match[0]
+      if (match && match[0].toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+        customerEmail = match[0].trim()
+      }
     }
 
-    // 5. Generate Email Template
+    // 5. Status Update Email Template
     const statusHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
         <div style="background-color: #312e81; padding: 20px; text-align: center;">
@@ -202,17 +185,21 @@ export async function PATCH(req: Request) {
       </div>
     `
 
+    let customerEmailStatus = 'Not sent (no email found in order record)'
+
     // 6. Send to Customer
-    if (customerEmail && customerEmail.includes('@')) {
+    if (customerEmail) {
       try {
-        await resend.emails.send({
+        const sendResult = await resend.emails.send({
           from: FROM_SENDER,
-          to: [customerEmail.trim()],
+          to: [customerEmail],
           subject: `Status Update: ${newStatus} - #${order.tracking_id} | Mahin's Store`,
           html: statusHtml,
         })
-      } catch (err) {
-        console.error('Resend error sending to customer:', err)
+        customerEmailStatus = `Sent to ${customerEmail}`
+      } catch (err: any) {
+        customerEmailStatus = `Failed sending to ${customerEmail}: ${err.message}`
+        console.error('Resend Error:', err)
       }
     }
 
@@ -221,17 +208,18 @@ export async function PATCH(req: Request) {
       await resend.emails.send({
         from: FROM_SENDER,
         to: [ADMIN_EMAIL],
-        subject: `[STATUS UPDATED] #${order.tracking_id} → ${newStatus} (${customerEmail || 'No Email'})`,
+        subject: `[STATUS UPDATED] #${order.tracking_id} → ${newStatus} (${customerEmail || 'No Customer Email'})`,
         html: statusHtml,
       })
     } catch (err) {
-      console.error('Resend error sending to admin:', err)
+      console.error('Admin Resend Error:', err)
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Status updated and emails dispatched',
-      customerEmail: customerEmail || 'Not found',
+      message: `Status updated to ${newStatus}`,
+      customerEmail: customerEmail || 'None',
+      customerEmailStatus,
     })
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
