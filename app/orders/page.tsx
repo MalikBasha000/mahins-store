@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
+import CustomerInvoiceModal from '../components/CustomerInvoiceModal'
 
 export default function CustomerOrdersPage() {
   const supabase = createClient()
@@ -12,6 +13,7 @@ export default function CustomerOrdersPage() {
   const [activeStatusTab, setActiveStatusTab] = useState('ALL')
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null)
   const [cancelReason, setCancelReason] = useState('')
+  const [activeInvoiceOrder, setActiveInvoiceOrder] = useState<any | null>(null)
 
   useEffect(() => {
     fetchCustomerOrders()
@@ -95,14 +97,14 @@ export default function CustomerOrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-4xl rounded-2xl bg-white p-8 shadow-md">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
+      <div className="mx-auto max-w-4xl rounded-2xl bg-white p-6 sm:p-8 shadow-md">
         <div className="text-center mb-6 pb-4 border-b">
           <h1 className="text-2xl font-black text-indigo-900">Mahin's One-Stop One-Store</h1>
         </div>
 
         <div className="flex justify-between items-center mb-6">
-          <Link href="/" className="text-sm text-indigo-600 hover:underline">← Return to Store</Link>
+          <Link href="/" className="text-sm font-semibold text-indigo-600 hover:underline">← Return to Store</Link>
           <h2 className="text-xl font-bold text-gray-900">Your Order History</h2>
         </div>
 
@@ -114,7 +116,7 @@ export default function CustomerOrdersPage() {
               <button
                 key={status}
                 onClick={() => setActiveStatusTab(status)}
-                className={`px-4 py-2 rounded-lg font-bold text-xs transition flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-lg font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
                   activeStatusTab === status
                     ? 'bg-indigo-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -129,7 +131,7 @@ export default function CustomerOrdersPage() {
         {filteredOrders.length === 0 ? (
           <div className="text-center py-16 text-gray-500">
             <p className="text-lg mb-4">No orders found under "{activeStatusTab}" status.</p>
-            <button onClick={() => setActiveStatusTab('ALL')} className="text-xs font-bold text-indigo-600 underline">
+            <button onClick={() => setActiveStatusTab('ALL')} className="text-xs font-bold text-indigo-600 underline cursor-pointer">
               View All Orders
             </button>
           </div>
@@ -137,6 +139,8 @@ export default function CustomerOrdersPage() {
           <div className="space-y-6">
             {filteredOrders.map((order) => {
               const isCancellable = order.status === 'Pending' || order.status === 'Processing'
+              const isDelivered = (order.status || '').toLowerCase() === 'delivered'
+
               return (
                 <div key={order.id} className="border rounded-xl p-6 bg-gray-50/50 shadow-sm">
                   <div className="flex flex-wrap justify-between items-center border-b pb-4 mb-4 gap-2">
@@ -200,11 +204,11 @@ export default function CustomerOrdersPage() {
                     </div>
                     <div className="flex justify-between items-center pt-3 mt-2 border-t font-bold text-sm text-gray-900">
                       <span>Total Amount:</span>
-                      <span className="text-indigo-900 text-base">₹{order.total_amount || order.final_payable_amount}</span>
+                      <span className="text-indigo-900 text-base font-black">₹{order.total_amount || order.final_payable_amount}</span>
                     </div>
                   </div>
 
-                  <div className="mt-4 flex justify-between items-center">
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     {isCancellable && (
                       <div>
                         {cancellingOrderId === order.id ? (
@@ -219,13 +223,13 @@ export default function CustomerOrdersPage() {
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleCancelOrder(order)}
-                                className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded transition"
+                                className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded transition cursor-pointer"
                               >
                                 Confirm Cancellation
                               </button>
                               <button
                                 onClick={() => { setCancellingOrderId(null); setCancelReason(''); }}
-                                className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-1.5 rounded transition"
+                                className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold px-3 py-1.5 rounded transition cursor-pointer"
                               >
                                 Back
                               </button>
@@ -234,17 +238,28 @@ export default function CustomerOrdersPage() {
                         ) : (
                           <button
                             onClick={() => setCancellingOrderId(order.id)}
-                            className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-4 py-2 rounded-lg transition border border-red-200"
+                            className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-4 py-2 rounded-lg transition border border-red-200 cursor-pointer"
                           >
                             Cancel Order ✕
                           </button>
                         )}
                       </div>
                     )}
-                    <div className="ml-auto">
+
+                    <div className="ml-auto flex items-center gap-2">
+                      {/* Delivered: Official Invoice Download */}
+                      {isDelivered && (
+                        <button
+                          onClick={() => setActiveInvoiceOrder(order)}
+                          className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer"
+                        >
+                          📄 Download Invoice
+                        </button>
+                      )}
+
                       <Link 
                         href={`/track?id=${order.tracking_id}`}
-                        className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5"
                       >
                         Track Live Shipment 📦
                       </Link>
@@ -256,6 +271,14 @@ export default function CustomerOrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Customer Invoice Modal */}
+      {activeInvoiceOrder && (
+        <CustomerInvoiceModal
+          order={activeInvoiceOrder}
+          onClose={() => setActiveInvoiceOrder(null)}
+        />
+      )}
     </div>
   )
 }
