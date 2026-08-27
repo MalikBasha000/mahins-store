@@ -201,6 +201,7 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
               /* ================== SHIPPING LABEL & PACKING SLIP LAYOUT ================== */
               <div>
                 <div className="border-2 border-dashed border-gray-400 p-6 rounded-2xl mb-6">
+                  {/* Header Bar */}
                   <div className="flex justify-between items-center border-b pb-4 mb-4">
                     <div>
                       <h2 className="text-xl font-black text-gray-900">STANDARD SHIPMENT</h2>
@@ -208,29 +209,48 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
                         TRACKING: {order.tracking_id}
                       </span>
                     </div>
-                    <span className="text-xs font-bold bg-gray-100 px-3 py-1 rounded-full border border-gray-300">
+                    <span className="text-xs font-bold bg-gray-100 px-3 py-1.5 rounded-full border border-gray-300">
                       {order.payment_method?.includes('COD') ? 'CASH ON DELIVERY' : 'PREPAID'}
                     </span>
                   </div>
 
-                  <div className="mb-4">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
-                      DELIVER TO (RECIPIENT):
-                    </span>
-                    <h3 className="text-base font-black text-gray-900">{order.customer_name}</h3>
-                    <p className="text-xs text-gray-700 leading-relaxed mt-1">{order.shipping_address}</p>
+                  {/* Addresses Grid (FROM & TO) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    {/* FROM SENDER */}
+                    <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">
+                        FROM (SENDER / DISPATCH):
+                      </span>
+                      <h3 className="text-sm font-extrabold text-indigo-950">Mahin's One-Stop One-Store</h3>
+                      <p className="text-xs text-gray-700 leading-relaxed mt-1">
+                        Electronics, Robotics & STEM Solutions
+                      </p>
+                      <p className="text-xs text-gray-700">Email: mahinsonestoponestore@gmail.com</p>
+                      <p className="text-xs text-gray-700">Web: www.mahinsonestoponestore.in</p>
+                    </div>
+
+                    {/* TO RECIPIENT */}
+                    <div className="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100">
+                      <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mb-1">
+                        DELIVER TO (RECIPIENT):
+                      </span>
+                      <h3 className="text-sm font-black text-gray-900">{order.customer_name || 'Customer'}</h3>
+                      <p className="text-xs text-gray-800 leading-relaxed mt-1">{order.shipping_address}</p>
+                    </div>
                   </div>
 
+                  {/* Metadata Footer */}
                   <div className="border-t pt-3 flex justify-between text-[11px] text-gray-500">
                     <div>
-                      <strong>Sender:</strong> Mahin's One-Stop One-Store
+                      <strong>Order ID:</strong> #{order.tracking_id.slice(0, 10)}
                     </div>
                     <div>
-                      <strong>Order Date:</strong> {new Date(order.created_at).toLocaleDateString()}
+                      <strong>Dispatch Date:</strong> {new Date().toLocaleDateString()}
                     </div>
                   </div>
                 </div>
 
+                {/* Checklist Table */}
                 <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">
                   Package Contents Checklist
                 </h4>
