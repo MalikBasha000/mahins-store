@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
+import OrderInvoiceModal from './OrderInvoiceModal'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,6 +69,12 @@ export default function AdminPage() {
   const [orderAmountSort, setOrderAmountSort] = useState<'DEFAULT' | 'HIGH_TO_LOW' | 'LOW_TO_HIGH'>('DEFAULT')
   const [minAmountFilter, setMinAmountFilter] = useState('')
   const [maxAmountFilter, setMaxAmountFilter] = useState('')
+
+  // Invoice & Packing Slip Modal State
+  const [activePrintOrder, setActivePrintOrder] = useState<{
+    order: any
+    type: 'INVOICE' | 'PACKING_SLIP'
+  } | null>(null)
 
   // Customers Tab State & Customer Details Modal
   const [customers, setCustomers] = useState<any[]>([])
@@ -951,7 +958,7 @@ export default function AdminPage() {
                       <th className="p-3">Items Ordered & Images</th>
                       <th className="p-3">Total Amount</th>
                       <th className="p-3">Shipping Address</th>
-                      <th className="p-3">Status & Reason</th>
+                      <th className="p-3">Status & Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1026,7 +1033,7 @@ export default function AdminPage() {
                           <select
                             value={o.status || 'Pending'}
                             onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                            className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block cursor-pointer"
+                            className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block w-full cursor-pointer"
                           >
                             <option value="Pending">Pending</option>
                             <option value="Processing">Processing</option>
@@ -1039,6 +1046,22 @@ export default function AdminPage() {
                               {o.cancellation_reason}
                             </span>
                           )}
+                          <div className="flex gap-1 pt-1">
+                            <button
+                              onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200 transition cursor-pointer flex items-center gap-1"
+                              title="Download PDF Tax Invoice"
+                            >
+                              📄 Invoice
+                            </button>
+                            <button
+                              onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
+                              className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-1 rounded border border-gray-300 transition cursor-pointer flex items-center gap-1"
+                              title="Print Shipping Label / Packing Slip"
+                            >
+                              🏷️ Slip
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1143,6 +1166,15 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* ----------------- MODAL: INVOICE & PACKING SLIP ----------------- */}
+      {activePrintOrder && (
+        <OrderInvoiceModal
+          order={activePrintOrder.order}
+          type={activePrintOrder.type}
+          onClose={() => setActivePrintOrder(null)}
+        />
+      )}
 
       {/* ----------------- MODAL: CUSTOMER PROFILE & ORDER LOGS ----------------- */}
       {viewingCustomer && (
