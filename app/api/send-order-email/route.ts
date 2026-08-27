@@ -11,43 +11,58 @@ export async function POST(req: Request) {
     const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
     const FROM_SENDER = "Mahin's One-Stop One-Store <orders@mahinsonestoponestore.in>"
     
+    // Website URLs
     const baseUrl = 'https://www.mahinsonestoponestore.in'
     const adminLoginUrl = 'https://www.mahinsonestoponestore.in/admin'
 
-    // Initialize backend Supabase admin client
+    // 1. Initialize Supabase Admin to accurately fetch customer email from DB
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
     )
 
-    // Resolve customer email automatically if missing or invalid
-    let resolvedCustomerEmail = customerEmail && customerEmail.includes('@') ? customerEmail.trim() : ''
+    let finalCustomerEmail = customerEmail && customerEmail.includes('@') ? customerEmail.trim() : ''
 
-    if (!resolvedCustomerEmail && (orderId || orderDetails?.tracking_id)) {
-      const query = supabaseAdmin.from('orders').select('*')
-      if (orderId) query.eq('id', orderId)
-      else if (orderDetails?.tracking_id) query.eq('tracking_id', orderDetails.tracking_id)
+    // If client didn't pass email or passed empty, look it up in Supabase
+    if (!finalCustomerEmail && (orderId || orderDetails?.tracking_id)) {
+      let query = supabaseAdmin.from('orders').select('*')
+      if (orderId) {
+        query = query.eq('id', orderId)
+      } else if (orderDetails?.tracking_id) {
+        query = query.eq('tracking_id', orderDetails.tracking_id)
+      }
 
       const { data: dbOrder } = await query.maybeSingle()
 
       if (dbOrder) {
-        resolvedCustomerEmail = 
+        finalCustomerEmail = 
           dbOrder.customer_email || 
           dbOrder.email || 
           dbOrder.user_email || 
           dbOrder.customerEmail || 
           ''
 
-        // Fallback: If user_id exists, fetch email from auth
-        if (!resolvedCustomerEmail && dbOrder.user_id) {
-          const { data: authUserData } = await supabaseAdmin.auth.admin.getUserById(dbOrder.user_id)
-          if (authUserData?.user?.email) {
-            resolvedCustomerEmail = authUserData.user.email
+        // Fallback: If stored by user_id
+        if (!finalCustomerEmail && dbOrder.user_id) {
+          try {
+            const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(dbOrder.user_id)
+            if (authUser?.user?.email) {
+              finalCustomerEmail = authUser.user.email
+            }
+          } catch (e) {
+            console.error('Error fetching user by id:', e)
           }
         }
       }
     }
 
+    // Parse items list
     const items = Array.isArray(orderDetails?.items) ? orderDetails.items : []
 
     const itemsHtml = items.map((item: any) => {
@@ -78,6 +93,9 @@ export async function POST(req: Request) {
     }).join('')
 
     if (type === 'ORDER_PLACED') {
+      // -------------------------------------------------------------
+      // TEMPLATE A: CUSTOMER ORDER CONFIRMATION
+      // -------------------------------------------------------------
       const customerHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #312e81; padding: 24px; text-align: center;">
@@ -141,6 +159,9 @@ export async function POST(req: Request) {
         </div>
       `
 
+      // -------------------------------------------------------------
+      // TEMPLATE B: ADMIN ORDER ALERT
+      // -------------------------------------------------------------
       const adminHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff; border: 2px solid #4338ca; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #1e1b4b; padding: 20px; color: #ffffff;">
@@ -156,7 +177,7 @@ export async function POST(req: Request) {
               </tr>
               <tr>
                 <td style="padding: 6px 12px; color: #6b7280;"><strong>Customer Email:</strong></td>
-                <td style="padding: 6px 12px; color: #111827;">${resolvedCustomerEmail || 'No email provided'}</td>
+                <td style="padding: 6px 12px; color: #111827;">${finalCustomerEmail || 'No email provided'}</td>
               </tr>
               <tr>
                 <td style="padding: 6px 12px; color: #6b7280;"><strong>Tracking ID:</strong></td>
@@ -201,16 +222,16 @@ export async function POST(req: Request) {
         </div>
       `
 
-      if (resolvedCustomerEmail) {
+      if (finalCustomerEmail) {
         try {
           await resend.emails.send({
             from: FROM_SENDER,
-            to: [resolvedCustomerEmail],
+            to: [finalCustomerEmail],
             subject: `Order Confirmation - #${orderDetails.tracking_id} | Mahin's One-Stop One-Store`,
             html: customerHtml,
           })
         } catch (e) {
-          console.error('Customer email send error:', e)
+          console.error('Customer email error:', e)
         }
       }
 
@@ -222,10 +243,13 @@ export async function POST(req: Request) {
           html: adminHtml,
         })
       } catch (e) {
-        console.error('Admin email send error:', e)
+        console.error('Admin email error:', e)
       }
 
     } else if (type === 'STATUS_UPDATE') {
+      // -------------------------------------------------------------
+      // TEMPLATE C: STATUS UPDATE NOTIFICATION
+      // -------------------------------------------------------------
       const statusHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
           <div style="background-color: #312e81; padding: 20px; text-align: center;">
@@ -275,17 +299,20 @@ export async function POST(req: Request) {
       `
 
       // 1. Send status update to customer
-      if (resolvedCustomerEmail) {
+      if (finalCustomerEmail) {
         try {
           await resend.emails.send({
             from: FROM_SENDER,
-            to: [resolvedCustomerEmail],
+            to: [finalCustomerEmail],
             subject: `Status Update: ${orderDetails.status} - #${orderDetails.tracking_id} | Mahin's Store`,
             html: statusHtml,
           })
+          console.log(`Status email successfully sent to customer: ${finalCustomerEmail}`)
         } catch (e) {
           console.error('Failed sending status email to customer:', e)
         }
+      } else {
+        console.warn('Customer email could not be resolved for tracking ID:', orderDetails.tracking_id)
       }
 
       // 2. Send status confirmation to admin
@@ -304,7 +331,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       success: true, 
       message: 'Emails processed', 
-      customerSentTo: resolvedCustomerEmail 
+      customerEmailResolved: finalCustomerEmail 
     })
   } catch (error: any) {
     console.error('Email Dispatch Error:', error)
