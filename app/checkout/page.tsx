@@ -80,7 +80,7 @@ export default function CheckoutPage() {
     }
 
     fetchCustomerProfile()
-  }, [])
+  }, [supabase])
 
   const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const pin = e.target.value
@@ -118,11 +118,17 @@ export default function CheckoutPage() {
       return
     }
 
+    if (!email || !email.trim()) {
+      setErrorMsg('Please enter a valid email address.')
+      return
+    }
+
     setLoading(true)
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const currentUserId = user?.id || userId
+      const userEmail = email.trim() || user?.email || ''
 
       if (!currentUserId) {
         throw new Error('Please log in to complete your checkout.')
@@ -139,7 +145,7 @@ export default function CheckoutPage() {
 
       const addressSnapshotObj = {
         full_name: name,
-        email: email,
+        email: userEmail,
         phone: formattedPhone,
         house_no: houseNo,
         plot_no: plotNo,
@@ -151,10 +157,12 @@ export default function CheckoutPage() {
         formatted: formattedAddress
       }
 
-      // 1. Insert Order with exact matching table schema
+      // 1. Insert Order with explicit customer_email field
       const { error: orderError } = await supabase.from('orders').insert([
         {
           user_id: currentUserId,
+          customer_email: userEmail,
+          email: userEmail,
           tracking_id: newTrackingId,
           customer_name: name,
           shipping_address: formattedAddress,
@@ -201,11 +209,11 @@ export default function CheckoutPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'ORDER_PLACED',
-            customerEmail: email.trim(),
+            customerEmail: userEmail,
             orderDetails: {
               tracking_id: newTrackingId,
               customer_name: name,
-              customer_email: email,
+              customer_email: userEmail,
               phone: formattedPhone,
               shipping_address: formattedAddress,
               payment_method: paymentMethod,
