@@ -22,8 +22,8 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  // Tabs: Products, Orders, Customers
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'customers'>('orders')
+  // Tabs: Products, Orders, Customers, Analytics
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'customers' | 'analytics'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -173,41 +173,42 @@ export default function AdminPage() {
     setLoading(true)
     setErrorMsg('')
 
-    if (activeTab === 'products') {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false })
+    // Fetch Products
+    const { data: prodData, error: prodErr } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (prodErr) setErrorMsg(prodErr.message)
+    else setProducts(prodData || [])
 
-      if (error) setErrorMsg(error.message)
-      else setProducts(data || [])
-    } else if (activeTab === 'orders') {
-      try {
-        const res = await fetch('/api/admin/orders')
-        const data = await res.json()
-        if (data.success) {
-          setOrders(data.orders || [])
-        } else {
-          const { data: clientOrders } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
-          setOrders(clientOrders || [])
-        }
-      } catch {
+    // Fetch Orders
+    try {
+      const res = await fetch('/api/admin/orders')
+      const data = await res.json()
+      if (data.success) {
+        setOrders(data.orders || [])
+      } else {
         const { data: clientOrders } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
         setOrders(clientOrders || [])
       }
-    } else if (activeTab === 'customers') {
+    } catch {
+      const { data: clientOrders } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
+      setOrders(clientOrders || [])
+    }
+
+    // Fetch Customers if needed
+    if (activeTab === 'customers' || activeTab === 'analytics') {
       try {
         const res = await fetch('/api/admin/customers')
         const data = await res.json()
         if (data.success) {
           setCustomers(data.customers || [])
-        } else {
-          setErrorMsg(data.error || 'Failed to load customers')
         }
       } catch (err: any) {
-        setErrorMsg(`Failed to fetch customers: ${err.message}`)
+        console.error('Failed to load customers:', err)
       }
     }
+
     setLoading(false)
   }
 
@@ -498,6 +499,40 @@ export default function AdminPage() {
     return orders.filter(o => (o.status || 'Pending').toUpperCase() === status.toUpperCase()).length
   }
 
+  // ----------------- ANALYTICS AGGREGATIONS -----------------
+  const activeAndDeliveredOrders = orders.filter(o => o.status !== 'Cancelled')
+  const totalRevenue = activeAndDeliveredOrders.reduce((acc, o) => acc + Number(o.total_amount || o.final_payable_amount || 0), 0)
+  const deliveredRevenue = orders.filter(o => o.status === 'Delivered').reduce((acc, o) => acc + Number(o.total_amount || o.final_payable_amount || 0), 0)
+  const averageOrderValue = activeAndDeliveredOrders.length > 0 ? Math.round(totalRevenue / activeAndDeliveredOrders.length) : 0
+  const lowStockProducts = products.filter(p => p.stock <= 5)
+
+  // Product sales performance aggregator
+  const productSalesMap = new Map<string, { id: string; name: string; category: string; unitsSold: number; totalSales: number; currentStock: number }>()
+  for (const order of activeAndDeliveredOrders) {
+    if (Array.isArray(order.items)) {
+      for (const item of order.items) {
+        const prodId = item.id || item.product_id || item.name
+        const itemQty = Number(item.quantity) || 1
+        const itemPrice = Number(item.price) || 0
+        const itemSales = itemPrice * itemQty
+
+        const existing = productSalesMap.get(prodId) || {
+          id: prodId,
+          name: item.name,
+          category: item.category || 'General',
+          unitsSold: 0,
+          totalSales: 0,
+          currentStock: products.find(p => p.id === prodId)?.stock ?? 0
+        }
+
+        existing.unitsSold += itemQty
+        existing.totalSales += itemSales
+        productSalesMap.set(prodId, existing)
+      }
+    }
+  }
+  const topSellingProducts = Array.from(productSalesMap.values()).sort((a, b) => b.unitsSold - a.unitsSold)
+
   if (!isAdminAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-900 flex flex-col justify-center items-center p-6">
@@ -634,7 +669,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-gray-50 pb-16">
       <header className="bg-white px-8 py-6 shadow-sm mb-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <h1 className="text-2xl font-extrabold text-indigo-900">Mahin's One-Stop One-Store — Admin Dashboard</h1>
@@ -655,15 +690,15 @@ export default function AdminPage() {
         {errorMsg && <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg border border-red-300 font-medium">{errorMsg}</div>}
         {successMsg && <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg border border-green-300 font-medium">{successMsg}</div>}
 
-        {/* 3 Main Navigation Tabs */}
+        {/* 4 Main Navigation Tabs */}
         <div className="flex flex-wrap gap-4 mb-8 border-b pb-4">
           <button
-            onClick={() => setActiveTab('products')}
-            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer ${
-              activeTab === 'products' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
+            onClick={() => setActiveTab('analytics')}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer flex items-center gap-2 ${
+              activeTab === 'analytics' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
             }`}
           >
-            📦 Inventory Management
+            📊 Analytics & Insights
           </button>
           <button
             onClick={() => setActiveTab('orders')}
@@ -671,7 +706,15 @@ export default function AdminPage() {
               activeTab === 'orders' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
             }`}
           >
-            🛒 Customer Orders
+            🛒 Customer Orders ({orders.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer ${
+              activeTab === 'products' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
+            }`}
+          >
+            📦 Inventory Management ({products.length})
           </button>
           <button
             onClick={() => setActiveTab('customers')}
@@ -679,9 +722,148 @@ export default function AdminPage() {
               activeTab === 'customers' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
             }`}
           >
-            👥 Customers Directory
+            👥 Customers Directory ({customers.length})
           </button>
         </div>
+
+        {/* ----------------- TAB 0: ANALYTICS & INSIGHTS ----------------- */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-8">
+            {/* KPI Metric Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Active Gross Revenue</span>
+                <h3 className="text-2xl font-black text-indigo-950">₹{totalRevenue.toLocaleString()}</h3>
+                <span className="text-[11px] text-green-600 font-semibold mt-2 block">✓ Excludes cancelled orders</span>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Delivered Net Revenue</span>
+                <h3 className="text-2xl font-black text-green-700">₹{deliveredRevenue.toLocaleString()}</h3>
+                <span className="text-[11px] text-gray-500 font-semibold mt-2 block">{getAdminOrderCount('Delivered')} fulfilled orders</span>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Average Order Value (AOV)</span>
+                <h3 className="text-2xl font-black text-indigo-900">₹{averageOrderValue.toLocaleString()}</h3>
+                <span className="text-[11px] text-indigo-600 font-semibold mt-2 block">Per active checkout</span>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Order Volume</span>
+                <h3 className="text-2xl font-black text-gray-900">{orders.length} Orders</h3>
+                <span className="text-[11px] text-gray-500 font-semibold mt-2 block">{customers.length} total customer accounts</span>
+              </div>
+            </div>
+
+            {/* Low-Stock Alert Center */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    ⚠️ Low Stock Warning Center
+                    <span className="bg-red-100 text-red-800 text-xs px-2.5 py-0.5 rounded-full font-extrabold">
+                      {lowStockProducts.length} Items Critical
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-500">Inventory items with 5 units or less remaining in warehouse</p>
+                </div>
+                <button
+                  onClick={() => { setActiveTab('products'); setStockFilter('LOW'); }}
+                  className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                >
+                  Manage In Inventory →
+                </button>
+              </div>
+
+              {lowStockProducts.length === 0 ? (
+                <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-xs text-green-800 font-semibold">
+                  ✓ All products are comfortably stocked (&gt; 5 units).
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {lowStockProducts.map((p) => (
+                    <div key={p.id} className="bg-red-50/50 p-3.5 rounded-xl border border-red-200 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-900">{p.name || p.title}</h4>
+                        <span className="text-[11px] text-gray-500">{p.category || 'General'}</span>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${p.stock === 0 ? 'bg-red-600 text-white' : 'bg-red-200 text-red-900'}`}>
+                        {p.stock === 0 ? 'OUT OF STOCK' : `${p.stock} left`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Top Selling Products Leaderboard */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 mb-1">🏆 Top Performing Products</h3>
+              <p className="text-xs text-gray-500 mb-6">Ranked by total quantity sold across active customer orders</p>
+
+              {topSellingProducts.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No order data available to generate performance leaderboard.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 border-b text-gray-600">
+                        <th className="p-3">Rank</th>
+                        <th className="p-3">Product Name</th>
+                        <th className="p-3 text-center">Units Sold</th>
+                        <th className="p-3 text-right">Total Revenue Generated</th>
+                        <th className="p-3 text-right">Current Available Stock</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topSellingProducts.slice(0, 8).map((p, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="p-3 font-bold text-indigo-900">#{idx + 1}</td>
+                          <td className="p-3 font-bold text-gray-900">{p.name}</td>
+                          <td className="p-3 text-center font-extrabold text-indigo-600">{p.unitsSold} pcs</td>
+                          <td className="p-3 text-right font-black text-gray-900">₹{p.totalSales.toLocaleString()}</td>
+                          <td className="p-3 text-right">
+                            <span className={`px-2 py-0.5 rounded font-bold text-[11px] ${p.currentStock > 5 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {p.currentStock} in stock
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Order Status Distribution Cards */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 mb-4">📦 Order Status Distribution</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-center">
+                  <span className="text-[11px] font-bold text-amber-800 uppercase block">Pending</span>
+                  <span className="text-xl font-black text-amber-900 mt-1 block">{getAdminOrderCount('Pending')}</span>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-center">
+                  <span className="text-[11px] font-bold text-blue-800 uppercase block">Processing</span>
+                  <span className="text-xl font-black text-blue-900 mt-1 block">{getAdminOrderCount('Processing')}</span>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 text-center">
+                  <span className="text-[11px] font-bold text-purple-800 uppercase block">Shipped</span>
+                  <span className="text-xl font-black text-purple-900 mt-1 block">{getAdminOrderCount('Shipped')}</span>
+                </div>
+                <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-center">
+                  <span className="text-[11px] font-bold text-green-800 uppercase block">Delivered</span>
+                  <span className="text-xl font-black text-green-900 mt-1 block">{getAdminOrderCount('Delivered')}</span>
+                </div>
+                <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-center">
+                  <span className="text-[11px] font-bold text-red-800 uppercase block">Cancelled</span>
+                  <span className="text-xl font-black text-red-900 mt-1 block">{getAdminOrderCount('Cancelled')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ----------------- TAB 1: INVENTORY MANAGEMENT ----------------- */}
         {activeTab === 'products' && (
