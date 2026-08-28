@@ -1,7 +1,7 @@
 // app/admin/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
 import OrderInvoiceModal from './OrderInvoiceModal'
@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic'
 
 export default function AdminPage() {
   const supabase = createClient()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
   const ADMIN_PASS = 'tonystark@1986'
@@ -414,6 +415,128 @@ export default function AdminPage() {
     }
     const combined = Math.abs(hash1).toString().padStart(6, '0') + Math.abs(hash2).toString().padStart(6, '0')
     return combined.slice(0, 12)
+  }
+
+  // ----------------- BULK CSV IMPORT / EXPORT UTILITIES -----------------
+  const handleExportCSV = () => {
+    if (products.length === 0) {
+      alert('No products to export.')
+      return
+    }
+
+    const headers = ['name', 'price', 'stock', 'category', 'description', 'image_url']
+    const rows = products.map(p => [
+      `"${(p.name || '').replace(/"/g, '""')}"`,
+      p.price || 0,
+      p.stock || 0,
+      `"${(p.category || 'General').replace(/"/g, '""')}"`,
+      `"${(p.description || '').replace(/"/g, '""')}"`,
+      `"${(p.image_url || '').replace(/"/g, '""')}"`
+    ])
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `MahinsStore_Inventory_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleDownloadSampleCSV = () => {
+    const headers = ['name', 'price', 'stock', 'category', 'description', 'image_url']
+    const sampleRows = [
+      ['"Raspberry Pi 5 8GB"', '8999', '25', '"Single Board Computers"', '"Latest generation quad-core 64-bit Arm Cortex-A76"', '"https://images.unsplash.com/photo-1550745165-9bc0b252726f"'],
+      ['"NodeMCU ESP8266 V3"', '249', '100', '"Microcontrollers"', '"Wi-Fi enabled IoT development board"', '"https://images.unsplash.com/photo-1518770660439-4636190af475"'],
+      ['"Ultrasonic Sensor HC-SR04"', '99', '150', '"Sensors"', '"High precision distance measurement sensor"', '"https://images.unsplash.com/photo-1581092160607-ee22621dd758"']
+    ]
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...sampleRows.map(e => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', 'Sample_Bulk_Products_Template.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setLoading(true)
+    setErrorMsg('')
+    setSuccessMsg('')
+
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string
+        const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '')
+
+        if (lines.length < 2) {
+          setErrorMsg('CSV file is empty or missing data rows.')
+          setLoading(false)
+          return
+        }
+
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''))
+        const parsedProducts: any[] = []
+
+        // Advanced CSV line parser supporting quoted commas
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i]
+          const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g
+          const matches = []
+          let match
+          while ((match = regex.exec(line)) !== null) {
+            let val = match[1] || ''
+            if (val.startsWith('"') && val.endsWith('"')) {
+              val = val.slice(1, -1).replace(/""/g, '"')
+            }
+            matches.push(val.trim())
+            if (regex.lastIndex >= line.length) break
+          }
+
+          if (matches.length > 0 && matches[0]) {
+            const productObj: any = {}
+            headers.forEach((header, index) => {
+              productObj[header] = matches[index] || ''
+            })
+            parsedProducts.push(productObj)
+          }
+        }
+
+        if (parsedProducts.length === 0) {
+          setErrorMsg('Could not parse any valid product rows from the file.')
+          setLoading(false)
+          return
+        }
+
+        const res = await fetch('/api/admin/products/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ products: parsedProducts })
+        })
+
+        const result = await res.json()
+        if (result.success) {
+          setSuccessMsg(`🎉 Successfully imported ${result.count} products into inventory!`)
+          fetchAdminData()
+        } else {
+          setErrorMsg(`Import failed: ${result.error}`)
+        }
+      } catch (err: any) {
+        setErrorMsg(`Failed to parse CSV: ${err.message}`)
+      } finally {
+        setLoading(false)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+      }
+    }
+
+    reader.readAsText(file)
   }
 
   const categoriesList = Array.from(
@@ -865,179 +988,229 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 1: INVENTORY MANAGEMENT ----------------- */}
+        {/* ----------------- TAB 1: INVENTORY MANAGEMENT & CSV TOOLBAR ----------------- */}
         {activeTab === 'products' && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-6 rounded-2xl shadow-md h-fit">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Add New Product</h2>
-              <form onSubmit={handleAddProduct} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
-                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Arduino Uno R3" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹)</label>
-                    <input type="number" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="599" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Stock</label>
-                    <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="50" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
-                  <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Microcontrollers" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
-                  <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Enter full specifications..." className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
-                  {imageInputs.map((url, index) => (
-                    <div key={index} className="flex gap-2 mb-2">
-                      <input 
-                        type="url" 
-                        value={url} 
-                        onChange={(e) => handleImageInputChange(index, e.target.value)} 
-                        placeholder="https://example.com/image.jpg" 
-                        className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" 
-                      />
-                      {imageInputs.length > 1 && (
-                        <button 
-                          type="button" 
-                          onClick={() => handleRemoveImageInput(index)} 
-                          className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button 
-                    type="button" 
-                    onClick={handleAddImageInput} 
-                    className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300"
-                  >
-                    + Add Another Image URL
-                  </button>
-                </div>
-
-                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg text-sm shadow">Add Product</button>
-              </form>
-            </div>
-
-            <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-md">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
-                <h2 className="text-lg font-bold text-gray-900">Store Inventory ({filteredProducts.length})</h2>
-                
-                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search name, ID, category..."
-                    className="border border-gray-300 p-2 rounded-lg text-xs w-full md:w-48 text-gray-900 focus:outline-indigo-600"
-                  />
-
-                  <select
-                    value={selectedCategoryFilter}
-                    onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                    className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
-                  >
-                    <option value="ALL">All Categories</option>
-                    {categoriesList.map((cat: any, i) => (
-                      <option key={i} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={stockFilter}
-                    onChange={(e) => setStockFilter(e.target.value)}
-                    className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
-                  >
-                    <option value="ALL">All Stock Levels</option>
-                    <option value="AVAILABLE">In Stock (&gt;5)</option>
-                    <option value="LOW">Low Stock (≤5)</option>
-                    <option value="OUT">Out of Stock (0)</option>
-                  </select>
-
-                  {(searchQuery || selectedCategoryFilter !== 'ALL' || stockFilter !== 'ALL') && (
-                    <button
-                      onClick={() => { setSearchQuery(''); setSelectedCategoryFilter('ALL'); setStockFilter('ALL'); }}
-                      className="text-xs text-red-600 hover:underline font-bold px-2 py-1 bg-red-50 rounded"
-                    >
-                      Clear Filters
-                    </button>
-                  )}
-                </div>
+          <div className="space-y-6">
+            {/* Bulk CSV Operations Banner */}
+            <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="text-sm font-black text-indigo-950 flex items-center gap-2">
+                  📁 Bulk Inventory Management (CSV / Excel)
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Import dozens of electronics/robotics components at once or export full warehouse records
+                </p>
               </div>
 
-              {loading ? (
-                <p className="text-gray-500">Loading inventory...</p>
-              ) : filteredProducts.length === 0 ? (
-                <p className="text-gray-500">No products match your search or filter criteria.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b bg-gray-50 text-gray-600 text-xs">
-                        <th className="p-3">Product ID & Name</th>
-                        <th className="p-3">Price</th>
-                        <th className="p-3">Stock (Click to Audit Logs)</th>
-                        <th className="p-3">Timestamps</th>
-                        <th className="p-3 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProducts.map((p) => {
-                        const firstImage = p.image_url ? p.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
-                        const addedDate = p.created_at ? new Date(p.created_at).toLocaleString() : 'N/A'
-                        const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleString() : null
-                        const twelveDigitId = getTwelveDigitId(p.id)
+              <div className="flex flex-wrap items-center gap-2.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  className="hidden"
+                />
+                
+                <button
+                  type="button"
+                  onClick={handleDownloadSampleCSV}
+                  className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-300 transition cursor-pointer"
+                  title="Download pre-formatted CSV template"
+                >
+                  📝 Sample Template
+                </button>
 
-                        return (
-                          <tr key={p.id} className="border-b hover:bg-gray-50 align-top">
-                            <td className="p-3 flex items-center gap-3">
-                              <img src={firstImage} alt="" className="h-10 w-10 object-cover rounded border bg-white flex-shrink-0" />
-                              <div>
-                                <button onClick={() => openCustomerPreview(p)} className="font-bold text-indigo-600 hover:underline text-left block cursor-pointer">
-                                  {p.name || p.title || 'Unnamed'}
-                                </button>
-                                <span className="text-[10px] text-gray-400 font-mono tracking-wider block">ID: {twelveDigitId}</span>
-                                <span className="text-xs text-gray-500">{p.category || 'General'}</span>
-                              </div>
-                            </td>
-                            <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">₹{p.price}</td>
-                            <td className="p-3 whitespace-nowrap">
-                              <button
-                                onClick={() => openStockAuditModal(p)}
-                                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer hover:underline ${
-                                  p.stock > 5 ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'
-                                }`}
-                                title="Click to view customer order & audit logs"
-                              >
-                                {p.stock} left 📊
-                              </button>
-                            </td>
-                            <td className="p-3 text-[11px] text-gray-500 whitespace-nowrap">
-                              <div><span className="font-semibold text-gray-700">Added:</span> {addedDate}</div>
-                              {updatedDate && <div><span className="font-semibold text-indigo-700">Edited:</span> {updatedDate}</div>}
-                            </td>
-                            <td className="p-3 text-right space-x-1 whitespace-nowrap">
-                              <button onClick={() => openCustomerPreview(p)} className="text-green-600 hover:text-green-800 font-semibold text-xs bg-green-50 px-2 py-1.5 rounded cursor-pointer">View</button>
-                              <button onClick={() => openEditModal(p)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-xs bg-indigo-50 px-2 py-1.5 rounded cursor-pointer">Edit</button>
-                              <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs bg-red-50 px-2 py-1.5 rounded cursor-pointer">Delete</button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2 rounded-xl border border-indigo-200 transition cursor-pointer flex items-center gap-1.5"
+                  title="Export store products to CSV"
+                >
+                  📤 Export Inventory CSV
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
+                >
+                  📥 Upload Bulk CSV
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-white p-6 rounded-2xl shadow-md h-fit">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Add Single Product</h2>
+                <form onSubmit={handleAddProduct} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
+                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Arduino Uno R3" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹)</label>
+                      <input type="number" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="599" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Stock</label>
+                      <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="50" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
+                    <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Microcontrollers" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
+                    <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Enter full specifications..." className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
+                    {imageInputs.map((url, index) => (
+                      <div key={index} className="flex gap-2 mb-2">
+                        <input 
+                          type="url" 
+                          value={url} 
+                          onChange={(e) => handleImageInputChange(index, e.target.value)} 
+                          placeholder="https://example.com/image.jpg" 
+                          className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" 
+                        />
+                        {imageInputs.length > 1 && (
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveImageInput(index)} 
+                            className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <button 
+                      type="button" 
+                      onClick={handleAddImageInput} 
+                      className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300"
+                    >
+                      + Add Another Image URL
+                    </button>
+                  </div>
+
+                  <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg text-sm shadow">Add Product</button>
+                </form>
+              </div>
+
+              <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-md">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
+                  <h2 className="text-lg font-bold text-gray-900">Store Inventory ({filteredProducts.length})</h2>
+                  
+                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search name, ID, category..."
+                      className="border border-gray-300 p-2 rounded-lg text-xs w-full md:w-48 text-gray-900 focus:outline-indigo-600"
+                    />
+
+                    <select
+                      value={selectedCategoryFilter}
+                      onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                      className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
+                    >
+                      <option value="ALL">All Categories</option>
+                      {categoriesList.map((cat: any, i) => (
+                        <option key={i} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={stockFilter}
+                      onChange={(e) => setStockFilter(e.target.value)}
+                      className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
+                    >
+                      <option value="ALL">All Stock Levels</option>
+                      <option value="AVAILABLE">In Stock (&gt;5)</option>
+                      <option value="LOW">Low Stock (≤5)</option>
+                      <option value="OUT">Out of Stock (0)</option>
+                    </select>
+
+                    {(searchQuery || selectedCategoryFilter !== 'ALL' || stockFilter !== 'ALL') && (
+                      <button
+                        onClick={() => { setSearchQuery(''); setSelectedCategoryFilter('ALL'); setStockFilter('ALL'); }}
+                        className="text-xs text-red-600 hover:underline font-bold px-2 py-1 bg-red-50 rounded"
+                      >
+                        Clear Filters
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
+
+                {loading ? (
+                  <p className="text-gray-500">Loading inventory...</p>
+                ) : filteredProducts.length === 0 ? (
+                  <p className="text-gray-500">No products match your search or filter criteria.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50 text-gray-600 text-xs">
+                          <th className="p-3">Product ID & Name</th>
+                          <th className="p-3">Price</th>
+                          <th className="p-3">Stock (Click to Audit Logs)</th>
+                          <th className="p-3">Timestamps</th>
+                          <th className="p-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProducts.map((p) => {
+                          const firstImage = p.image_url ? p.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
+                          const addedDate = p.created_at ? new Date(p.created_at).toLocaleString() : 'N/A'
+                          const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleString() : null
+                          const twelveDigitId = getTwelveDigitId(p.id)
+
+                          return (
+                            <tr key={p.id} className="border-b hover:bg-gray-50 align-top">
+                              <td className="p-3 flex items-center gap-3">
+                                <img src={firstImage} alt="" className="h-10 w-10 object-cover rounded border bg-white flex-shrink-0" />
+                                <div>
+                                  <button onClick={() => openCustomerPreview(p)} className="font-bold text-indigo-600 hover:underline text-left block cursor-pointer">
+                                    {p.name || p.title || 'Unnamed'}
+                                  </button>
+                                  <span className="text-[10px] text-gray-400 font-mono tracking-wider block">ID: {twelveDigitId}</span>
+                                  <span className="text-xs text-gray-500">{p.category || 'General'}</span>
+                                </div>
+                              </td>
+                              <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">₹{p.price}</td>
+                              <td className="p-3 whitespace-nowrap">
+                                <button
+                                  onClick={() => openStockAuditModal(p)}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer hover:underline ${
+                                    p.stock > 5 ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                  }`}
+                                  title="Click to view customer order & audit logs"
+                                >
+                                  {p.stock} left 📊
+                                </button>
+                              </td>
+                              <td className="p-3 text-[11px] text-gray-500 whitespace-nowrap">
+                                <div><span className="font-semibold text-gray-700">Added:</span> {addedDate}</div>
+                                {updatedDate && <div><span className="font-semibold text-indigo-700">Edited:</span> {updatedDate}</div>}
+                              </td>
+                              <td className="p-3 text-right space-x-1 whitespace-nowrap">
+                                <button onClick={() => openCustomerPreview(p)} className="text-green-600 hover:text-green-800 font-semibold text-xs bg-green-50 px-2 py-1.5 rounded cursor-pointer">View</button>
+                                <button onClick={() => openEditModal(p)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-xs bg-indigo-50 px-2 py-1.5 rounded cursor-pointer">Edit</button>
+                                <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs bg-red-50 px-2 py-1.5 rounded cursor-pointer">Delete</button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
