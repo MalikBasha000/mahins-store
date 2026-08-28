@@ -482,15 +482,16 @@ export default function AdminPage() {
           return
         }
 
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''))
+        const headers: string[] = lines[0].split(',').map((h: string) => h.trim().toLowerCase().replace(/"/g, ''))
         const parsedProducts: any[] = []
 
         // Advanced CSV line parser supporting quoted commas
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i]
           const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g
-          const matches = []
-          let match
+          const matches: string[] = []
+          let match: RegExpExecArray | null = null
+
           while ((match = regex.exec(line)) !== null) {
             let val = match[1] || ''
             if (val.startsWith('"') && val.endsWith('"')) {
@@ -501,8 +502,8 @@ export default function AdminPage() {
           }
 
           if (matches.length > 0 && matches[0]) {
-            const productObj: any = {}
-            headers.forEach((header, index) => {
+            const productObj: Record<string, any> = {}
+            headers.forEach((header: string, index: number) => {
               productObj[header] = matches[index] || ''
             })
             parsedProducts.push(productObj)
@@ -1715,7 +1716,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Customer Preview Modal */}
       {viewingProduct && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
