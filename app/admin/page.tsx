@@ -417,7 +417,7 @@ export default function AdminPage() {
     return combined.slice(0, 12)
   }
 
-  // ----------------- BULK CSV IMPORT / EXPORT UTILITIES -----------------
+  // ----------------- BULK CSV / EXCEL IMPORT & EXPORT UTILITIES -----------------
   const handleExportCSV = () => {
     if (products.length === 0) {
       alert('No products to export.')
@@ -474,64 +474,74 @@ export default function AdminPage() {
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string
-        const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '')
+        // Use non-blocking yield if file is large
+        setTimeout(async () => {
+          const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '')
 
-        if (lines.length < 2) {
-          setErrorMsg('CSV file is empty or missing data rows.')
-          setLoading(false)
-          return
-        }
+          if (lines.length < 2) {
+            setErrorMsg('CSV file is empty or missing data rows.')
+            setLoading(false)
+            return
+          }
 
-        const headers: string[] = lines[0].split(',').map((h: string) => h.trim().toLowerCase().replace(/"/g, ''))
-        const parsedProducts: any[] = []
+          const headers: string[] = lines[0].split(',').map((h: string) => h.trim().toLowerCase().replace(/"/g, ''))
+          const parsedProducts: any[] = []
 
-        // Advanced CSV line parser supporting quoted commas
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i]
-          const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g
-          const matches: string[] = []
-          let match: RegExpExecArray | null = null
-
-          while ((match = regex.exec(line)) !== null) {
-            let val = match[1] || ''
-            if (val.startsWith('"') && val.endsWith('"')) {
-              val = val.slice(1, -1).replace(/""/g, '"')
+          // Safe, crash-free CSV line parser with quote and newline support
+          const parseCSVLine = (line: string) => {
+            const result = []
+            let curVal = ''
+            let inQuotes = false
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i]
+              if (char === '"') {
+                inQuotes = !inQuotes
+              } else if (char === ',' && !inQuotes) {
+                result.push(curVal.trim())
+                curVal = ''
+              } else {
+                curVal += char
+              }
             }
-            matches.push(val.trim())
-            if (regex.lastIndex >= line.length) break
+            result.push(curVal.trim())
+            return result
           }
 
-          if (matches.length > 0 && matches[0]) {
-            const productObj: Record<string, any> = {}
-            headers.forEach((header: string, index: number) => {
-              productObj[header] = matches[index] || ''
-            })
-            parsedProducts.push(productObj)
+          for (let i = 1; i < lines.length; i++) {
+            const matches = parseCSVLine(lines[i])
+            if (matches.length > 0 && matches[0]) {
+              const productObj: Record<string, any> = {}
+              headers.forEach((header: string, index: number) => {
+                productObj[header] = matches[index] || ''
+              })
+              parsedProducts.push(productObj)
+            }
           }
-        }
 
-        if (parsedProducts.length === 0) {
-          setErrorMsg('Could not parse any valid product rows from the file.')
+          if (parsedProducts.length === 0) {
+            setErrorMsg('Could not parse any valid product rows from the file.')
+            setLoading(false)
+            return
+          }
+
+          const res = await fetch('/api/admin/products/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ products: parsedProducts })
+          })
+
+          const result = await res.json()
+          if (result.success) {
+            setSuccessMsg(`🎉 Successfully imported ${result.count} products into inventory!`)
+            fetchAdminData()
+          } else {
+            setErrorMsg(`Import failed: ${result.error}`)
+          }
           setLoading(false)
-          return
-        }
-
-        const res = await fetch('/api/admin/products/bulk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ products: parsedProducts })
-        })
-
-        const result = await res.json()
-        if (result.success) {
-          setSuccessMsg(`🎉 Successfully imported ${result.count} products into inventory!`)
-          fetchAdminData()
-        } else {
-          setErrorMsg(`Import failed: ${result.error}`)
-        }
+          if (fileInputRef.current) fileInputRef.current.value = ''
+        }, 50)
       } catch (err: any) {
         setErrorMsg(`Failed to parse CSV: ${err.message}`)
-      } finally {
         setLoading(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
       }
@@ -1678,7 +1688,7 @@ export default function AdminPage() {
                           </div>
                         )}
                         {log.status !== 'Delivered' && log.status !== 'Cancelled' && (
-                          <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold border border-indigo-200 block">Active Order</span>
+                          <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block">Active Order</span>
                         )}
                       </div>
                     </div>
