@@ -12,8 +12,8 @@ interface OrderInvoiceModalProps {
 export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoiceModalProps) {
   const documentRef = useRef<HTMLDivElement>(null)
 
-  const handleDownloadPDF = () => {
-    // Triggers the clean browser print dialog, where Destination can be set to "Save as PDF"
+  const handlePrintOrDownload = () => {
+    // Triggers native browser print engine, perfectly configured for single-page output
     window.print()
   }
 
@@ -26,7 +26,7 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
 
   return (
     <div className="fixed inset-0 bg-black/75 flex justify-center items-center p-4 z-50 overflow-y-auto">
-      {/* Print isolation styles: hides everything except the printable invoice card */}
+      {/* Strict Print Styling Rules: forces single-page output and pure white background */}
       <style jsx global>{`
         @media print {
           body * {
@@ -40,15 +40,19 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
             left: 0 !important;
             top: 0 !important;
             width: 100vw !important;
-            height: 100vh !important.
+            height: 100vh !important;
             margin: 0 !important;
-            padding: 24px !important;
-            background: white !important;
+            padding: 16px !important;
+            background: #ffffff !important;
             box-shadow: none !important;
             z-index: 999999 !important;
           }
           .no-print {
             display: none !important;
+          }
+          @page {
+            size: portrait;
+            margin: 0mm;
           }
         }
       `}</style>
@@ -64,7 +68,7 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleDownloadPDF}
+              onClick={handlePrintOrDownload}
               className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
             >
               📥 Print / Save as PDF ({order.tracking_id})

@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
-import CustomerInvoiceModal from '../components/CustomerInvoiceModal'
+import OrderInvoiceModal from '../admin/OrderInvoiceModal'
 
 export default function CustomerOrdersPage() {
   const supabase = createClient()
@@ -253,7 +253,7 @@ export default function CustomerOrdersPage() {
                           onClick={() => setActiveInvoiceOrder(order)}
                           className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer"
                         >
-                          📄 Download Invoice
+                          📄 Download / Print Invoice
                         </button>
                       )}
 
@@ -272,10 +272,11 @@ export default function CustomerOrdersPage() {
         )}
       </div>
 
-      {/* Customer Invoice Modal */}
+      {/* Shared Invoice Modal */}
       {activeInvoiceOrder && (
-        <CustomerInvoiceModal
+        <OrderInvoiceModal
           order={activeInvoiceOrder}
+          type="INVOICE"
           onClose={() => setActiveInvoiceOrder(null)}
         />
       )}
