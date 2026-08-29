@@ -444,6 +444,32 @@ export default function AdminPage() {
     document.body.removeChild(link)
   }
 
+  const handleExportCustomersCSV = () => {
+    if (customers.length === 0) {
+      alert('No customer records to export.')
+      return
+    }
+
+    const headers = ['name', 'email', 'phone', 'total_orders_count', 'total_spent', 'current_profile_address']
+    const rows = customers.map(c => [
+      `"${(c.name || 'Guest').replace(/"/g, '""')}"`,
+      `"${(c.email || '').replace(/"/g, '""')}"`,
+      `"${(c.phone || '').replace(/"/g, '""')}"`,
+      c.total_orders_count || 0,
+      c.total_spent || 0,
+      `"${(c.current_profile_address || '').replace(/"/g, '""')}"`
+    ])
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `MahinsStore_Customers_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const handleDownloadSampleCSV = () => {
     const headers = ['name', 'price', 'stock', 'category', 'description', 'image_url']
     const sampleRows = [
@@ -1460,13 +1486,21 @@ export default function AdminPage() {
                 <p className="text-xs text-gray-500">Live directory aggregated from Supabase Auth and Order Records</p>
               </div>
 
-              <div className="w-full md:w-80">
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <button
+                  onClick={handleExportCustomersCSV}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                  title="Export customer contact list for newsletters"
+                >
+                  📤 Export Customers CSV
+                </button>
+
                 <input
                   type="text"
                   value={customerSearchQuery}
                   onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                  placeholder="🔍 Search Customer Name, Email, ID, Phone..."
-                  className="w-full border border-gray-300 p-2.5 rounded-xl text-xs text-gray-900 focus:outline-indigo-600 shadow-sm"
+                  placeholder="🔍 Search Name, Email, ID, Phone..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 shadow-sm"
                 />
               </div>
             </div>
