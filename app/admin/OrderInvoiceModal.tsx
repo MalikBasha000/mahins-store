@@ -1,9 +1,7 @@
 // app/admin/OrderInvoiceModal.tsx
 'use client'
 
-import React, { useRef, useState } from 'react'
-import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
+import React, { useRef } from 'react'
 
 interface OrderInvoiceModalProps {
   order: any
@@ -13,39 +11,10 @@ interface OrderInvoiceModalProps {
 
 export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoiceModalProps) {
   const documentRef = useRef<HTMLDivElement>(null)
-  const [downloading, setDownloading] = useState(false)
 
-  const handleDownloadPDF = async () => {
-    if (!documentRef.current) return
-    setDownloading(true)
-
-    try {
-      // Force clean white background and scale for high resolution
-      const canvas = await html2canvas(documentRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-      })
-
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF('p', 'mm', 'a4')
-      
-      const pageWidth = 210 // A4 width in mm
-      const pageHeight = 295 // A4 height in mm
-      const imgWidth = pageWidth
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-
-      // Fit strictly onto a single A4 page cleanly
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, Math.min(imgHeight, pageHeight))
-
-      const filename = `${type === 'INVOICE' ? 'Invoice' : 'PackingSlip'}_${order.tracking_id}.pdf`
-      pdf.save(filename)
-    } catch (err) {
-      console.error('PDF generation failed:', err)
-      alert('Failed to generate PDF. Please try again.')
-    }
-    setDownloading(false)
+  const handleDownloadPDF = () => {
+    // Triggers the clean browser print dialog, where Destination can be set to "Save as PDF"
+    window.print()
   }
 
   const items = Array.isArray(order.items) ? order.items : []
@@ -57,9 +26,36 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
 
   return (
     <div className="fixed inset-0 bg-black/75 flex justify-center items-center p-4 z-50 overflow-y-auto">
+      {/* Print isolation styles: hides everything except the printable invoice card */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-invoice-card, #printable-invoice-card * {
+            visibility: visible !important;
+          }
+          #printable-invoice-card {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important.
+            margin: 0 !important;
+            padding: 24px !important;
+            background: white !important;
+            box-shadow: none !important;
+            z-index: 999999 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full p-6 my-8">
         {/* Action Header */}
-        <div className="flex justify-between items-center pb-4 border-b border-gray-200 mb-6">
+        <div className="flex justify-between items-center pb-4 border-b border-gray-200 mb-6 no-print">
           <div>
             <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
               {type === 'INVOICE' ? 'Tax Invoice & Receipt' : 'Shipping Label & Packing Slip'}
@@ -69,10 +65,9 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
           <div className="flex items-center gap-2">
             <button
               onClick={handleDownloadPDF}
-              disabled={downloading}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
             >
-              {downloading ? 'Generating Clean PDF...' : `⬇️ Download PDF (${order.tracking_id})`}
+              📥 Print / Save as PDF ({order.tracking_id})
             </button>
             <button
               onClick={onClose}
@@ -86,6 +81,7 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
         {/* Printable Document Container */}
         <div className="border border-gray-200 rounded-2xl p-4 bg-gray-50 max-h-[65vh] overflow-y-auto flex justify-center">
           <div
+            id="printable-invoice-card"
             ref={documentRef}
             className="bg-white p-8 w-full max-w-2xl rounded-xl shadow-sm text-gray-900 font-sans"
           >
