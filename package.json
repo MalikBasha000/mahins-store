@@ -21,6 +21,7 @@
     "react-dom": "19.2.8",
     "resend": "^6.22.1",
     "tailwind-merge": "^3.6.0",
+    "twilio": "^6.1.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

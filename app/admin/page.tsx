@@ -1427,6 +1427,17 @@ export default function AdminPage() {
                             >
                               🏷️ Slip
                             </button>
+                            <a
+                              href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
+                                `Hello ${o.customer_name || 'Customer'}, regarding your order #${o.tracking_id} at Mahin's One-Stop One-Store: Status is currently *${o.status || 'Pending'}*.`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer flex items-center gap-1"
+                              title="Open WhatsApp chat with customer"
+                            >
+                              💬 WhatsApp
+                            </a>
                           </div>
                         </td>
                       </tr>
