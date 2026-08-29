@@ -20,10 +20,12 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
     setDownloading(true)
 
     try {
+      // Force clean white background and scale for high resolution
       const canvas = await html2canvas(documentRef.current, {
         scale: 2,
         useCORS: true,
         logging: false,
+        backgroundColor: '#ffffff',
       })
 
       const imgData = canvas.toDataURL('image/png')
@@ -31,24 +33,19 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
       
       const pageWidth = 210 // A4 width in mm
       const pageHeight = 295 // A4 height in mm
-      
-      // Calculate proportional height to fit strictly on 1 single A4 page
       const imgWidth = pageWidth
       const imgHeight = (canvas.height * imgWidth) / canvas.width
 
+      // Fit strictly onto a single A4 page cleanly
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, Math.min(imgHeight, pageHeight))
 
       const filename = `${type === 'INVOICE' ? 'Invoice' : 'PackingSlip'}_${order.tracking_id}.pdf`
       pdf.save(filename)
     } catch (err) {
       console.error('PDF generation failed:', err)
-      window.print()
+      alert('Failed to generate PDF. Please try again.')
     }
     setDownloading(false)
-  }
-
-  const handlePrint = () => {
-    window.print()
   }
 
   const items = Array.isArray(order.items) ? order.items : []
@@ -71,17 +68,11 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handlePrint}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer"
-            >
-              🖨️ Print
-            </button>
-            <button
               onClick={handleDownloadPDF}
               disabled={downloading}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
             >
-              {downloading ? 'Generating PDF...' : `⬇️ Download PDF (${order.tracking_id})`}
+              {downloading ? 'Generating Clean PDF...' : `⬇️ Download PDF (${order.tracking_id})`}
             </button>
             <button
               onClick={onClose}
