@@ -25,15 +25,13 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
 
   return (
     <div className="fixed inset-0 bg-black/75 flex justify-center items-center p-4 z-50 overflow-y-auto">
-      {/* Strict Single-Page Print Rules */}
+      {/* Strict Print Rules to prevent page looping and empty trailing sheets */}
       <style jsx global>{`
         @media print {
-          body, html {
-            width: 100%;
-            height: 100%;
-            margin: 0 !important;
-            padding: 0 !important;
+          html, body {
+            height: 100% !important;
             overflow: hidden !important;
+            background: #ffffff !important;
           }
           body * {
             visibility: hidden !important;
@@ -46,22 +44,20 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
-            height: 100vh !important;
+            height: auto !important;
             max-height: 100vh !important;
             margin: 0 !important;
-            padding: 20px !important;
+            padding: 10px !important;
             background: #ffffff !important;
             box-shadow: none !important;
             z-index: 999999 !important;
-            page-break-inside: avoid !important;
-            page-break-after: avoid !important;
           }
           .no-print {
             display: none !important;
           }
           @page {
             size: A4 portrait;
-            margin: 5mm;
+            margin: 0mm;
           }
         }
       `}</style>
