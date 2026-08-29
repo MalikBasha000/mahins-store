@@ -1366,7 +1366,7 @@ export default function AdminPage() {
 
                                     <div>
                                       <div className="font-bold text-gray-900">{item.name} × <span className="text-indigo-600">{item.quantity}</span></div>
-                                      <div className="text-[10px] text-gray-400 font-mono tracking-wider">ID: {twelveDigitId}</div>
+                                      <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
                                     </div>
                                   </div>
                                 )
@@ -1431,7 +1431,7 @@ export default function AdminPage() {
                                   Array.isArray(o.items) 
                                     ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
                                     : '- Order Item'
-                                }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/orders`
+                                }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
