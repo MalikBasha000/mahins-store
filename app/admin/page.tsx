@@ -1366,7 +1366,7 @@ export default function AdminPage() {
 
                                     <div>
                                       <div className="font-bold text-gray-900">{item.name} × <span className="text-indigo-600">{item.quantity}</span></div>
-                                      <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
+                                      <div className="text-[10px] text-gray-400 font-mono tracking-wider">ID: {twelveDigitId}</div>
                                     </div>
                                   </div>
                                 )
@@ -1427,16 +1427,16 @@ export default function AdminPage() {
                             </button>
                             <a
                               href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                                `Hello ${o.customer_name || 'Customer'}!\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\n📦 Order Status: ${o.status || 'Pending'}\n🆔 Tracking ID: ${o.tracking_id}\n\n📋 Itemized Order Summary:\n${
+                                `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\n\nItemized Order Summary:\n${
                                   Array.isArray(o.items) 
-                                    ? o.items.map((i: any) => `• ${i.name}\n   Qty: ${i.quantity || 1} × ₹${i.price || 0} = ₹${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
-                                    : '• Order Item'
-                                }\n\n────────────────\n💰 Total Payable Amount: ₹${o.total_amount || o.final_payable_amount}\n────────────────\n\n🔗 Track Your Order Here:\nhttps://mahinsonestoponestore.in/orders`
+                                    ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
+                                    : '- Order Item'
+                                }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/orders`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer flex items-center gap-1"
-                              title="Open WhatsApp chat with clean formatting"
+                              title="Open WhatsApp chat"
                             >
                               💬 WhatsApp
                             </a>
