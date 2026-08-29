@@ -5,6 +5,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
 import OrderInvoiceModal from './OrderInvoiceModal'
+import SalesCharts from './SalesCharts'
 
 export const dynamic = 'force-dynamic'
 
@@ -913,6 +914,9 @@ export default function AdminPage() {
                 <span className="text-[11px] text-gray-500 font-semibold mt-2 block">{customers.length} total customer accounts</span>
               </div>
             </div>
+
+            {/* Interactive Sales Charts Integration */}
+            <SalesCharts orders={orders} products={products} />
 
             {/* Low-Stock Alert Center */}
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
