@@ -1427,16 +1427,16 @@ export default function AdminPage() {
                             </button>
                             <a
                               href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                                `Hello *${o.customer_name || 'Customer'}*! 👋\n\nThank you for shopping at *Mahin's One-Stop One-Store*!\n\n📦 *Order Status:* ${o.status || 'Pending'}\n🆔 *Tracking ID:* \`${o.tracking_id}\`\n\n*📋 Itemized Order Summary:*\n${
+                                `Hello ${o.customer_name || 'Customer'}!\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\n📦 Order Status: ${o.status || 'Pending'}\n🆔 Tracking ID: ${o.tracking_id}\n\n📋 Itemized Order Summary:\n${
                                   Array.isArray(o.items) 
-                                    ? o.items.map((i: any) => `• *${i.name}*\n   Qty: ${i.quantity || 1} × ₹${i.price || 0} = *₹${(i.quantity || 1) * (i.price || 0)}*`).join('\n\n') 
+                                    ? o.items.map((i: any) => `• ${i.name}\n   Qty: ${i.quantity || 1} × ₹${i.price || 0} = ₹${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
                                     : '• Order Item'
-                                }\n\n━━━━━━━━━━━━━━━━━\n💰 *Total Payable Amount:* *₹${o.total_amount || o.final_payable_amount}*\n━━━━━━━━━━━━━━━━━\n\n🔗 *Track Your Order Live Here:*\nhttps://mahinsonestoponestore.in/orders?tracking=${o.tracking_id}`
+                                }\n\n────────────────\n💰 Total Payable Amount: ₹${o.total_amount || o.final_payable_amount}\n────────────────\n\n🔗 Track Your Order Here:\nhttps://mahinsonestoponestore.in/orders`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer flex items-center gap-1"
-                              title="Open WhatsApp chat with calculated summary and tracking link"
+                              title="Open WhatsApp chat with clean formatting"
                             >
                               💬 WhatsApp
                             </a>
