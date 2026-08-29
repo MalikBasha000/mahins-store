@@ -13,7 +13,6 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
   const documentRef = useRef<HTMLDivElement>(null)
 
   const handlePrintOrDownload = () => {
-    // Triggers native browser print engine, perfectly configured for single-page output
     window.print()
   }
 
@@ -26,9 +25,16 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
 
   return (
     <div className="fixed inset-0 bg-black/75 flex justify-center items-center p-4 z-50 overflow-y-auto">
-      {/* Strict Print Styling Rules: forces single-page output and pure white background */}
+      {/* Strict Single-Page Print Rules */}
       <style jsx global>{`
         @media print {
+          body, html {
+            width: 100%;
+            height: 100%;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+          }
           body * {
             visibility: hidden !important;
           }
@@ -36,23 +42,26 @@ export default function OrderInvoiceModal({ order, type, onClose }: OrderInvoice
             visibility: visible !important;
           }
           #printable-invoice-card {
-            position: fixed !important;
+            position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 100vw !important;
+            width: 100% !important;
             height: 100vh !important;
+            max-height: 100vh !important;
             margin: 0 !important;
-            padding: 16px !important;
+            padding: 20px !important;
             background: #ffffff !important;
             box-shadow: none !important;
             z-index: 999999 !important;
+            page-break-inside: avoid !important;
+            page-break-after: avoid !important;
           }
           .no-print {
             display: none !important;
           }
           @page {
-            size: portrait;
-            margin: 0mm;
+            size: A4 portrait;
+            margin: 5mm;
           }
         }
       `}</style>
