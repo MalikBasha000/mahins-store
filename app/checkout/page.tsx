@@ -43,6 +43,12 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('UPI / QR Code')
 
   useEffect(() => {
+    // Load Razorpay script dynamically
+    const script = document.createElement('script')
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.async = true
+    document.body.appendChild(script)
+
     const fetchCustomerProfile = async () => {
       setDataLoading(true)
       try {
@@ -109,6 +115,117 @@ export default function CheckoutPage() {
     return result
   }
 
+  const processOrderSubmission = async (paymentRefId?: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const currentUserId = user?.id || userId
+    const userEmail = email.trim() || user?.email || ''
+
+    if (!currentUserId) {
+      throw new Error('Please log in to complete your checkout.')
+    }
+
+    const newTrackingId = generateTrackingId()
+    const housePlotPart = [
+      houseNo ? `House No: ${houseNo}` : '',
+      plotNo ? `Plot No: ${plotNo}` : '',
+    ].filter(Boolean).join(', ')
+
+    const formattedPhone = `${countryCode} ${phone}`.trim()
+    const formattedAddress = `${housePlotPart}, Street: ${street}, City: ${city}, District: ${district}, State: ${stateName}, Pincode: ${pincode}, Phone: ${formattedPhone}`
+
+    const addressSnapshotObj = {
+      full_name: name,
+      email: userEmail,
+      customer_email: userEmail,
+      phone: formattedPhone,
+      house_no: houseNo,
+      plot_no: plotNo,
+      street: street,
+      city: city,
+      district: district,
+      state: stateName,
+      pincode: pincode,
+      formatted: formattedAddress
+    }
+
+    const finalPaymentMethod = paymentRefId 
+      ? `${paymentMethod} (Paid - ID: ${paymentRefId})` 
+      : paymentMethod
+
+    const orderPayload: any = {
+      user_id: currentUserId,
+      tracking_id: newTrackingId,
+      customer_name: name,
+      shipping_address: formattedAddress,
+      shipping_address_snapshot: addressSnapshotObj,
+      payment_method: finalPaymentMethod,
+      total_amount: totalPrice,
+      final_payable_amount: totalPrice,
+      status: 'Pending',
+      items: cart.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: Number(item.price),
+        quantity: Number(item.quantity) || 1,
+        image_url: item.image_url || '',
+      })),
+    }
+
+    const { error: orderError } = await supabase.from('orders').insert([orderPayload])
+    if (orderError) throw new Error(orderError.message)
+
+    // Decrement product stock
+    for (const item of cart) {
+      const qty = Number(item.quantity) || 1
+      const { data: currentProduct } = await supabase
+        .from('products')
+        .select('stock')
+        .eq('id', item.id)
+        .single()
+
+      if (currentProduct) {
+        await supabase
+          .from('products')
+          .update({ stock: Math.max(0, currentProduct.stock - qty) })
+          .eq('id', item.id)
+      }
+    }
+
+    // Dispatch Confirmation Emails
+    try {
+      await fetch('/api/send-order-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'ORDER_PLACED',
+          customerEmail: userEmail,
+          orderDetails: {
+            tracking_id: newTrackingId,
+            customer_name: name,
+            customer_email: userEmail,
+            phone: formattedPhone,
+            shipping_address: formattedAddress,
+            payment_method: finalPaymentMethod,
+            total_amount: totalPrice,
+            items: cart.map((item) => ({
+              id: item.id,
+              name: item.name,
+              price: Number(item.price),
+              quantity: Number(item.quantity) || 1,
+              image_url: item.image_url || '',
+            })),
+          },
+        }),
+      })
+    } catch (err) {
+      console.error('Email API Error:', err)
+    }
+
+    clearCart()
+    setTrackingId(newTrackingId)
+    setOrderSuccess(true)
+  }
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
@@ -126,117 +243,58 @@ export default function CheckoutPage() {
     setLoading(true)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const currentUserId = user?.id || userId
-      const userEmail = email.trim() || user?.email || ''
-
-      if (!currentUserId) {
-        throw new Error('Please log in to complete your checkout.')
-      }
-
-      const newTrackingId = generateTrackingId()
-      const housePlotPart = [
-        houseNo ? `House No: ${houseNo}` : '',
-        plotNo ? `Plot No: ${plotNo}` : '',
-      ].filter(Boolean).join(', ')
-
-      const formattedPhone = `${countryCode} ${phone}`.trim()
-      const formattedAddress = `${housePlotPart}, Street: ${street}, City: ${city}, District: ${district}, State: ${stateName}, Pincode: ${pincode}, Phone: ${formattedPhone}`
-
-      const addressSnapshotObj = {
-        full_name: name,
-        email: userEmail,
-        customer_email: userEmail,
-        phone: formattedPhone,
-        house_no: houseNo,
-        plot_no: plotNo,
-        street: street,
-        city: city,
-        district: district,
-        state: stateName,
-        pincode: pincode,
-        formatted: formattedAddress
-      }
-
-      // Safe order insert without non-existent top-level columns
-      const orderPayload: any = {
-        user_id: currentUserId,
-        tracking_id: newTrackingId,
-        customer_name: name,
-        shipping_address: formattedAddress,
-        shipping_address_snapshot: addressSnapshotObj,
-        payment_method: paymentMethod,
-        total_amount: totalPrice,
-        final_payable_amount: totalPrice,
-        status: 'Pending',
-        items: cart.map((item) => ({
-          id: item.id,
-          name: item.name,
-          price: Number(item.price),
-          quantity: Number(item.quantity) || 1,
-          image_url: item.image_url || '',
-        })),
-      }
-
-      const { error: orderError } = await supabase.from('orders').insert([orderPayload])
-
-      if (orderError) {
-        throw new Error(orderError.message)
-      }
-
-      // Decrement product stock in Supabase
-      for (const item of cart) {
-        const qty = Number(item.quantity) || 1
-        const { data: currentProduct } = await supabase
-          .from('products')
-          .select('stock')
-          .eq('id', item.id)
-          .single()
-
-        if (currentProduct) {
-          await supabase
-            .from('products')
-            .update({ stock: Math.max(0, currentProduct.stock - qty) })
-            .eq('id', item.id)
-        }
-      }
-
-      // Dispatch Confirmation Emails
-      try {
-        await fetch('/api/send-order-email', {
+      // If Cash on Delivery, place order directly
+      if (paymentMethod === 'Cash on Delivery (COD)') {
+        await processOrderSubmission()
+      } else {
+        // Online Payment via Razorpay
+        const res = await fetch('/api/razorpay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'ORDER_PLACED',
-            customerEmail: userEmail,
-            orderDetails: {
-              tracking_id: newTrackingId,
-              customer_name: name,
-              customer_email: userEmail,
-              phone: formattedPhone,
-              shipping_address: formattedAddress,
-              payment_method: paymentMethod,
-              total_amount: totalPrice,
-              items: cart.map((item) => ({
-                id: item.id,
-                name: item.name,
-                price: Number(item.price),
-                quantity: Number(item.quantity) || 1,
-                image_url: item.image_url || '',
-              })),
-            },
-          }),
+          body: JSON.stringify({ amount: totalPrice }),
         })
-      } catch (err) {
-        console.error('Email API Error:', err)
-      }
+        const data = await res.json()
 
-      clearCart()
-      setTrackingId(newTrackingId)
-      setOrderSuccess(true)
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to initiate payment gateway.')
+        }
+
+        const options = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          amount: data.order.amount,
+          currency: "INR",
+          name: "Mahin's One-Stop One-Store",
+          description: "Purchase of Electronics & Robotics Components",
+          order_id: data.order.id,
+          handler: async function (response: any) {
+            try {
+              await processOrderSubmission(response.razorpay_payment_id)
+            } catch (innerErr: any) {
+              setErrorMsg(innerErr.message || 'Payment successful, but failed to save order.')
+              setLoading(false)
+            }
+          },
+          prefill: {
+            name: name,
+            email: email,
+            contact: phone,
+          },
+          theme: {
+            color: "#4f46e5",
+          },
+          modal: {
+            ondismiss: function() {
+              setLoading(false)
+            }
+          }
+        }
+
+        const rzp = new (window as any).Razorpay(options)
+        rzp.open()
+        return // Wait for razorpay handler callback
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'An error occurred while placing your order.')
-    } finally {
       setLoading(false)
     }
   }
