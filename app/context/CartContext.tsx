@@ -2,12 +2,13 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
+import { createClient } from '../../lib/supabase/client'
 
 export interface CartItem {
   id: string
   name: string
   price: number
-  quantity: number
+  quantity: number | string
   image_url?: string
   stock?: number
 }
@@ -26,17 +27,50 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
+  const supabase = createClient()
 
   useEffect(() => {
-    const savedCart = localStorage.getItem('mahins_cart')
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart))
-      } catch (e) {
-        console.error("Failed to parse cart", e)
+    const fetchLatestPricesAndCart = async () => {
+      const savedCart = localStorage.getItem('mahins_cart')
+      if (savedCart) {
+        try {
+          const parsedCart: CartItem[] = JSON.parse(savedCart)
+          
+          // Fetch latest price and stock from Supabase to ensure dynamic updates
+          const productIds = parsedCart.map(item => item.id)
+          if (productIds.length > 0) {
+            const { data: latestProducts } = await supabase
+              .from('products')
+              .select('id, price, stock, name, image_url')
+              .in('id', productIds)
+
+            if (latestProducts) {
+              const updatedCart = parsedCart.map(item => {
+                const fresh = latestProducts.find(p => p.id === item.id)
+                if (fresh) {
+                  return {
+                    ...item,
+                    price: parseFloat(fresh.price ?? item.price),
+                    stock: fresh.stock ?? item.stock,
+                    name: fresh.name ?? item.name,
+                    image_url: fresh.image_url ?? item.image_url
+                  }
+                }
+                return item
+              })
+              setCart(updatedCart)
+              return
+            }
+          }
+          setCart(parsedCart)
+        } catch (e) {
+          console.error("Failed to parse cart", e)
+        }
       }
     }
-  }, [])
+
+    fetchLatestPricesAndCart()
+  }, [supabase])
 
   useEffect(() => {
     localStorage.setItem('mahins_cart', JSON.stringify(cart))
@@ -50,10 +84,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const existingIndex = prevCart.findIndex((item) => item.id === product.id)
       if (existingIndex > -1) {
         const updated = [...prevCart]
-        const currentQty = updated[existingIndex].quantity
+        const currentQty = Number(updated[existingIndex].quantity) || 1
         const newQty = Math.min(maxStock, currentQty + quantityToAdd)
         updated[existingIndex] = {
           ...updated[existingIndex],
+          price: itemPrice, // Update to dynamic price
           quantity: newQty,
           stock: maxStock
         }
@@ -78,7 +113,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (item.id === id) {
           // Allow empty string while typing
           if (newQuantity === '') {
-            return { ...item, quantity: '' as any }
+            return { ...item, quantity: '' }
           }
           const parsed = typeof newQuantity === 'string' ? parseInt(newQuantity, 10) : newQuantity
           if (isNaN(parsed)) return item

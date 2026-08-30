@@ -62,6 +62,7 @@ export default function CheckoutPage() {
           setEmail(user.email || '')
           setName(user.user_metadata?.full_name || '')
 
+          // Fetch saved customer address from Supabase
           const { data, error } = await supabase
             .from('customer_addresses')
             .select('*')
