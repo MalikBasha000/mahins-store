@@ -21,6 +21,7 @@ export default function CheckoutPage() {
   const supabase = createClient()
   const { cart, totalPrice, clearCart } = useCart()
 
+  const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
   const [orderSuccess, setOrderSuccess] = useState(false)
@@ -43,6 +44,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState('UPI / QR Code')
 
   useEffect(() => {
+    setMounted(true)
+
     // Load Razorpay script dynamically
     const script = document.createElement('script')
     script.src = 'https://checkout.razorpay.com/v1/checkout.js'
@@ -268,9 +271,25 @@ export default function CheckoutPage() {
           order_id: data.order.id,
           handler: async function (response: any) {
             try {
+              // Verify cryptographic signature via backend endpoint before saving order
+              const verifyRes = await fetch('/api/verify-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              })
+              const verifyData = await verifyRes.json()
+
+              if (!verifyData.success) {
+                throw new Error('Payment signature verification failed.')
+              }
+
               await processOrderSubmission(response.razorpay_payment_id)
             } catch (innerErr: any) {
-              setErrorMsg(innerErr.message || 'Payment successful, but failed to save order.')
+              setErrorMsg(innerErr.message || 'Payment verification or order placement failed.')
               setLoading(false)
             }
           },
@@ -297,6 +316,10 @@ export default function CheckoutPage() {
       setErrorMsg(err.message || 'An error occurred while placing your order.')
       setLoading(false)
     }
+  }
+
+  if (!mounted) {
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500">Loading checkout...</div>
   }
 
   if (orderSuccess) {

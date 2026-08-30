@@ -9,12 +9,13 @@ export interface CartItem {
   price: number
   quantity: number
   image_url?: string
+  stock?: number
 }
 
 interface CartContextType {
   cart: CartItem[]
   addToCart: (product: any, quantityToAdd?: number) => void
-  updateQuantity: (id: string, newQuantity: number) => void
+  updateQuantity: (id: string, newQuantity: number | string) => void
   removeFromCart: (id: string) => void
   clearCart: () => void
   totalItems: number
@@ -42,34 +43,52 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [cart])
 
   const addToCart = (product: any, quantityToAdd: number = 1) => {
-    // Correctly resolve price from either product.price or product.base_price
     const itemPrice = parseFloat(product.price ?? product.base_price ?? 0)
+    const maxStock = product.stock ?? 999
 
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex((item) => item.id === product.id)
       if (existingIndex > -1) {
         const updated = [...prevCart]
-        updated[existingIndex].quantity += quantityToAdd
+        const currentQty = updated[existingIndex].quantity
+        const newQty = Math.min(maxStock, currentQty + quantityToAdd)
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: newQty,
+          stock: maxStock
+        }
         return updated
       } else {
         return [...prevCart, { 
           id: product.id, 
           name: product.name, 
           price: itemPrice, 
-          quantity: quantityToAdd,
-          image_url: product.image_url || ''
+          quantity: Math.min(maxStock, quantityToAdd),
+          image_url: product.image_url || '',
+          stock: maxStock
         }]
       }
     })
     alert(`${quantityToAdd} ${product.name}(s) added to cart!`)
   }
 
-  const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity < 1) return 
+  const updateQuantity = (id: string, newQuantity: number | string) => {
     setCart((prevCart) =>
-      prevCart.map((item) =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
+      prevCart.map((item) => {
+        if (item.id === id) {
+          // Allow empty string while typing
+          if (newQuantity === '') {
+            return { ...item, quantity: '' as any }
+          }
+          const parsed = typeof newQuantity === 'string' ? parseInt(newQuantity, 10) : newQuantity
+          if (isNaN(parsed)) return item
+
+          const maxStock = item.stock ?? 999
+          const clampedQty = Math.max(1, Math.min(maxStock, parsed))
+          return { ...item, quantity: clampedQty }
+        }
+        return item
+      })
     )
   }
 
@@ -79,8 +98,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = () => setCart([])
 
-  const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
-  const totalPrice = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  const totalItems = cart.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+  const totalPrice = cart.reduce((sum, item) => sum + (item.price * (Number(item.quantity) || 0)), 0)
 
   return (
     <CartContext.Provider value={{ cart, addToCart, updateQuantity, removeFromCart, clearCart, totalItems, totalPrice }}>

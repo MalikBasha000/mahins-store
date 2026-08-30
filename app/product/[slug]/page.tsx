@@ -12,7 +12,7 @@ export default function ProductDetails() {
   const productId = params.slug as string // This holds your product UUID now
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [quantity, setQuantity] = useState<number>(1)
+  const [quantity, setQuantity] = useState<number | string>(1)
   const [activeImage, setActiveImage] = useState<string>('')
   const { addToCart } = useCart()
   const supabase = createClient()
@@ -41,11 +41,37 @@ export default function ProductDetails() {
   if (!product) return <div className="p-10 text-center text-gray-500">Product not found.</div>
 
   const images = product.image_url ? product.image_url.split(',').map((s: string) => s.trim()) : []
+  const maxStock = product.stock ?? 999
+
+  // Handle quantity typing allowing a temporary empty string
+  const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    if (val === '') {
+      setQuantity('')
+      return
+    }
+    const num = parseInt(val, 10)
+    if (!isNaN(num)) {
+      if (num <= maxStock) {
+        setQuantity(num)
+      } else {
+        setQuantity(maxStock)
+      }
+    }
+  }
+
+  // Fallback to 1 if left completely blank on blur
+  const handleQuantityBlur = () => {
+    if (quantity === '' || Number(quantity) < 1) {
+      setQuantity(1)
+    }
+  }
 
   const handleAddToCart = () => {
-    const qty = quantity < 1 ? 1 : quantity
+    const finalQty = quantity === '' ? 1 : Number(quantity)
+    const qty = finalQty < 1 ? 1 : finalQty
     // Pass product with correct price and image fields to cart context
-    addToCart({ ...product, price: product.price, image_url: activeImage }, qty)
+    addToCart({ ...product, price: product.price, image_url: activeImage, stock: maxStock }, qty)
   }
 
   return (
@@ -101,9 +127,10 @@ export default function ProductDetails() {
                   type="number"
                   id="quantity"
                   min="1"
-                  max={product.stock || 99}
+                  max={maxStock}
                   value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  onChange={handleQuantityChange}
+                  onBlur={handleQuantityBlur}
                   className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-center text-gray-900 focus:border-indigo-500 focus:outline-none"
                 />
               </div>
@@ -112,7 +139,7 @@ export default function ProductDetails() {
             <button 
               onClick={handleAddToCart}
               disabled={product.stock <= 0}
-              className="w-full rounded-xl bg-indigo-600 py-3 font-bold text-white hover:bg-indigo-700 transition shadow-md disabled:opacity-50"
+              className="w-full rounded-xl bg-indigo-600 py-3 font-bold text-white hover:bg-indigo-700 transition shadow-md disabled:opacity-50 cursor-pointer"
             >
               Add to Cart
             </button>
