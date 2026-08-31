@@ -24,11 +24,19 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers'>('analytics')
+  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers' | 'payments'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
+
+  // Payment Settings State
+  const [paymentSettings, setPaymentSettings] = useState({
+    is_razorpay_enabled: true,
+    is_upi_enabled: true,
+    is_cod_enabled: true,
+    cod_message: 'Payments not accepting currently'
+  })
 
   // Inventory Products State
   const [products, setProducts] = useState<any[]>([])
@@ -91,6 +99,48 @@ export default function AdminPage() {
       fetchAdminData()
     }
   }, [activeTab, isAdminAuthenticated])
+
+  // Fetch payment settings when switching to payments tab
+  useEffect(() => {
+    if (isAdminAuthenticated && activeTab === 'payments') {
+      fetchPaymentSettings()
+    }
+  }, [activeTab, isAdminAuthenticated])
+
+  const fetchPaymentSettings = async () => {
+    try {
+      const res = await fetch('/api/settings')
+      const data = await res.json()
+      if (data.success && data.settings) {
+        setPaymentSettings(data.settings)
+      }
+    } catch (err) {
+      console.error('Failed to load payment settings', err)
+    }
+  }
+
+  const handleSavePaymentSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setErrorMsg('')
+    setSuccessMsg('')
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentSettings)
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccessMsg('Payment gateway configurations saved successfully!')
+      } else {
+        setErrorMsg(data.error || 'Failed to save payment settings.')
+      }
+    } catch (err: any) {
+      setErrorMsg(`Error: ${err.message}`)
+    }
+    setLoading(false)
+  }
 
   const handleSendEmailOtp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -937,9 +987,103 @@ export default function AdminPage() {
           >
             👥 Customers Directory ({customers.length})
           </button>
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer flex items-center gap-2 ${
+              activeTab === 'payments' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
+            }`}
+          >
+            💳 Payments
+          </button>
         </div>
 
-        {/* ----------------- TAB: UPI VERIFICATIONS (Card Layout - Clickable Images & Cancellation Reason) ----------------- */}
+        {/* ----------------- TAB: PAYMENTS MANAGEMENT ----------------- */}
+        {activeTab === 'payments' && (
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-200 max-w-2xl mx-auto space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">💳 Payment Gateway Control Center</h2>
+              <p className="text-xs text-gray-500 mt-1">Enable or disable payment options and customize customer checkout notices.</p>
+            </div>
+
+            <form onSubmit={handleSavePaymentSettings} className="space-y-6">
+              {/* Razorpay Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Razorpay Gateway</h4>
+                  <p className="text-xs text-gray-500">Accept Credit Cards, UPI, NetBanking online.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={paymentSettings.is_razorpay_enabled} 
+                    onChange={(e) => setPaymentSettings({ ...paymentSettings, is_razorpay_enabled: e.target.checked })}
+                    className="sr-only peer" 
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              {/* Direct UPI Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Direct UPI / QR Transfer</h4>
+                  <p className="text-xs text-gray-500">Allow manual QR scanning and UTR submission.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={paymentSettings.is_upi_enabled} 
+                    onChange={(e) => setPaymentSettings({ ...paymentSettings, is_upi_enabled: e.target.checked })}
+                    className="sr-only peer" 
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              {/* COD Toggle & Custom Message */}
+              <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Cash on Delivery (COD)</h4>
+                    <p className="text-xs text-gray-500">Allow customers to pay upon delivery.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={paymentSettings.is_cod_enabled} 
+                      onChange={(e) => setPaymentSettings({ ...paymentSettings, is_cod_enabled: e.target.checked })}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {!paymentSettings.is_cod_enabled && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Disabled Message for Customers</label>
+                    <input 
+                      type="text"
+                      value={paymentSettings.cod_message}
+                      onChange={(e) => setPaymentSettings({ ...paymentSettings, cod_message: e.target.value })}
+                      placeholder="Payments not accepting currently"
+                      className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 focus:outline-indigo-600"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3 rounded-xl text-sm shadow-md transition cursor-pointer"
+              >
+                {loading ? 'Saving Changes...' : 'Save Payment Configurations 💾'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ----------------- TAB: UPI VERIFICATIONS ----------------- */}
         {activeTab === 'upi_verifications' && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
@@ -996,7 +1140,6 @@ export default function AdminPage() {
 
                   return (
                     <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-amber-300 transition space-y-5">
-                      {/* Top Header */}
                       <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
                         <div className="flex items-center gap-3">
                           <div>
@@ -1028,9 +1171,7 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Main Details Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
-                        {/* Customer */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
                           <div className="font-extrabold text-gray-900 text-sm">{o.customer_name}</div>
@@ -1040,7 +1181,6 @@ export default function AdminPage() {
                           </span>
                         </div>
 
-                        {/* UTR Number */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">UTR Number</span>
                           <span className="inline-block bg-white text-indigo-950 font-mono font-black px-3 py-2 rounded-xl border border-indigo-200 text-xs shadow-2xs">
@@ -1048,7 +1188,6 @@ export default function AdminPage() {
                           </span>
                         </div>
 
-                        {/* Items Ordered (Clickable Images) */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
                           {Array.isArray(o.items) && o.items.length > 0 ? (
@@ -1091,7 +1230,6 @@ export default function AdminPage() {
                           )}
                         </div>
 
-                        {/* Shipping Address */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
                           <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
@@ -1109,7 +1247,6 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Bottom Action Row */}
                       {isPending && (
                         <div className="flex justify-end gap-3 pt-4 border-t">
                           <button
@@ -1453,7 +1590,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS (Modern Card Layout - Clickable Images & Cancellation Reason) ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
@@ -1553,7 +1690,6 @@ export default function AdminPage() {
 
                   return (
                     <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-indigo-300 transition space-y-5">
-                      {/* Top Header Row */}
                       <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
                         <div className="flex items-center gap-3">
                           <div>
@@ -1585,16 +1721,13 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Main Details Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
-                        {/* Customer */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
                           <div className="font-extrabold text-gray-900 text-sm">{o.customer_name || 'Guest'}</div>
                           <div className="text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
                         </div>
 
-                        {/* Payment Mode */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Payment Details</span>
                           <span className="inline-block bg-white text-indigo-950 font-mono font-bold px-3 py-1.5 rounded-xl border border-indigo-200 text-xs shadow-2xs">
@@ -1602,7 +1735,6 @@ export default function AdminPage() {
                           </span>
                         </div>
 
-                        {/* Items Ordered (Clickable Images) */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
                           {Array.isArray(o.items) && o.items.length > 0 ? (
@@ -1645,7 +1777,6 @@ export default function AdminPage() {
                           )}
                         </div>
 
-                        {/* Shipping Address */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
                           <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
@@ -1663,7 +1794,6 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Bottom Action Bar */}
                       <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-gray-600">Update Status:</span>

@@ -29,6 +29,14 @@ export default function CheckoutPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
 
+  // Payment Gateway Settings from Admin Dashboard
+  const [paymentSettings, setPaymentSettings] = useState({
+    is_razorpay_enabled: true,
+    is_upi_enabled: true,
+    is_cod_enabled: true,
+    cod_message: 'Payments not accepting currently'
+  })
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -41,7 +49,7 @@ export default function CheckoutPage() {
   const [stateName, setStateName] = useState('Telangana')
   const [pincode, setPincode] = useState('')
   
-  const [paymentMethod, setPaymentMethod] = useState('Online Gateway (Razorpay)')
+  const [paymentMethod, setPaymentMethod] = useState('')
   const [upiUtr, setUpiUtr] = useState('')
 
   useEffect(() => {
@@ -52,11 +60,25 @@ export default function CheckoutPage() {
     script.async = true
     document.body.appendChild(script)
 
-    const fetchCustomerProfile = async () => {
+    // Fetch store payment settings & customer profile
+    const fetchCheckoutConfig = async () => {
       setDataLoading(true)
       try {
+        // Fetch payment settings
+        const settingsRes = await fetch('/api/settings')
+        const settingsData = await settingsRes.json()
+        if (settingsData.success && settingsData.settings) {
+          const cfg = settingsData.settings
+          setPaymentSettings(cfg)
+
+          // Set default payment method to the first available enabled option
+          if (cfg.is_razorpay_enabled) setPaymentMethod('Online Gateway (Razorpay)')
+          else if (cfg.is_upi_enabled) setPaymentMethod('Direct UPI Transfer (Scan & Pay)')
+          else if (cfg.is_cod_enabled) setPaymentMethod('Cash on Delivery (COD)')
+        }
+
+        // Fetch customer profile
         const { data: { user } } = await supabase.auth.getUser()
-        
         if (user) {
           setUserId(user.id)
           setEmail(user.email || '')
@@ -82,13 +104,13 @@ export default function CheckoutPage() {
           }
         }
       } catch (err) {
-        console.error('Error loading customer address:', err)
+        console.error('Error loading checkout configuration:', err)
       } finally {
         setDataLoading(false)
       }
     }
 
-    fetchCustomerProfile()
+    fetchCheckoutConfig()
   }, [supabase])
 
   const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +269,11 @@ export default function CheckoutPage() {
       return
     }
 
+    if (!paymentMethod) {
+      setErrorMsg('No payment method is currently available or selected.')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -363,6 +390,9 @@ export default function CheckoutPage() {
       </div>
     )
   }
+
+  // Check if ALL payment methods are disabled
+  const allDisabled = !paymentSettings.is_razorpay_enabled && !paymentSettings.is_upi_enabled && !paymentSettings.is_cod_enabled
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
@@ -532,39 +562,76 @@ export default function CheckoutPage() {
               <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-2 pt-4">
                 3. Payment Method
               </h3>
-              <div className="space-y-2">
-                {[
-                  'Online Gateway (Razorpay)', 
-                  'Direct UPI Transfer (Scan & Pay)', 
-                  'Cash on Delivery (COD)'
-                ].map((method) => (
-                  <label
-                    key={method}
-                    className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${
-                      paymentMethod === method ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value={method}
-                      checked={paymentMethod === method}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="accent-indigo-600"
-                    />
-                    <span className="text-xs font-bold text-gray-800">{method}</span>
-                  </label>
-                ))}
-              </div>
+
+              {allDisabled ? (
+                <div className="p-4 bg-red-50 text-red-700 rounded-xl text-xs font-bold border border-red-200 text-center">
+                  {paymentSettings.cod_message || 'Payments not accepting currently'}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {paymentSettings.is_razorpay_enabled && (
+                    <label
+                      className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${
+                        paymentMethod === 'Online Gateway (Razorpay)' ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="Online Gateway (Razorpay)"
+                        checked={paymentMethod === 'Online Gateway (Razorpay)'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="accent-indigo-600"
+                      />
+                      <span className="text-xs font-bold text-gray-800">Online Gateway (Razorpay)</span>
+                    </label>
+                  )}
+
+                  {paymentSettings.is_upi_enabled && (
+                    <label
+                      className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${
+                        paymentMethod === 'Direct UPI Transfer (Scan & Pay)' ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="Direct UPI Transfer (Scan & Pay)"
+                        checked={paymentMethod === 'Direct UPI Transfer (Scan & Pay)'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="accent-indigo-600"
+                      />
+                      <span className="text-xs font-bold text-gray-800">Direct UPI Transfer (Scan & Pay)</span>
+                    </label>
+                  )}
+
+                  {paymentSettings.is_cod_enabled && (
+                    <label
+                      className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${
+                        paymentMethod === 'Cash on Delivery (COD)' ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="Cash on Delivery (COD)"
+                        checked={paymentMethod === 'Cash on Delivery (COD)'}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="accent-indigo-600"
+                      />
+                      <span className="text-xs font-bold text-gray-800">Cash on Delivery (COD)</span>
+                    </label>
+                  )}
+                </div>
+              )}
 
               {/* Secure Direct UPI Scanner & Optional UTR Section */}
-              {paymentMethod === 'Direct UPI Transfer (Scan & Pay)' && (
+              {paymentMethod === 'Direct UPI Transfer (Scan & Pay)' && paymentSettings.is_upi_enabled && (
                 <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 space-y-4">
                   <div className="text-center">
                     <span className="text-xs font-bold text-indigo-900 uppercase tracking-wide block mb-1">Scan QR Code with any UPI App</span>
                     <p className="text-[11px] text-gray-600">Secure Direct Merchant Scanner</p>
                     
-                    {/* Embedded Secure QR Image from public folder */}
                     <div className="my-3 mx-auto w-44 h-44 bg-white border-2 border-indigo-300 rounded-2xl flex items-center justify-center p-2 shadow-md">
                       <img src="/upi-qr.png" alt="Direct UPI QR Code" className="w-full h-full object-contain rounded-lg" />
                     </div>
@@ -588,10 +655,10 @@ export default function CheckoutPage() {
 
               <button
                 type="submit"
-                disabled={loading || cart.length === 0}
+                disabled={loading || cart.length === 0 || allDisabled}
                 className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3.5 rounded-xl text-sm shadow-lg transition disabled:opacity-50 cursor-pointer"
               >
-                {loading ? 'Processing Order...' : `Place Order • ₹${totalPrice}`}
+                {loading ? 'Processing Order...' : allDisabled ? 'Payments Not Accepting Currently' : `Place Order • ₹${totalPrice}`}
               </button>
             </form>
           </div>
