@@ -24,7 +24,6 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  // Tabs: analytics, upi_verifications, orders, products, customers
   const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
@@ -940,7 +939,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: UPI VERIFICATIONS (Card Layout - No Scrolling Required) ----------------- */}
+        {/* ----------------- TAB: UPI VERIFICATIONS (Card Layout - Clickable Images & Cancellation Reason) ----------------- */}
         {activeTab === 'upi_verifications' && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
@@ -1013,13 +1012,18 @@ export default function AdminPage() {
                             <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
                             <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
                           </div>
-                          <div>
-                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase ${
+                          <div className="text-right">
+                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase inline-block ${
                               isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
                               isCancelled ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-green-100 text-green-900 border border-green-300'
                             }`}>
                               {o.status}
                             </span>
+                            {o.cancellation_reason && (
+                              <span className="text-[11px] text-red-600 font-semibold block mt-1 max-w-xs text-right leading-tight">
+                                {o.cancellation_reason}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1039,12 +1043,12 @@ export default function AdminPage() {
                         {/* UTR Number */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">UTR Number</span>
-                          <span className="inline-block bg-white text-indigo-950 font-mono font-black px-3 py-2 rounded-xl border border-indigo-200 text-xs shadow-xs">
+                          <span className="inline-block bg-white text-indigo-950 font-mono font-black px-3 py-2 rounded-xl border border-indigo-200 text-xs shadow-2xs">
                             {cleanUtr}
                           </span>
                         </div>
 
-                        {/* Items Ordered */}
+                        {/* Items Ordered (Clickable Images) */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
                           {Array.isArray(o.items) && o.items.length > 0 ? (
@@ -1054,7 +1058,26 @@ export default function AdminPage() {
                                 const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
                                 return (
                                   <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
-                                    <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white flex-shrink-0" />
+                                    <div 
+                                      onClick={async () => {
+                                        const productId = item.id || item.product_id
+                                        if (productId) {
+                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
+                                          if (data && data.image_url) {
+                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
+                                            setActiveOrderGalleryImages(allImgs)
+                                            setActiveGalleryIndex(0)
+                                            return
+                                          }
+                                        }
+                                        setActiveOrderGalleryImages([itemImg])
+                                        setActiveGalleryIndex(0)
+                                      }}
+                                      className="relative group flex-shrink-0 cursor-pointer"
+                                      title="Click to view all product images"
+                                    >
+                                      <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white hover:border-indigo-600 transition" />
+                                    </div>
                                     <div className="min-w-0 flex-1">
                                       <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
                                       <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
@@ -1430,7 +1453,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS (Modern Card Layout - Zero Scrolling) ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS (Modern Card Layout - Clickable Images & Cancellation Reason) ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
@@ -1546,13 +1569,18 @@ export default function AdminPage() {
                             <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
                             <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
                           </div>
-                          <div>
-                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase ${
+                          <div className="text-right">
+                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase inline-block ${
                               isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
-                              isCancelled ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-green-100 text-green-900 border border-green-300'
+                              isCancelled ? 'bg-red-100 text-red-900 border border-amber-300' : 'bg-green-100 text-green-900 border border-green-300'
                             }`}>
                               {o.status || 'Pending'}
                             </span>
+                            {o.cancellation_reason && (
+                              <span className="text-[11px] text-red-600 font-semibold block mt-1 max-w-xs text-right leading-tight">
+                                {o.cancellation_reason}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1574,7 +1602,7 @@ export default function AdminPage() {
                           </span>
                         </div>
 
-                        {/* Items Ordered */}
+                        {/* Items Ordered (Clickable Images) */}
                         <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
                           <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
                           {Array.isArray(o.items) && o.items.length > 0 ? (
@@ -1584,7 +1612,26 @@ export default function AdminPage() {
                                 const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
                                 return (
                                   <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
-                                    <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white flex-shrink-0" />
+                                    <div 
+                                      onClick={async () => {
+                                        const productId = item.id || item.product_id
+                                        if (productId) {
+                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
+                                          if (data && data.image_url) {
+                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
+                                            setActiveOrderGalleryImages(allImgs)
+                                            setActiveGalleryIndex(0)
+                                            return
+                                          }
+                                        }
+                                        setActiveOrderGalleryImages([itemImg])
+                                        setActiveGalleryIndex(0)
+                                      }}
+                                      className="relative group flex-shrink-0 cursor-pointer"
+                                      title="Click to view all product images"
+                                    >
+                                      <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white hover:border-indigo-600 transition" />
+                                    </div>
                                     <div className="min-w-0 flex-1">
                                       <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
                                       <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
@@ -1632,11 +1679,6 @@ export default function AdminPage() {
                             <option value="Delivered">Delivered</option>
                             <option value="Cancelled">Cancelled</option>
                           </select>
-                          {o.cancellation_reason && (
-                            <span className="text-xs text-red-600 font-semibold italic ml-2">
-                              {o.cancellation_reason}
-                            </span>
-                          )}
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -2049,7 +2091,7 @@ export default function AdminPage() {
                     )}
                   </div>
                 ))}
-                <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300 cursor-pointer">+ Add Another Image URL</button>
+                <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
               </div>
               <div className="flex gap-3 pt-4 border-t">
                 <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel/Close</button>
