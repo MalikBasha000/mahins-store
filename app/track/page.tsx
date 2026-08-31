@@ -66,7 +66,7 @@ function TrackContent() {
         <button
           onClick={() => handleSearch(trackingId)}
           disabled={loading}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition shadow whitespace-nowrap"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition shadow whitespace-nowrap cursor-pointer"
         >
           {loading ? 'Searching...' : 'Track'}
         </button>
@@ -103,11 +103,11 @@ function TrackContent() {
               <p className="text-xs text-gray-500 mt-2">Inventory stock has been automatically restored for this order.</p>
             </div>
           ) : (
-            /* Active Shipment Tracker Steps */
+            /* Active Shipment Tracker Steps (Includes Pending Verification) */
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-gray-700 uppercase">Shipment Progress</h3>
               <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                <div className={`p-3 rounded-xl border font-bold ${['Pending', 'Processing', 'Shipped', 'Delivered'].includes(order.status) ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-gray-400'}`}>
+                <div className={`p-3 rounded-xl border font-bold ${['Pending Verification', 'Pending', 'Processing', 'Shipped', 'Delivered'].includes(order.status) ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-gray-400'}`}>
                   1. Pending
                 </div>
                 <div className={`p-3 rounded-xl border font-bold ${['Processing', 'Shipped', 'Delivered'].includes(order.status) ? 'bg-indigo-600 text-white border-indigo-600 shadow' : 'bg-white text-gray-400'}`}>
