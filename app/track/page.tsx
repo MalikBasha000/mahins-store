@@ -1,14 +1,15 @@
 // app/track/page.tsx
+'span'
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
-export default function TrackOrderPage() {
+function TrackContent() {
   const supabase = createClient()
   const searchParams = useSearchParams()
   const initialId = searchParams.get('id') || ''
@@ -68,6 +69,7 @@ export default function TrackOrderPage() {
     ]
 
     let activeIndex = 0
+    if (currentStatus.includes('pending verification') || currentStatus.includes('pending')) activeIndex = 0
     if (currentStatus.includes('processing') || currentStatus.includes('verified')) activeIndex = 1
     if (currentStatus.includes('shipped')) activeIndex = 2
     if (currentStatus.includes('delivered')) activeIndex = 3
@@ -246,5 +248,13 @@ export default function TrackOrderPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function TrackOrderPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-500">Loading tracker...</div>}>
+      <TrackContent />
+    </Suspense>
   )
 }
