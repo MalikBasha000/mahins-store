@@ -40,7 +40,9 @@ export default function CartPage() {
         <div className="space-y-4 mb-8">
           {cart.map((item) => {
             const firstImage = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/80'
-            const lineTotal = item.price * item.quantity
+            const numericPrice = Number(item.price) || 0
+            const numericQty = Number(item.quantity) || 1
+            const lineTotal = numericPrice * numericQty
 
             return (
               <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
@@ -49,7 +51,7 @@ export default function CartPage() {
                   <div>
                     <h3 className="font-bold text-gray-900 text-base">{item.name}</h3>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      ₹{item.price} per unit &nbsp;•&nbsp; <span className="font-semibold text-indigo-600">₹{item.price} × {item.quantity} = ₹{lineTotal}</span>
+                      ₹{numericPrice} per unit &nbsp;•&nbsp; <span className="font-semibold text-indigo-600">₹{numericPrice} × {numericQty} = ₹{lineTotal}</span>
                     </p>
                   </div>
                 </div>
@@ -72,7 +74,7 @@ export default function CartPage() {
 
                   <button
                     onClick={() => removeFromCart(item.id)}
-                    className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition"
+                    className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition cursor-pointer"
                   >
                     Remove
                   </button>
@@ -85,7 +87,7 @@ export default function CartPage() {
         <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4">
           <button
             onClick={clearCart}
-            className="rounded-xl bg-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-300 transition w-full md:w-auto"
+            className="rounded-xl bg-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-300 transition w-full md:w-auto cursor-pointer"
           >
             Clear Cart
           </button>
