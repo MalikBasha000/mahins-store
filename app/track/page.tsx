@@ -90,18 +90,20 @@ function TrackContent() {
           <h1 className="text-xl font-black text-indigo-950">
             Mahin's One-Stop One-Store
           </h1>
-          <div className="flex items-center gap-4">
-            <Link href="/orders" className="text-xs font-bold text-indigo-600 hover:underline">
-              ← Back to Order History
-            </Link>
-            <Link href="/" className="text-xs font-bold text-indigo-600 hover:underline">
-              Return to Store
-            </Link>
-          </div>
+          <Link href="/" className="text-xs font-bold text-indigo-600 hover:underline">
+            Return to Store
+          </Link>
         </div>
       </header>
 
       <div className="max-w-3xl mx-auto px-4">
+        {/* Back Button positioned below header and above tracking title */}
+        <div className="mb-4">
+          <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3.5 py-2 rounded-xl border border-indigo-200 transition">
+            ← Back to Order History
+          </Link>
+        </div>
+
         <div className="text-center mb-8">
           <h2 className="text-3xl font-black text-indigo-950 mb-2">Track Your Shipment 📦</h2>
           <p className="text-xs text-gray-500">Enter your 16-digit tracking ID to see live progress and order details</p>
