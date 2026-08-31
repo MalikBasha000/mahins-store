@@ -17,6 +17,7 @@ function TrackContent() {
   const [loading, setLoading] = useState(false)
   const [order, setOrder] = useState<any | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const [selectedProductModal, setSelectedProductModal] = useState<any | null>(null)
 
   const handleSearchTracking = async (idToSearch?: string) => {
     const queryId = (idToSearch || trackingIdInput).trim()
@@ -87,9 +88,7 @@ function TrackContent() {
     <div className="min-h-screen bg-gray-50 pb-16">
       <header className="bg-white border-b border-gray-200 px-6 py-4 mb-8 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-black text-indigo-950">
-            Mahin's One-Stop One-Store
-          </h1>
+          <h1 className="text-xl font-black text-indigo-950">Mahin's One-Stop One-Store</h1>
           <Link href="/" className="text-xs font-bold text-indigo-600 hover:underline">
             Return to Store
           </Link>
@@ -97,7 +96,6 @@ function TrackContent() {
       </header>
 
       <div className="max-w-3xl mx-auto px-4">
-        {/* Back Button positioned below header and above tracking title */}
         <div className="mb-4">
           <Link href="/orders" className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3.5 py-2 rounded-xl border border-indigo-200 transition">
             ← Back to Order History
@@ -109,14 +107,13 @@ function TrackContent() {
           <p className="text-xs text-gray-500">Enter your 16-digit tracking ID to see live progress and order details</p>
         </div>
 
-        {/* Search Input Box */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex gap-3 mb-8">
           <input
             type="text"
             value={trackingIdInput}
             onChange={(e) => setTrackingIdInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearchTracking()}
-            placeholder="Enter 16-digit Tracking ID (e.g., 7372112404125355)"
+            placeholder="Enter 16-digit Tracking ID..."
             className="flex-1 border border-gray-300 p-3 rounded-xl text-sm font-mono text-gray-900 bg-white focus:outline-indigo-600"
           />
           <button
@@ -134,28 +131,19 @@ function TrackContent() {
           </div>
         )}
 
-        {/* Order Details & Visual Timeline */}
         {order && (
           <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 space-y-8">
-            {/* Header Info */}
             <div className="flex flex-wrap justify-between items-center border-b pb-6 gap-4">
               <div>
-                <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-wider block mb-1">
-                  Tracking ID
-                </span>
+                <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-wider block mb-1">Tracking ID</span>
                 <span className="text-xl font-mono font-black text-indigo-950">{order.tracking_id}</span>
               </div>
               <div className="text-right">
-                <span className="text-[11px] font-extrabold text-gray-400 uppercase tracking-wider block mb-1">
-                  Placed On
-                </span>
-                <span className="text-xs font-bold text-gray-700">
-                  {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
-                </span>
+                <span className="text-[11px] font-extrabold text-gray-400 uppercase tracking-wider block mb-1">Placed On</span>
+                <span className="text-xs font-bold text-gray-700">{order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}</span>
               </div>
             </div>
 
-            {/* Visual Progress Timeline with Dates & Times */}
             <div>
               <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-6">Shipment Progress</h3>
               
@@ -167,9 +155,7 @@ function TrackContent() {
                     <div className="bg-red-50 p-5 rounded-2xl border border-red-200 text-center text-red-700">
                       <span className="text-2xl block mb-1">✕</span>
                       <span className="text-sm font-bold uppercase tracking-wider block">Order Cancelled / Rejected</span>
-                      <p className="text-xs text-red-600 mt-1">
-                        {order.cancellation_reason || 'This order was cancelled by the administrator.'}
-                      </p>
+                      <p className="text-xs text-red-600 mt-1">{order.cancellation_reason || 'This order was cancelled.'}</p>
                     </div>
                   )
                 }
@@ -177,10 +163,7 @@ function TrackContent() {
                 return (
                   <div className="relative flex items-center justify-between max-w-xl mx-auto px-4 py-2">
                     <div className="absolute left-12 right-12 top-4 h-1 bg-gray-200 z-0">
-                      <div 
-                        className="h-full bg-green-500 transition-all duration-500"
-                        style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }}
-                      />
+                      <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }} />
                     </div>
 
                     {steps.map((step, idx) => {
@@ -192,9 +175,7 @@ function TrackContent() {
                           }`}>
                             {isComplete ? '✓' : idx + 1}
                           </div>
-                          <span className={`text-[11px] font-bold mt-2 text-center max-w-[90px] ${
-                            isComplete ? 'text-gray-900' : 'text-gray-400'
-                          }`}>
+                          <span className={`text-[11px] font-bold mt-2 text-center max-w-[90px] ${isComplete ? 'text-gray-900' : 'text-gray-400'}`}>
                             {step.label}
                           </span>
                           <span className="text-[10px] font-medium text-gray-400 mt-0.5 text-center max-w-[90px]">
@@ -215,7 +196,6 @@ function TrackContent() {
               </div>
             </div>
 
-            {/* Payment & Shipping Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
                 <span className="text-[11px] font-bold text-gray-400 uppercase block mb-1">Payment Method</span>
@@ -232,7 +212,7 @@ function TrackContent() {
               <p className="text-xs font-medium text-gray-800 leading-relaxed">{order.shipping_address}</p>
             </div>
 
-            {/* Items Ordered List */}
+            {/* Items Ordered List with Clickable Product Modal */}
             <div>
               <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3">Items Ordered</h3>
               <div className="space-y-3">
@@ -240,12 +220,43 @@ function TrackContent() {
                   const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
                   const unitPrice = Number(item.price) || 0
                   const qty = Number(item.quantity) || 1
+
                   return (
-                    <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                      <img src={itemImg} alt="" className="w-12 h-12 object-cover rounded-lg border bg-white flex-shrink-0" />
+                    <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3.5 rounded-2xl border border-gray-200">
+                      <img 
+                        src={itemImg} 
+                        alt="" 
+                        className="w-12 h-12 object-cover rounded-xl border bg-white flex-shrink-0 cursor-pointer hover:opacity-80 transition"
+                        onClick={async () => {
+                          const prodId = item.id || item.product_id
+                          if (prodId) {
+                            const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
+                            if (data) {
+                              setSelectedProductModal(data)
+                              return
+                            }
+                          }
+                          setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
+                        }}
+                      />
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold text-gray-900 truncate">{item.name}</h4>
-                        <p className="text-[11px] text-gray-500">₹{unitPrice} × {qty}</p>
+                        <button 
+                          onClick={async () => {
+                            const prodId = item.id || item.product_id
+                            if (prodId) {
+                              const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
+                              if (data) {
+                                setSelectedProductModal(data)
+                                return
+                              }
+                            }
+                            setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
+                          }}
+                          className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block truncate cursor-pointer"
+                        >
+                          {item.name}
+                        </button>
+                        <p className="text-[11px] text-gray-500 mt-0.5">₹{unitPrice} × {qty}</p>
                       </div>
                       <div className="text-xs font-black text-indigo-950">₹{unitPrice * qty}</div>
                     </div>
@@ -261,6 +272,45 @@ function TrackContent() {
           </div>
         )}
       </div>
+
+      {/* Product Details Modal */}
+      {selectedProductModal && (
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setSelectedProductModal(null)}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer"
+            >
+              ✕
+            </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-100 rounded-2xl overflow-hidden border h-72 flex items-center justify-center">
+                <img 
+                  src={selectedProductModal.image_url ? selectedProductModal.image_url.split(',')[0].trim() : 'https://via.placeholder.com/300'} 
+                  alt="" 
+                  className="w-full h-full object-contain p-2" 
+                />
+              </div>
+              <div className="flex flex-col justify-between">
+                <div>
+                  <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{selectedProductModal.category || 'Electronics & Robotics'}</span>
+                  <h3 className="text-xl font-black text-gray-900 mt-1 mb-2">{selectedProductModal.name}</h3>
+                  <div className="text-2xl font-extrabold text-indigo-900 mb-4">₹{selectedProductModal.price}</div>
+                  <div className="text-xs text-gray-600 space-y-2 leading-relaxed">
+                    <p>{selectedProductModal.description || 'High quality hardware component for student and lab projects.'}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedProductModal(null)}
+                  className="w-full mt-6 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                >
+                  Close Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

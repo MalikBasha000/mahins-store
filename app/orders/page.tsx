@@ -14,6 +14,7 @@ export default function CustomerOrdersPage() {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null)
   const [cancelReason, setCancelReason] = useState('')
   const [activeInvoiceOrder, setActiveInvoiceOrder] = useState<any | null>(null)
+  const [selectedProductModal, setSelectedProductModal] = useState<any | null>(null)
 
   useEffect(() => {
     fetchCustomerOrders()
@@ -84,11 +85,17 @@ export default function CustomerOrdersPage() {
 
   const filteredOrders = orders.filter(order => {
     if (activeStatusTab === 'ALL') return true
-    return (order.status || 'Pending').toUpperCase() === activeStatusTab.toUpperCase()
+    const status = (order.status || 'Pending').toUpperCase()
+    if (activeStatusTab === 'PENDING') return status === 'PENDING' || status === 'PENDING VERIFICATION'
+    return status === activeStatusTab.toUpperCase()
   })
 
   const getCount = (status: string) => {
     if (status === 'ALL') return orders.length
+    if (status === 'PENDING') return orders.filter(o => {
+      const s = (o.status || 'Pending').toUpperCase()
+      return s === 'PENDING' || s === 'PENDING VERIFICATION'
+    }).length
     return orders.filter(o => (o.status || 'Pending').toUpperCase() === status.toUpperCase()).length
   }
 
@@ -138,7 +145,7 @@ export default function CustomerOrdersPage() {
         ) : (
           <div className="space-y-6">
             {filteredOrders.map((order) => {
-              const isCancellable = order.status === 'Pending' || order.status === 'Processing'
+              const isCancellable = order.status === 'Pending' || order.status === 'Processing' || order.status === 'Pending Verification'
               const isDelivered = (order.status || '').toLowerCase() === 'delivered'
 
               return (
@@ -184,20 +191,56 @@ export default function CustomerOrdersPage() {
                     </div>
                   </div>
 
+                  {/* Items Ordered with Clickable Images & Product Details Modal */}
                   <div className="bg-white p-4 rounded-lg border">
-                    <h4 className="text-xs font-bold text-gray-700 uppercase mb-2">Items Ordered</h4>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Items Ordered</h4>
+                    <div className="space-y-3 max-h-56 overflow-y-auto">
                       {Array.isArray(order.items) && order.items.map((item: any, idx: number) => {
+                        const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
                         const unitPrice = item.price || 0
                         const qty = item.quantity || 1
                         const lineTotal = unitPrice * qty
+
                         return (
-                          <div key={idx} className="flex justify-between items-center text-xs border-b pb-2">
-                            <div>
-                              <span className="text-gray-900 font-bold block">{item.name}</span>
-                              <span className="text-gray-500">₹{unitPrice} per unit × {qty}</span>
+                          <div key={idx} className="flex items-center justify-between text-xs border-b pb-3 gap-3">
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={itemImg} 
+                                alt="" 
+                                className="w-11 h-11 object-cover rounded-lg border bg-white flex-shrink-0 cursor-pointer hover:opacity-80 transition"
+                                onClick={async () => {
+                                  const prodId = item.id || item.product_id
+                                  if (prodId) {
+                                    const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
+                                    if (data) {
+                                      setSelectedProductModal(data)
+                                      return
+                                    }
+                                  }
+                                  setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
+                                }}
+                              />
+                              <div>
+                                <button 
+                                  onClick={async () => {
+                                    const prodId = item.id || item.product_id
+                                    if (prodId) {
+                                      const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
+                                      if (data) {
+                                        setSelectedProductModal(data)
+                                        return
+                                      }
+                                    }
+                                    setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
+                                  }}
+                                  className="text-gray-900 font-bold hover:text-indigo-600 hover:underline text-left block cursor-pointer"
+                                >
+                                  {item.name}
+                                </button>
+                                <span className="text-gray-500">₹{unitPrice} per unit × {qty}</span>
+                              </div>
                             </div>
-                            <span className="font-bold text-gray-900">₹{lineTotal}</span>
+                            <span className="font-bold text-gray-900 whitespace-nowrap">₹{lineTotal}</span>
                           </div>
                         )
                       })}
@@ -247,7 +290,6 @@ export default function CustomerOrdersPage() {
                     )}
 
                     <div className="ml-auto flex items-center gap-2">
-                      {/* Delivered: Official Invoice Download */}
                       {isDelivered && (
                         <button
                           onClick={() => setActiveInvoiceOrder(order)}
@@ -279,6 +321,45 @@ export default function CustomerOrdersPage() {
           type="INVOICE"
           onClose={() => setActiveInvoiceOrder(null)}
         />
+      )}
+
+      {/* Product Details Pop-up Modal */}
+      {selectedProductModal && (
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setSelectedProductModal(null)}
+              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer"
+            >
+              ✕
+            </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-gray-100 rounded-2xl overflow-hidden border h-72 flex items-center justify-center">
+                <img 
+                  src={selectedProductModal.image_url ? selectedProductModal.image_url.split(',')[0].trim() : 'https://via.placeholder.com/300'} 
+                  alt="" 
+                  className="w-full h-full object-contain p-2" 
+                />
+              </div>
+              <div className="flex flex-col justify-between">
+                <div>
+                  <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{selectedProductModal.category || 'Electronics & Robotics'}</span>
+                  <h3 className="text-xl font-black text-gray-900 mt-1 mb-2">{selectedProductModal.name}</h3>
+                  <div className="text-2xl font-extrabold text-indigo-900 mb-4">₹{selectedProductModal.price}</div>
+                  <div className="text-xs text-gray-600 space-y-2 leading-relaxed">
+                    <p>{selectedProductModal.description || 'High quality hardware component for student and lab projects.'}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedProductModal(null)}
+                  className="w-full mt-6 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                >
+                  Close Details
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
