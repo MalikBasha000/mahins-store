@@ -371,9 +371,9 @@ export default function AdminPage() {
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
     let customReason = ''
     if (newStatus === 'Cancelled') {
-      const reasonInput = prompt('Please enter the reason for admin cancellation:')
+      const reasonInput = prompt('Please enter the reason for rejection/cancellation:')
       if (reasonInput === null) return
-      customReason = `Admin cancelled due to: ${reasonInput.trim() || 'No reason provided'}`
+      customReason = `Admin rejected UTR / cancelled due to: ${reasonInput.trim() || 'Payment mismatch or invalid UTR'}`
     }
 
     setLoading(true)
@@ -905,13 +905,13 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: UPI VERIFICATIONS WINDOW ----------------- */}
+        {/* ----------------- TAB: UPI VERIFICATIONS WINDOW (Enhanced with Date/Time & Reject Action) ----------------- */}
         {activeTab === 'upi_verifications' && (
           <div className="bg-white p-6 rounded-2xl shadow-md space-y-6">
             <div className="flex justify-between items-center border-b pb-4">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">⚡ Direct UPI / QR Payment Verification Window</h2>
-                <p className="text-xs text-gray-500">Cross-check bank statement for UTR and verify customer QR transfers instantly</p>
+                <p className="text-xs text-gray-500">Cross-check bank statement for UTR and verify or reject customer QR transfers</p>
               </div>
               <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">
                 {upiPendingOrders.length} Pending Approval
@@ -929,37 +929,82 @@ export default function AdminPage() {
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-amber-50/50 text-gray-700 text-xs">
-                      <th className="p-3">Tracking ID</th>
-                      <th className="p-3">Customer Info</th>
-                      <th className="p-3">Payment Details & UTR</th>
+                      <th className="p-3">Tracking ID & Date/Time</th>
+                      <th className="p-3">Customer & ID</th>
+                      <th className="p-3">Items Ordered</th>
+                      <th className="p-3">Payment & UTR</th>
+                      <th className="p-3">Shipping Address</th>
                       <th className="p-3">Total Amount</th>
-                      <th className="p-3 text-right">Quick Verify Action</th>
+                      <th className="p-3 text-right">Verification Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {upiPendingOrders.map((o) => (
-                      <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                        <td className="p-3 font-mono text-xs font-bold text-indigo-900">{o.tracking_id}</td>
-                        <td className="p-3">
-                          <div className="font-bold text-gray-900">{o.customer_name}</div>
-                          <div className="text-xs text-gray-500">{o.customer_email}</div>
-                        </td>
-                        <td className="p-3">
-                          <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2 py-1 rounded border border-indigo-200 inline-block">
-                            {o.payment_method}
-                          </span>
-                        </td>
-                        <td className="p-3 font-black text-indigo-900 text-base">₹{o.total_amount || o.final_payable_amount}</td>
-                        <td className="p-3 text-right space-x-2">
-                          <button
-                            onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
-                            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow transition cursor-pointer"
-                          >
-                            ✓ Verify & Approve Payment
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {upiPendingOrders.map((o) => {
+                      const twelveCustId = getTwelveDigitId(o.user_id)
+                      const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                      return (
+                        <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
+                          <td className="p-3 whitespace-nowrap">
+                            <div className="font-mono text-xs font-bold text-indigo-900">{o.tracking_id}</div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">🕒 {orderDate}</div>
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            <div className="font-bold text-gray-900">{o.customer_name}</div>
+                            <div className="text-xs text-gray-500">{o.customer_email}</div>
+                            <span className="text-[10px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 inline-block mt-1">
+                              ID: {twelveCustId}
+                            </span>
+                          </td>
+                          <td className="p-3 text-xs">
+                            {Array.isArray(o.items) && o.items.length > 0 ? (
+                              <div className="space-y-1">
+                                {o.items.map((item: any, idx: number) => (
+                                  <div key={idx} className="font-medium text-gray-800">
+                                    {item.name} × <span className="text-indigo-600 font-bold">{item.quantity}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">No items</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2 py-1 rounded border border-indigo-200 inline-block">
+                              {o.payment_method}
+                            </span>
+                          </td>
+                          <td className="p-3 text-xs text-gray-700 max-w-xs">
+                            <div className="bg-gray-50 p-2 rounded border border-gray-200 leading-relaxed mb-1.5">
+                              {o.shipping_address || 'No address provided'}
+                            </div>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(o.shipping_address || '')
+                                alert('Shipping address copied to clipboard!')
+                              }}
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded transition border border-indigo-200 cursor-pointer"
+                            >
+                              📋 Copy Address
+                            </button>
+                          </td>
+                          <td className="p-3 font-black text-indigo-900 text-base whitespace-nowrap">₹{o.total_amount || o.final_payable_amount}</td>
+                          <td className="p-3 text-right whitespace-nowrap space-y-1">
+                            <button
+                              onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-3 py-2 rounded-xl shadow transition cursor-pointer block text-center"
+                            >
+                              ✓ Verify & Approve
+                            </button>
+                            <button
+                              onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
+                              className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs px-3 py-1.5 rounded-xl transition border border-red-200 cursor-pointer block text-center"
+                            >
+                              ✕ Reject / Cancel
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1286,7 +1331,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS (Fully Restored with WhatsApp & Filters) ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS (Enhanced with Date/Time) ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-2xl shadow-md">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
@@ -1379,7 +1424,7 @@ export default function AdminPage() {
                 <table className="w-full text-left border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50 text-gray-600">
-                      <th className="p-3">Tracking ID</th>
+                      <th className="p-3">Tracking ID & Date/Time</th>
                       <th className="p-3">Customer & Email</th>
                       <th className="p-3">Items Ordered & Images</th>
                       <th className="p-3">Total Amount</th>
@@ -1388,125 +1433,129 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAdminOrders.map((o) => (
-                      <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                        <td className="p-3 font-mono text-xs font-bold text-indigo-900 whitespace-nowrap">
-                          {o.tracking_id || 'N/A'}
-                        </td>
-                        <td className="p-3 whitespace-nowrap">
-                          <div className="font-semibold text-gray-900">{o.customer_name || 'Guest'}</div>
-                          <div className="text-[11px] text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
-                        </td>
-                        <td className="p-3 text-xs">
-                          {Array.isArray(o.items) && o.items.length > 0 ? (
-                            <div className="space-y-2">
-                              {o.items.map((item: any, idx: number) => {
-                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
-                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
-                                return (
-                                  <div key={idx} className="flex items-center gap-3 bg-gray-50 p-2 rounded border border-gray-200">
-                                    <div 
-                                      onClick={async () => {
-                                        const productId = item.id || item.product_id
-                                        if (productId) {
-                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
-                                          if (data && data.image_url) {
-                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
-                                            setActiveOrderGalleryImages(allImgs)
-                                            setActiveGalleryIndex(0)
-                                            return
+                    {filteredAdminOrders.map((o) => {
+                      const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                      return (
+                        <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
+                          <td className="p-3 whitespace-nowrap">
+                            <div className="font-mono text-xs font-bold text-indigo-900">{o.tracking_id || 'N/A'}</div>
+                            <div className="text-[10px] text-gray-500 mt-0.5">🕒 {orderDate}</div>
+                          </td>
+                          <td className="p-3 whitespace-nowrap">
+                            <div className="font-semibold text-gray-900">{o.customer_name || 'Guest'}</div>
+                            <div className="text-[11px] text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
+                          </td>
+                          <td className="p-3 text-xs">
+                            {Array.isArray(o.items) && o.items.length > 0 ? (
+                              <div className="space-y-2">
+                                {o.items.map((item: any, idx: number) => {
+                                  const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
+                                  const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
+                                  return (
+                                    <div key={idx} className="flex items-center gap-3 bg-gray-50 p-2 rounded border border-gray-200">
+                                      <div 
+                                        onClick={async () => {
+                                          const productId = item.id || item.product_id
+                                          if (productId) {
+                                            const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
+                                            if (data && data.image_url) {
+                                              const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
+                                              setActiveOrderGalleryImages(allImgs)
+                                              setActiveGalleryIndex(0)
+                                              return
+                                            }
                                           }
-                                        }
-                                        setActiveOrderGalleryImages([itemImg])
-                                        setActiveGalleryIndex(0)
-                                      }}
-                                      className="relative group flex-shrink-0 cursor-pointer"
-                                      title="Click to view all product images"
-                                    >
-                                      <img src={itemImg} alt="" className="h-12 w-12 object-cover rounded border bg-white hover:border-indigo-600 transition" />
-                                    </div>
+                                          setActiveOrderGalleryImages([itemImg])
+                                          setActiveGalleryIndex(0)
+                                        }}
+                                        className="relative group flex-shrink-0 cursor-pointer"
+                                        title="Click to view all product images"
+                                      >
+                                        <img src={itemImg} alt="" className="h-12 w-12 object-cover rounded border bg-white hover:border-indigo-600 transition" />
+                                      </div>
 
-                                    <div>
-                                      <div className="font-bold text-gray-900">{item.name} × <span className="text-indigo-600">{item.quantity}</span></div>
-                                      <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
+                                      <div>
+                                        <div className="font-bold text-gray-900">{item.name} × <span className="text-indigo-600">{item.quantity}</span></div>
+                                        <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
+                                      </div>
                                     </div>
-                                  </div>
-                                )
-                              })}
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">No items data</span>
+                            )}
+                          </td>
+                          <td className="p-3 font-bold text-indigo-600 whitespace-nowrap text-base">
+                            ₹{o.total_amount || o.final_payable_amount}
+                          </td>
+                          <td className="p-3 text-gray-700 text-xs max-w-xs">
+                            <div className="bg-gray-50 p-2.5 rounded border border-gray-200 leading-relaxed mb-2">
+                              {o.shipping_address || 'No address provided'}
                             </div>
-                          ) : (
-                            <span className="text-gray-400">No items data</span>
-                          )}
-                        </td>
-                        <td className="p-3 font-bold text-indigo-600 whitespace-nowrap text-base">
-                          ₹{o.total_amount || o.final_payable_amount}
-                        </td>
-                        <td className="p-3 text-gray-700 text-xs max-w-xs">
-                          <div className="bg-gray-50 p-2.5 rounded border border-gray-200 leading-relaxed mb-2">
-                            {o.shipping_address || 'No address provided'}
-                          </div>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(o.shipping_address || '')
-                              alert('Shipping address copied to clipboard!')
-                            }}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded transition border border-indigo-200 cursor-pointer"
-                          >
-                            📋 Copy Full Address
-                          </button>
-                        </td>
-                        <td className="p-3 whitespace-nowrap space-y-2">
-                          <select
-                            value={o.status || 'Pending'}
-                            onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                            className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block w-full cursor-pointer"
-                          >
-                            <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Processing">Processing</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Delivered">Delivered</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
-                          {o.cancellation_reason && (
-                            <span className="text-[11px] text-red-600 font-semibold block max-w-[200px] whitespace-normal leading-tight" title={o.cancellation_reason}>
-                              {o.cancellation_reason}
-                            </span>
-                          )}
-                          <div className="flex gap-1 pt-1">
                             <button
-                              onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200 transition cursor-pointer flex items-center gap-1"
-                              title="Download PDF Tax Invoice"
+                              onClick={() => {
+                                navigator.clipboard.writeText(o.shipping_address || '')
+                                alert('Shipping address copied to clipboard!')
+                              }}
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded transition border border-indigo-200 cursor-pointer"
                             >
-                              📄 Invoice
+                              📋 Copy Full Address
                             </button>
-                            <button
-                              onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
-                              className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-1 rounded border border-gray-300 transition cursor-pointer flex items-center gap-1"
-                              title="Print Shipping Label / Packing Slip"
+                          </td>
+                          <td className="p-3 whitespace-nowrap space-y-2">
+                            <select
+                              value={o.status || 'Pending'}
+                              onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                              className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block w-full cursor-pointer"
                             >
-                              🏷️ Slip
-                            </button>
-                            <a
-                              href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                                `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${o.payment_status || 'Done'}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
-                                  Array.isArray(o.items) 
-                                    ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
-                                    : '- Order Item'
-                                }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer flex items-center gap-1"
-                              title="Open WhatsApp chat"
-                            >
-                              💬 WhatsApp
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
+                              <option value="Pending">Pending</option>
+                              <option value="Processing">Processing</option>
+                              <option value="Shipped">Shipped</option>
+                              <option value="Delivered">Delivered</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+                            {o.cancellation_reason && (
+                              <span className="text-[11px] text-red-600 font-semibold block max-w-[200px] whitespace-normal leading-tight" title={o.cancellation_reason}>
+                                {o.cancellation_reason}
+                              </span>
+                            )}
+                            <div className="flex gap-1 pt-1">
+                              <button
+                                onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
+                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200 transition cursor-pointer flex items-center gap-1"
+                                title="Download PDF Tax Invoice"
+                              >
+                                📄 Invoice
+                              </button>
+                              <button
+                                onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-1 rounded border border-gray-300 transition cursor-pointer flex items-center gap-1"
+                                title="Print Shipping Label / Packing Slip"
+                              >
+                                🏷️ Slip
+                              </button>
+                              <a
+                                href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
+                                  `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${o.payment_status || 'Done'}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
+                                    Array.isArray(o.items) 
+                                      ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
+                                      : '- Order Item'
+                                  }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer flex items-center gap-1"
+                                title="Open WhatsApp chat"
+                              >
+                                💬 WhatsApp
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -1879,7 +1928,7 @@ export default function AdminPage() {
                 <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
+                <label className="p-1 block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
                 {editImageInputs.map((url, index) => (
                   <div key={index} className="flex gap-2 mb-2">
                     <input type="url" value={url} onChange={(e) => handleEditImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
