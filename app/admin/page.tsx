@@ -24,8 +24,8 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  // Tabs: analytics, upi_verifications, products, orders, customers
-  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'products' | 'orders' | 'customers'>('analytics')
+  // Tabs: analytics, upi_verifications, orders, products, customers
+  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -639,7 +639,7 @@ export default function AdminPage() {
       return 0
     })
 
-  // Filter pending UPI QR transfers specifically for the new tab window
+  // Filter pending UPI QR transfers specifically for the verification tab
   const upiPendingOrders = orders.filter(o => {
     const payMethod = (o.payment_method || '').toLowerCase()
     const status = (o.status || '').toLowerCase()
@@ -856,7 +856,7 @@ export default function AdminPage() {
         {errorMsg && <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg border border-red-300 font-medium">{errorMsg}</div>}
         {successMsg && <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg border border-green-300 font-medium">{successMsg}</div>}
 
-        {/* 5 Navigation Tabs (All previous tabs + new UPI Verifications Window) */}
+        {/* Navigation Tabs including UPI Verifications */}
         <div className="flex flex-wrap gap-4 mb-8 border-b pb-4">
           <button
             onClick={() => setActiveTab('analytics')}
@@ -943,7 +943,6 @@ export default function AdminPage() {
                         <td className="p-3">
                           <div className="font-bold text-gray-900">{o.customer_name}</div>
                           <div className="text-xs text-gray-500">{o.customer_email}</div>
-                          <div className="text-[11px] text-gray-400">{o.shipping_address_snapshot?.phone || ''}</div>
                         </td>
                         <td className="p-3">
                           <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2 py-1 rounded border border-indigo-200 inline-block">
@@ -1105,7 +1104,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 1: INVENTORY MANAGEMENT & CSV TOOLBAR ----------------- */}
+        {/* ----------------- TAB 1: INVENTORY MANAGEMENT ----------------- */}
         {activeTab === 'products' && (
           <div className="space-y-6">
             <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -1287,7 +1286,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS (Fully Restored Filters & Actions) ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS (Fully Restored with WhatsApp & Filters) ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-2xl shadow-md">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
@@ -1350,7 +1349,7 @@ export default function AdminPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
-              {['ALL', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => {
+              {['ALL', 'PENDING VERIFICATION', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => {
                 const count = getAdminOrderCount(status)
                 return (
                   <button
@@ -1462,6 +1461,7 @@ export default function AdminPage() {
                             onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
                             className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block w-full cursor-pointer"
                           >
+                            <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
                             <option value="Pending">Pending</option>
                             <option value="Processing">Processing</option>
                             <option value="Shipped">Shipped</option>
@@ -1488,6 +1488,21 @@ export default function AdminPage() {
                             >
                               🏷️ Slip
                             </button>
+                            <a
+                              href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
+                                `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${o.payment_status || 'Done'}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
+                                  Array.isArray(o.items) 
+                                    ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
+                                    : '- Order Item'
+                                }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer flex items-center gap-1"
+                              title="Open WhatsApp chat"
+                            >
+                              💬 WhatsApp
+                            </a>
                           </div>
                         </td>
                       </tr>
