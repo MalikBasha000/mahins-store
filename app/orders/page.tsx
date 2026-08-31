@@ -15,6 +15,8 @@ export default function CustomerOrdersPage() {
   const [cancelReason, setCancelReason] = useState('')
   const [activeInvoiceOrder, setActiveInvoiceOrder] = useState<any | null>(null)
   const [selectedProductModal, setSelectedProductModal] = useState<any | null>(null)
+  const [activeModalImageIndex, setActiveModalImageIndex] = useState(0)
+  const [liveProductsMap, setLiveProductsMap] = useState<Record<string, any>>({})
 
   useEffect(() => {
     fetchCustomerOrders()
@@ -30,7 +32,23 @@ export default function CustomerOrdersPage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (data) setOrders(data)
+      if (data) {
+        setOrders(data)
+        // Fetch live product details for all items across customer orders
+        const prodMap: Record<string, any> = {}
+        for (const order of data) {
+          if (order.items && Array.isArray(order.items)) {
+            for (const item of order.items) {
+              const pId = item.id || item.product_id
+              if (pId && !prodMap[pId]) {
+                const { data: liveProd } = await supabase.from('products').select('*').eq('id', pId).maybeSingle()
+                if (liveProd) prodMap[pId] = liveProd
+              }
+            }
+          }
+        }
+        setLiveProductsMap(prodMap)
+      }
     }
     setLoading(false)
   }
@@ -191,56 +209,58 @@ export default function CustomerOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Items Ordered with Clickable Images & Product Details Modal */}
+                  {/* Items Ordered with Live Product Names & Multi-Image Modal Support */}
                   <div className="bg-white p-4 rounded-lg border">
                     <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Items Ordered</h4>
                     <div className="space-y-3 max-h-56 overflow-y-auto">
                       {Array.isArray(order.items) && order.items.map((item: any, idx: number) => {
-                        const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
-                        const unitPrice = item.price || 0
-                        const qty = item.quantity || 1
+                        const pId = item.id || item.product_id
+                        const liveProd = liveProductsMap[pId]
+                        
+                        const displayName = liveProd ? (liveProd.name || liveProd.title) : item.name
+                        const displayImg = liveProd?.image_url 
+                          ? liveProd.image_url.split(',')[0].trim() 
+                          : (item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40')
+                        
+                        const unitPrice = Number(liveProd?.price ?? item.price) || 0
+                        const qty = Number(item.quantity) || 1
                         const lineTotal = unitPrice * qty
 
                         return (
-                          <div key={idx} className="flex items-center justify-between text-xs border-b pb-3 gap-3">
-                            <div className="flex items-center gap-3">
+                          <div key={idx} className="flex items-center justify-between text-xs border-b pb-3 gap-3 overflow-hidden">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
                               <img 
-                                src={itemImg} 
+                                src={displayImg} 
                                 alt="" 
                                 className="w-11 h-11 object-cover rounded-lg border bg-white flex-shrink-0 cursor-pointer hover:opacity-80 transition"
-                                onClick={async () => {
-                                  const prodId = item.id || item.product_id
-                                  if (prodId) {
-                                    const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
-                                    if (data) {
-                                      setSelectedProductModal(data)
-                                      return
-                                    }
+                                onClick={() => {
+                                  if (liveProd) {
+                                    setSelectedProductModal(liveProd)
+                                  } else {
+                                    setSelectedProductModal({ name: displayName, price: unitPrice, description: 'No description.', image_url: displayImg })
                                   }
-                                  setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
+                                  setActiveModalImageIndex(0)
                                 }}
                               />
-                              <div>
+                              <div className="min-w-0 flex-1">
                                 <button 
-                                  onClick={async () => {
-                                    const prodId = item.id || item.product_id
-                                    if (prodId) {
-                                      const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
-                                      if (data) {
-                                        setSelectedProductModal(data)
-                                        return
-                                      }
+                                  onClick={() => {
+                                    if (liveProd) {
+                                      setSelectedProductModal(liveProd)
+                                    } else {
+                                      setSelectedProductModal({ name: displayName, price: unitPrice, description: 'No description.', image_url: displayImg })
                                     }
-                                    setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
+                                    setActiveModalImageIndex(0)
                                   }}
-                                  className="text-gray-900 font-bold hover:text-indigo-600 hover:underline text-left block cursor-pointer"
+                                  className="text-gray-900 font-bold hover:text-indigo-600 hover:underline text-left block truncate w-full cursor-pointer"
+                                  title={displayName}
                                 >
-                                  {item.name}
+                                  {displayName}
                                 </button>
                                 <span className="text-gray-500">₹{unitPrice} per unit × {qty}</span>
                               </div>
                             </div>
-                            <span className="font-bold text-gray-900 whitespace-nowrap">₹{lineTotal}</span>
+                            <span className="font-bold text-gray-900 whitespace-nowrap flex-shrink-0">₹{lineTotal}</span>
                           </div>
                         )
                       })}
@@ -323,7 +343,7 @@ export default function CustomerOrdersPage() {
         />
       )}
 
-      {/* Product Details Pop-up Modal */}
+      {/* Product Details Pop-up Modal with Multi-Image Support */}
       {selectedProductModal && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
@@ -334,19 +354,44 @@ export default function CustomerOrdersPage() {
               ✕
             </button>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-100 rounded-2xl overflow-hidden border h-72 flex items-center justify-center">
-                <img 
-                  src={selectedProductModal.image_url ? selectedProductModal.image_url.split(',')[0].trim() : 'https://via.placeholder.com/300'} 
-                  alt="" 
-                  className="w-full h-full object-contain p-2" 
-                />
+              <div>
+                <div className="bg-gray-100 rounded-2xl overflow-hidden border h-72 flex items-center justify-center mb-3">
+                  <img 
+                    src={
+                      selectedProductModal.image_url 
+                        ? selectedProductModal.image_url.split(',')[activeModalImageIndex]?.trim() || selectedProductModal.image_url.split(',')[0].trim()
+                        : 'https://via.placeholder.com/300'
+                    } 
+                    alt="" 
+                    className="w-full h-full object-contain p-2" 
+                  />
+                </div>
+                {/* Thumbnails Picker */}
+                {selectedProductModal.image_url && selectedProductModal.image_url.split(',').length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {selectedProductModal.image_url.split(',').map((url: string, i: number) => {
+                      const clean = url.trim()
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setActiveModalImageIndex(i)}
+                          className={`w-14 h-14 rounded-xl overflow-hidden border-2 flex-shrink-0 transition bg-white ${
+                            activeModalImageIndex === i ? 'border-indigo-600 scale-105 shadow-sm' : 'border-gray-200 opacity-60'
+                          }`}
+                        >
+                          <img src={clean} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col justify-between">
                 <div>
                   <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{selectedProductModal.category || 'Electronics & Robotics'}</span>
-                  <h3 className="text-xl font-black text-gray-900 mt-1 mb-2">{selectedProductModal.name}</h3>
+                  <h3 className="text-xl font-black text-gray-900 mt-1 mb-2">{selectedProductModal.name || selectedProductModal.title}</h3>
                   <div className="text-2xl font-extrabold text-indigo-900 mb-4">₹{selectedProductModal.price}</div>
-                  <div className="text-xs text-gray-600 space-y-2 leading-relaxed">
+                  <div className="text-xs text-gray-600 space-y-2 leading-relaxed max-h-48 overflow-y-auto">
                     <p>{selectedProductModal.description || 'High quality hardware component for student and lab projects.'}</p>
                   </div>
                 </div>
