@@ -45,7 +45,6 @@ function TrackContent() {
         setErrorMsg('No order found with this tracking ID. Please check and try again.')
       } else {
         setOrder(data)
-        // Fetch live product details for items in this order
         if (data.items && Array.isArray(data.items)) {
           const prodMap: Record<string, any> = {}
           for (const item of data.items) {
@@ -226,7 +225,7 @@ function TrackContent() {
               <p className="text-xs font-medium text-gray-800 leading-relaxed">{order.shipping_address}</p>
             </div>
 
-            {/* Items Ordered List with Live Product Name & Strict Text Wrapping */}
+            {/* Items Ordered List with Proper Block Stacking to Prevent Overlap */}
             <div>
               <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3">Items Ordered</h3>
               <div className="space-y-3">
@@ -234,7 +233,6 @@ function TrackContent() {
                   const pId = item.id || item.product_id
                   const liveProd = liveProductsMap[pId]
                   
-                  // Use live updated name and image from inventory if available
                   const displayName = liveProd ? (liveProd.name || liveProd.title) : item.name
                   const displayImg = liveProd?.image_url 
                     ? liveProd.image_url.split(',')[0].trim() 
@@ -244,22 +242,12 @@ function TrackContent() {
                   const qty = Number(item.quantity) || 1
 
                   return (
-                    <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3.5 rounded-2xl border border-gray-200 w-full overflow-hidden">
-                      <img 
-                        src={displayImg} 
-                        alt="" 
-                        className="w-12 h-12 object-cover rounded-xl border bg-white flex-shrink-0 cursor-pointer hover:opacity-80 transition"
-                        onClick={() => {
-                          if (liveProd) {
-                            setSelectedProductModal(liveProd)
-                          } else {
-                            setSelectedProductModal({ name: displayName, price: unitPrice, description: 'No description.', image_url: displayImg })
-                          }
-                          setActiveModalImageIndex(0)
-                        }}
-                      />
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <button 
+                    <div key={idx} className="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-3">
+                      <div className="flex items-start gap-4">
+                        <img 
+                          src={displayImg} 
+                          alt="" 
+                          className="w-12 h-12 object-cover rounded-xl border bg-white flex-shrink-0 cursor-pointer hover:opacity-80 transition mt-0.5"
                           onClick={() => {
                             if (liveProd) {
                               setSelectedProductModal(liveProd)
@@ -268,14 +256,27 @@ function TrackContent() {
                             }
                             setActiveModalImageIndex(0)
                           }}
-                          className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block w-full truncate cursor-pointer"
-                          title={displayName}
-                        >
-                          {displayName}
-                        </button>
-                        <p className="text-[11px] text-gray-500 mt-0.5">₹{unitPrice} × {qty}</p>
+                        />
+                        <div className="flex-1 min-w-0">
+                          <button 
+                            onClick={() => {
+                              if (liveProd) {
+                                setSelectedProductModal(liveProd)
+                              } else {
+                                setSelectedProductModal({ name: displayName, price: unitPrice, description: 'No description.', image_url: displayImg })
+                              }
+                              setActiveModalImageIndex(0)
+                            }}
+                            className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block w-full whitespace-normal break-words cursor-pointer leading-relaxed"
+                          >
+                            {displayName}
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-xs font-black text-indigo-950 whitespace-nowrap flex-shrink-0">₹{unitPrice * qty}</div>
+                      <div className="flex justify-between items-center text-xs border-t pt-2 text-gray-600 font-semibold">
+                        <span>₹{unitPrice} × {qty} units</span>
+                        <span className="font-black text-indigo-950 text-sm">₹{unitPrice * qty}</span>
+                      </div>
                     </div>
                   )
                 })}
@@ -313,7 +314,6 @@ function TrackContent() {
                     className="w-full h-full object-contain p-2" 
                   />
                 </div>
-                {/* Thumbnails Picker */}
                 {selectedProductModal.image_url && selectedProductModal.image_url.split(',').length > 1 && (
                   <div className="flex gap-2 overflow-x-auto pb-2">
                     {selectedProductModal.image_url.split(',').map((url: string, i: number) => {
