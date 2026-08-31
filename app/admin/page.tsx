@@ -639,11 +639,18 @@ export default function AdminPage() {
       return 0
     })
 
-  // Filter pending UPI QR transfers specifically for the verification tab
+  // Filter pending UPI QR transfers specifically for the verification tab queue
   const upiPendingOrders = orders.filter(o => {
     const payMethod = (o.payment_method || '').toLowerCase()
     const status = (o.status || '').toLowerCase()
     return payMethod.includes('direct upi') && (status === 'pending verification' || status === 'pending')
+  })
+
+  // Filter historical / processed UPI QR transfers for the history log
+  const upiHistoryOrders = orders.filter(o => {
+    const payMethod = (o.payment_method || '').toLowerCase()
+    const status = (o.status || '').toLowerCase()
+    return payMethod.includes('direct upi') && status !== 'pending verification' && status !== 'pending'
   })
 
   // Filter Customers
@@ -905,110 +912,174 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: UPI VERIFICATIONS WINDOW (Enhanced with Date/Time & Reject Action) ----------------- */}
+        {/* ----------------- TAB: UPI VERIFICATIONS WINDOW (With Pending Queue & History Log) ----------------- */}
         {activeTab === 'upi_verifications' && (
-          <div className="bg-white p-6 rounded-2xl shadow-md space-y-6">
-            <div className="flex justify-between items-center border-b pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">⚡ Direct UPI / QR Payment Verification Window</h2>
-                <p className="text-xs text-gray-500">Cross-check bank statement for UTR and verify or reject customer QR transfers</p>
+          <div className="space-y-8">
+            {/* Pending Verifications Queue */}
+            <div className="bg-white p-6 rounded-2xl shadow-md space-y-6">
+              <div className="flex justify-between items-center border-b pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">⚡ Direct UPI / QR Payment Verification Window</h2>
+                  <p className="text-xs text-gray-500">Cross-check bank statement for UTR and verify or reject customer QR transfers</p>
+                </div>
+                <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">
+                  {upiPendingOrders.length} Pending Approval
+                </span>
               </div>
-              <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">
-                {upiPendingOrders.length} Pending Approval
-              </span>
+
+              {upiPendingOrders.length === 0 ? (
+                <div className="py-12 text-center bg-gray-50 rounded-2xl border border-gray-200">
+                  <div className="text-3xl mb-2">✅</div>
+                  <p className="text-sm font-bold text-gray-700">No pending UPI payments to verify!</p>
+                  <p className="text-xs text-gray-400 mt-1">New QR transfers will appear here instantly when customers check out.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-amber-50/50 text-gray-700 text-xs">
+                        <th className="p-3">Tracking ID & Date/Time</th>
+                        <th className="p-3">Customer & ID</th>
+                        <th className="p-3">Items Ordered</th>
+                        <th className="p-3">Payment & UTR</th>
+                        <th className="p-3">Shipping Address</th>
+                        <th className="p-3">Total Amount</th>
+                        <th className="p-3 text-right">Verification Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {upiPendingOrders.map((o) => {
+                        const twelveCustId = getTwelveDigitId(o.user_id)
+                        const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                        return (
+                          <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
+                            <td className="p-3 whitespace-nowrap">
+                              <div className="font-mono text-xs font-bold text-indigo-900">{o.tracking_id}</div>
+                              <div className="text-[10px] text-gray-500 mt-0.5">🕒 {orderDate}</div>
+                            </td>
+                            <td className="p-3 whitespace-nowrap">
+                              <div className="font-bold text-gray-900">{o.customer_name}</div>
+                              <div className="text-xs text-gray-500">{o.customer_email}</div>
+                              <span className="text-[10px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 inline-block mt-1">
+                                ID: {twelveCustId}
+                              </span>
+                            </td>
+                            <td className="p-3 text-xs">
+                              {Array.isArray(o.items) && o.items.length > 0 ? (
+                                <div className="space-y-1">
+                                  {o.items.map((item: any, idx: number) => (
+                                    <div key={idx} className="font-medium text-gray-800">
+                                      {item.name} × <span className="text-indigo-600 font-bold">{item.quantity}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-gray-400">No items</span>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2 py-1 rounded border border-indigo-200 inline-block">
+                                {o.payment_method}
+                              </span>
+                            </td>
+                            <td className="p-3 text-xs text-gray-700 max-w-xs">
+                              <div className="bg-gray-50 p-2 rounded border border-gray-200 leading-relaxed mb-1.5">
+                                {o.shipping_address || 'No address provided'}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(o.shipping_address || '')
+                                  alert('Shipping address copied to clipboard!')
+                                }}
+                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded transition border border-indigo-200 cursor-pointer"
+                              >
+                                📋 Copy Address
+                              </button>
+                            </td>
+                            <td className="p-3 font-black text-indigo-900 text-base whitespace-nowrap">₹{o.total_amount || o.final_payable_amount}</td>
+                            <td className="p-3 text-right whitespace-nowrap space-y-1">
+                              <button
+                                onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-3 py-2 rounded-xl shadow transition cursor-pointer block text-center"
+                              >
+                                ✓ Verify & Approve
+                              </button>
+                              <button
+                                onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
+                                className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs px-3 py-1.5 rounded-xl transition border border-red-200 cursor-pointer block text-center"
+                              >
+                                ✕ Reject / Cancel
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
-            {upiPendingOrders.length === 0 ? (
-              <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-200">
-                <div className="text-3xl mb-2">✅</div>
-                <p className="text-sm font-bold text-gray-700">All direct UPI payments have been verified!</p>
-                <p className="text-xs text-gray-400 mt-1">New QR transfers will appear here instantly when customers check out.</p>
+            {/* Previous Accepted & Rejected UPI History Reference Log */}
+            <div className="bg-white p-6 rounded-2xl shadow-md space-y-4">
+              <div className="border-b pb-3">
+                <h3 className="text-base font-bold text-gray-900">📜 Verification History Logs (Accepted & Rejected)</h3>
+                <p className="text-xs text-gray-500">Reference log for all previously processed direct UPI / QR payments</p>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-amber-50/50 text-gray-700 text-xs">
-                      <th className="p-3">Tracking ID & Date/Time</th>
-                      <th className="p-3">Customer & ID</th>
-                      <th className="p-3">Items Ordered</th>
-                      <th className="p-3">Payment & UTR</th>
-                      <th className="p-3">Shipping Address</th>
-                      <th className="p-3">Total Amount</th>
-                      <th className="p-3 text-right">Verification Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {upiPendingOrders.map((o) => {
-                      const twelveCustId = getTwelveDigitId(o.user_id)
-                      const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
-                      return (
-                        <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="font-mono text-xs font-bold text-indigo-900">{o.tracking_id}</div>
-                            <div className="text-[10px] text-gray-500 mt-0.5">🕒 {orderDate}</div>
-                          </td>
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="font-bold text-gray-900">{o.customer_name}</div>
-                            <div className="text-xs text-gray-500">{o.customer_email}</div>
-                            <span className="text-[10px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 inline-block mt-1">
-                              ID: {twelveCustId}
-                            </span>
-                          </td>
-                          <td className="p-3 text-xs">
-                            {Array.isArray(o.items) && o.items.length > 0 ? (
-                              <div className="space-y-1">
-                                {o.items.map((item: any, idx: number) => (
-                                  <div key={idx} className="font-medium text-gray-800">
-                                    {item.name} × <span className="text-indigo-600 font-bold">{item.quantity}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">No items</span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2 py-1 rounded border border-indigo-200 inline-block">
+
+              {upiHistoryOrders.length === 0 ? (
+                <p className="text-xs text-gray-400 italic py-4">No past verification history recorded yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 border-b text-gray-600">
+                        <th className="p-3">Tracking ID & Date/Time</th>
+                        <th className="p-3">Customer Info</th>
+                        <th className="p-3">Payment & UTR</th>
+                        <th className="p-3">Total Amount</th>
+                        <th className="p-3">Final Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {upiHistoryOrders.map((o) => {
+                        const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                        const isCancelled = (o.status || '').toLowerCase() === 'cancelled'
+
+                        return (
+                          <tr key={o.id} className="border-b hover:bg-gray-50">
+                            <td className="p-3 whitespace-nowrap">
+                              <span className="font-mono font-bold text-indigo-900">{o.tracking_id}</span>
+                              <span className="text-[10px] text-gray-400 block mt-0.5">🕒 {orderDate}</span>
+                            </td>
+                            <td className="p-3">
+                              <div className="font-bold text-gray-900">{o.customer_name}</div>
+                              <div className="text-[11px] text-gray-500">{o.customer_email}</div>
+                            </td>
+                            <td className="p-3 font-mono text-[11px] text-gray-700 max-w-xs truncate" title={o.payment_method}>
                               {o.payment_method}
-                            </span>
-                          </td>
-                          <td className="p-3 text-xs text-gray-700 max-w-xs">
-                            <div className="bg-gray-50 p-2 rounded border border-gray-200 leading-relaxed mb-1.5">
-                              {o.shipping_address || 'No address provided'}
-                            </div>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(o.shipping_address || '')
-                                alert('Shipping address copied to clipboard!')
-                              }}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded transition border border-indigo-200 cursor-pointer"
-                            >
-                              📋 Copy Address
-                            </button>
-                          </td>
-                          <td className="p-3 font-black text-indigo-900 text-base whitespace-nowrap">₹{o.total_amount || o.final_payable_amount}</td>
-                          <td className="p-3 text-right whitespace-nowrap space-y-1">
-                            <button
-                              onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
-                              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-3 py-2 rounded-xl shadow transition cursor-pointer block text-center"
-                            >
-                              ✓ Verify & Approve
-                            </button>
-                            <button
-                              onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
-                              className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs px-3 py-1.5 rounded-xl transition border border-red-200 cursor-pointer block text-center"
-                            >
-                              ✕ Reject / Cancel
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                            </td>
+                            <td className="p-3 font-black text-gray-900">₹{o.total_amount || o.final_payable_amount}</td>
+                            <td className="p-3 whitespace-nowrap">
+                              <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] uppercase ${
+                                isCancelled ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                              }`}>
+                                {o.status}
+                              </span>
+                              {o.cancellation_reason && (
+                                <span className="text-[10px] text-red-600 block mt-1 max-w-xs truncate" title={o.cancellation_reason}>
+                                  {o.cancellation_reason}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1331,7 +1402,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS (Enhanced with Date/Time) ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-2xl shadow-md">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
@@ -1928,7 +1999,7 @@ export default function AdminPage() {
                 <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
               </div>
               <div>
-                <label className="p-1 block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
                 {editImageInputs.map((url, index) => (
                   <div key={index} className="flex gap-2 mb-2">
                     <input type="url" value={url} onChange={(e) => handleEditImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
