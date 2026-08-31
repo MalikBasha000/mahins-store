@@ -29,7 +29,6 @@ export default function CheckoutPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
 
-  // Controlled Form Fields
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -42,14 +41,12 @@ export default function CheckoutPage() {
   const [stateName, setStateName] = useState('Telangana')
   const [pincode, setPincode] = useState('')
   
-  // Payment methods: Razorpay vs Direct UPI QR Transfer
   const [paymentMethod, setPaymentMethod] = useState('Online Gateway (Razorpay)')
   const [upiUtr, setUpiUtr] = useState('')
 
   useEffect(() => {
     setMounted(true)
 
-    // Load Razorpay script dynamically
     const script = document.createElement('script')
     script.src = 'https://checkout.razorpay.com/v1/checkout.js'
     script.async = true
@@ -65,7 +62,6 @@ export default function CheckoutPage() {
           setEmail(user.email || '')
           setName(user.user_metadata?.full_name || '')
 
-          // Fetch saved customer address from Supabase
           const { data, error } = await supabase
             .from('customer_addresses')
             .select('*')
@@ -159,11 +155,11 @@ export default function CheckoutPage() {
     if (paymentRefId) {
       finalPaymentMethod = `${paymentMethod} (Paid - ID: ${paymentRefId})`
     } else if (paymentMethod === 'Direct UPI Transfer (Scan & Pay)') {
-      finalPaymentMethod = `Direct UPI Transfer (UTR: ${upiUtr.trim() || 'Pending Verification'})`
+      const cleanUtr = upiUtr.trim() ? upiUtr.trim() : 'Not Provided / Check Bank'
+      finalPaymentMethod = `Direct UPI Transfer (UTR: ${cleanUtr})`
     }
 
-    // Direct UPI orders start as Pending Verification until admin confirms UTR
-    const initialOrderStatus = paymentMethod === 'Direct UPI Transfer (Scan & Pay)' ? 'Pending Verification' : 'Pending'
+    const initialOrderStatus = paymentMethod === 'Direct UPI Transfer (Scan & Pay)' ? 'PENDING VERIFICATION' : 'Pending'
 
     const orderPayload: any = {
       user_id: currentUserId,
@@ -187,7 +183,6 @@ export default function CheckoutPage() {
     const { error: orderError } = await supabase.from('orders').insert([orderPayload])
     if (orderError) throw new Error(orderError.message)
 
-    // Decrement product stock
     for (const item of cart) {
       const qty = Number(item.quantity) || 1
       const { data: currentProduct } = await supabase
@@ -204,7 +199,6 @@ export default function CheckoutPage() {
       }
     }
 
-    // Dispatch Confirmation Emails
     try {
       await fetch('/api/send-order-email', {
         method: 'POST',
@@ -253,18 +247,12 @@ export default function CheckoutPage() {
       return
     }
 
-    if (paymentMethod === 'Direct UPI Transfer (Scan & Pay)' && !upiUtr.trim()) {
-      setErrorMsg('Please enter your 12-digit UPI Transaction Reference ID (UTR).')
-      return
-    }
-
     setLoading(true)
 
     try {
       if (paymentMethod === 'Direct UPI Transfer (Scan & Pay)' || paymentMethod === 'Cash on Delivery (COD)') {
         await processOrderSubmission()
       } else {
-        // Online Payment via Razorpay
         const res = await fetch('/api/razorpay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -569,32 +557,31 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              {/* Direct UPI Scan & Pay Box Preview */}
+              {/* Secure Direct UPI Scanner & Optional UTR Section */}
               {paymentMethod === 'Direct UPI Transfer (Scan & Pay)' && (
-                <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-200 space-y-3">
+                <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 space-y-4">
                   <div className="text-center">
-                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wide block mb-1">Scan QR Code or Pay via UPI ID</span>
-                    <p className="text-[11px] text-gray-600">UPI ID: <span className="font-mono font-bold text-indigo-700">mahinsonestoponestore@upi</span> (or scan via GPay/PhonePe/Paytm)</p>
+                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wide block mb-1">Scan QR Code with any UPI App</span>
+                    <p className="text-[11px] text-gray-600">Secure Direct Merchant Scanner</p>
                     
-                    {/* Placeholder QR or image container */}
-                    <div className="my-3 mx-auto w-36 h-36 bg-white border-2 border-indigo-200 rounded-xl flex items-center justify-center p-2 shadow-sm">
-                      <div className="text-[10px] font-bold text-gray-400 text-center">
-                        [ Place Your Business QR Image Here ]
-                      </div>
+                    {/* Embedded Secure QR Image from public folder */}
+                    <div className="my-3 mx-auto w-44 h-44 bg-white border-2 border-indigo-300 rounded-2xl flex items-center justify-center p-2 shadow-md">
+                      <img src="/upi-qr.png" alt="Direct UPI QR Code" className="w-full h-full object-contain rounded-lg" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-indigo-900 mb-1">Enter 12-Digit UTR / Transaction Reference ID *</label>
+                    <label className="block text-xs font-bold text-indigo-900 mb-1">
+                      UTR / Transaction Reference ID <span className="text-gray-500 font-normal">(Optional)</span>
+                    </label>
                     <input
                       type="text"
-                      required
                       value={upiUtr}
                       onChange={(e) => setUpiUtr(e.target.value)}
-                      placeholder="e.g. 4235xxxxxxxx"
+                      placeholder="e.g. 4235xxxxxxxx (Optional)"
                       className="w-full border border-indigo-300 p-2.5 rounded-xl text-sm bg-white font-mono font-bold text-gray-900 focus:outline-indigo-600"
                     />
-                    <p className="text-[10px] text-gray-500 mt-1">After completing payment in your UPI app, copy and paste the UTR/Reference number here.</p>
+                    <p className="text-[10px] text-gray-500 mt-1">You can place your order even without entering the UTR. Our team will cross-verify the incoming payment in our bank account statement.</p>
                   </div>
                 </div>
               )}

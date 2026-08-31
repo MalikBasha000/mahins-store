@@ -24,8 +24,8 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  // Tabs: Products, Orders, Customers, Analytics
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'customers' | 'analytics'>('analytics')
+  // Tabs: analytics, upi_verifications, orders, products, customers
+  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -639,6 +639,13 @@ export default function AdminPage() {
       return 0
     })
 
+  // Filter pending UPI QR transfers specifically
+  const upiPendingOrders = orders.filter(o => {
+    const payMethod = (o.payment_method || '').toLowerCase()
+    const status = (o.status || '').toLowerCase()
+    return payMethod.includes('direct upi') && (status === 'pending verification' || status === 'pending')
+  })
+
   // Filter Customers
   const filteredCustomers = customers.filter((c) => {
     const q = customerSearchQuery.toLowerCase().trim()
@@ -849,7 +856,7 @@ export default function AdminPage() {
         {errorMsg && <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg border border-red-300 font-medium">{errorMsg}</div>}
         {successMsg && <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg border border-green-300 font-medium">{successMsg}</div>}
 
-        {/* 4 Main Navigation Tabs */}
+        {/* Navigation Tabs including UPI Verifications Window */}
         <div className="flex flex-wrap gap-4 mb-8 border-b pb-4">
           <button
             onClick={() => setActiveTab('analytics')}
@@ -858,6 +865,19 @@ export default function AdminPage() {
             }`}
           >
             📊 Analytics & Insights
+          </button>
+          <button
+            onClick={() => setActiveTab('upi_verifications')}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer relative flex items-center gap-2 ${
+              activeTab === 'upi_verifications' ? 'bg-amber-600 text-white shadow-md' : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
+            }`}
+          >
+            ⚡ UPI Verifications
+            {upiPendingOrders.length > 0 && (
+              <span className="bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">
+                {upiPendingOrders.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('orders')}
@@ -885,10 +905,72 @@ export default function AdminPage() {
           </button>
         </div>
 
+        {/* ----------------- TAB: UPI VERIFICATIONS WINDOW ----------------- */}
+        {activeTab === 'upi_verifications' && (
+          <div className="bg-white p-6 rounded-2xl shadow-md space-y-6">
+            <div className="flex justify-between items-center border-b pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">⚡ Direct UPI / QR Payment Verification Window</h2>
+                <p className="text-xs text-gray-500">Cross-check bank statement for UTR and verify customer QR transfers instantly</p>
+              </div>
+              <span className="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">
+                {upiPendingOrders.length} Pending Approval
+              </span>
+            </div>
+
+            {upiPendingOrders.length === 0 ? (
+              <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-200">
+                <div className="text-3xl mb-2">✅</div>
+                <p className="text-sm font-bold text-gray-700">All direct UPI payments have been verified!</p>
+                <p className="text-xs text-gray-400 mt-1">New QR transfers will appear here instantly when customers check out.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b bg-amber-50/50 text-gray-700 text-xs">
+                      <th className="p-3">Tracking ID</th>
+                      <th className="p-3">Customer Info</th>
+                      <th className="p-3">Payment Details & UTR</th>
+                      <th className="p-3">Total Amount</th>
+                      <th className="p-3 text-right">Quick Verify Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {upiPendingOrders.map((o) => (
+                      <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
+                        <td className="p-3 font-mono text-xs font-bold text-indigo-900">{o.tracking_id}</td>
+                        <td className="p-3">
+                          <div className="font-bold text-gray-900">{o.customer_name}</div>
+                          <div className="text-xs text-gray-500">{o.customer_email}</div>
+                          <div className="text-[11px] text-gray-400">{o.shipping_address_snapshot?.phone || ''}</div>
+                        </td>
+                        <td className="p-3">
+                          <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2 py-1 rounded border border-indigo-200 inline-block">
+                            {o.payment_method}
+                          </span>
+                        </td>
+                        <td className="p-3 font-black text-indigo-900 text-base">₹{o.total_amount || o.final_payable_amount}</td>
+                        <td className="p-3 text-right space-x-2">
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow transition cursor-pointer"
+                          >
+                            ✓ Verify & Approve Payment
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ----------------- TAB 0: ANALYTICS & INSIGHTS ----------------- */}
         {activeTab === 'analytics' && (
           <div className="space-y-8">
-            {/* KPI Metric Overview Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Active Gross Revenue</span>
@@ -915,10 +997,8 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Interactive Sales Charts Integration */}
             <SalesCharts orders={orders} products={products} />
 
-            {/* Low-Stock Alert Center */}
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
               <div className="flex justify-between items-center mb-4">
                 <div>
@@ -959,7 +1039,6 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* Top Selling Products Leaderboard */}
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
               <h3 className="text-base font-bold text-gray-900 mb-1">🏆 Top Performing Products</h3>
               <p className="text-xs text-gray-500 mb-6">Ranked by total quantity sold across active customer orders</p>
@@ -997,40 +1076,12 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
-
-            {/* Order Status Distribution Cards */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4">📦 Order Status Distribution</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-center">
-                  <span className="text-[11px] font-bold text-amber-800 uppercase block">Pending</span>
-                  <span className="text-xl font-black text-amber-900 mt-1 block">{getAdminOrderCount('Pending')}</span>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-center">
-                  <span className="text-[11px] font-bold text-blue-800 uppercase block">Processing</span>
-                  <span className="text-xl font-black text-blue-900 mt-1 block">{getAdminOrderCount('Processing')}</span>
-                </div>
-                <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 text-center">
-                  <span className="text-[11px] font-bold text-purple-800 uppercase block">Shipped</span>
-                  <span className="text-xl font-black text-purple-900 mt-1 block">{getAdminOrderCount('Shipped')}</span>
-                </div>
-                <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-center">
-                  <span className="text-[11px] font-bold text-green-800 uppercase block">Delivered</span>
-                  <span className="text-xl font-black text-green-900 mt-1 block">{getAdminOrderCount('Delivered')}</span>
-                </div>
-                <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-center">
-                  <span className="text-[11px] font-bold text-red-800 uppercase block">Cancelled</span>
-                  <span className="text-xl font-black text-red-900 mt-1 block">{getAdminOrderCount('Cancelled')}</span>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
-        {/* ----------------- TAB 1: INVENTORY MANAGEMENT & CSV TOOLBAR ----------------- */}
+        {/* ----------------- TAB 1: INVENTORY MANAGEMENT ----------------- */}
         {activeTab === 'products' && (
           <div className="space-y-6">
-            {/* Bulk CSV Operations Banner */}
             <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
                 <h3 className="text-sm font-black text-indigo-950 flex items-center gap-2">
@@ -1042,39 +1093,10 @@ export default function AdminPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleCSVUpload}
-                  className="hidden"
-                />
-                
-                <button
-                  type="button"
-                  onClick={handleDownloadSampleCSV}
-                  className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-300 transition cursor-pointer"
-                  title="Download pre-formatted CSV template"
-                >
-                  📝 Sample Template
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleExportCSV}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2 rounded-xl border border-indigo-200 transition cursor-pointer flex items-center gap-1.5"
-                  title="Export store products to CSV"
-                >
-                  📤 Export Inventory CSV
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
-                >
-                  📥 Upload Bulk CSV
-                </button>
+                <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
+                <button type="button" onClick={handleDownloadSampleCSV} className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-300 transition cursor-pointer">📝 Sample Template</button>
+                <button type="button" onClick={handleExportCSV} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2 rounded-xl border border-indigo-200 transition cursor-pointer">📤 Export Inventory CSV</button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition cursor-pointer">📥 Upload Bulk CSV</button>
               </div>
             </div>
 
@@ -1098,56 +1120,15 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Category (Select existing or type new)</label>
-                    <input 
-                      type="text" 
-                      list="existing-categories"
-                      value={category} 
-                      onChange={(e) => setCategory(e.target.value)} 
-                      placeholder="e.g. Microcontrollers, Sensor" 
-                      className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900 focus:outline-indigo-600" 
-                    />
+                    <input type="text" list="existing-categories" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Microcontrollers, Sensor" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
                     <datalist id="existing-categories">
-                      {categoriesList.map((cat: any, idx: number) => (
-                        <option key={idx} value={cat} />
-                      ))}
+                      {categoriesList.map((cat: any, idx: number) => <option key={idx} value={cat} />)}
                     </datalist>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
                     <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Enter full specifications..." className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
-                    {imageInputs.map((url, index) => (
-                      <div key={index} className="flex gap-2 mb-2">
-                        <input 
-                          type="url" 
-                          value={url} 
-                          onChange={(e) => handleImageInputChange(index, e.target.value)} 
-                          placeholder="https://example.com/image.jpg" 
-                          className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" 
-                        />
-                        {imageInputs.length > 1 && (
-                          <button 
-                            type="button" 
-                            onClick={() => handleRemoveImageInput(index)} 
-                            className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button 
-                      type="button" 
-                      onClick={handleAddImageInput} 
-                      className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300"
-                    >
-                      + Add Another Image URL
-                    </button>
-                  </div>
-
                   <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg text-sm shadow">Add Product</button>
                 </form>
               </div>
@@ -1155,112 +1136,32 @@ export default function AdminPage() {
               <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-md">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
                   <h2 className="text-lg font-bold text-gray-900">Store Inventory ({filteredProducts.length})</h2>
-                  
-                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search name, ID, category..."
-                      className="border border-gray-300 p-2 rounded-lg text-xs w-full md:w-48 text-gray-900 focus:outline-indigo-600"
-                    />
-
-                    <select
-                      value={selectedCategoryFilter}
-                      onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                      className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
-                    >
-                      <option value="ALL">All Categories</option>
-                      {categoriesList.map((cat: any, i) => (
-                        <option key={i} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={stockFilter}
-                      onChange={(e) => setStockFilter(e.target.value)}
-                      className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
-                    >
-                      <option value="ALL">All Stock Levels</option>
-                      <option value="AVAILABLE">In Stock (&gt;5)</option>
-                      <option value="LOW">Low Stock (≤5)</option>
-                      <option value="OUT">Out of Stock (0)</option>
-                    </select>
-
-                    {(searchQuery || selectedCategoryFilter !== 'ALL' || stockFilter !== 'ALL') && (
-                      <button
-                        onClick={() => { setSearchQuery(''); setSelectedCategoryFilter('ALL'); setStockFilter('ALL'); }}
-                        className="text-xs text-red-600 hover:underline font-bold px-2 py-1 bg-red-50 rounded"
-                      >
-                        Clear Filters
-                      </button>
-                    )}
-                  </div>
+                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search name, ID, category..." className="border border-gray-300 p-2 rounded-lg text-xs w-full md:w-48 text-gray-900" />
                 </div>
-
-                {loading ? (
-                  <p className="text-gray-500">Loading inventory...</p>
-                ) : filteredProducts.length === 0 ? (
-                  <p className="text-gray-500">No products match your search or filter criteria.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b bg-gray-50 text-gray-600 text-xs">
-                          <th className="p-3">Product ID & Name</th>
-                          <th className="p-3">Price</th>
-                          <th className="p-3">Stock (Click to Audit Logs)</th>
-                          <th className="p-3">Timestamps</th>
-                          <th className="p-3 text-right">Actions</th>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-gray-50 text-gray-600 text-xs">
+                        <th className="p-3">Product ID & Name</th>
+                        <th className="p-3">Price</th>
+                        <th className="p-3">Stock</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProducts.map((p) => (
+                        <tr key={p.id} className="border-b hover:bg-gray-50 align-top">
+                          <td className="p-3 font-bold text-indigo-600">{p.name}</td>
+                          <td className="p-3 font-semibold text-gray-800">₹{p.price}</td>
+                          <td className="p-3 font-bold">{p.stock}</td>
+                          <td className="p-3 text-right space-x-1">
+                            <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 bg-red-50 px-2 py-1.5 rounded text-xs font-bold">Delete</button>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {filteredProducts.map((p) => {
-                          const firstImage = p.image_url ? p.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
-                          const addedDate = p.created_at ? new Date(p.created_at).toLocaleString() : 'N/A'
-                          const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleString() : null
-                          const twelveDigitId = getTwelveDigitId(p.id)
-
-                          return (
-                            <tr key={p.id} className="border-b hover:bg-gray-50 align-top">
-                              <td className="p-3 flex items-center gap-3">
-                                <img src={firstImage} alt="" className="h-10 w-10 object-cover rounded border bg-white flex-shrink-0" />
-                                <div>
-                                  <button onClick={() => openCustomerPreview(p)} className="font-bold text-indigo-600 hover:underline text-left block cursor-pointer">
-                                    {p.name || p.title || 'Unnamed'}
-                                  </button>
-                                  <span className="text-[10px] text-gray-400 font-mono tracking-wider block">ID: {twelveDigitId}</span>
-                                  <span className="text-xs text-gray-500">{p.category || 'General'}</span>
-                                </div>
-                              </td>
-                              <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">₹{p.price}</td>
-                              <td className="p-3 whitespace-nowrap">
-                                <button
-                                  onClick={() => openStockAuditModal(p)}
-                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer hover:underline ${
-                                    p.stock > 5 ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'
-                                  }`}
-                                  title="Click to view customer order & audit logs"
-                                >
-                                  {p.stock} left 📊
-                                </button>
-                              </td>
-                              <td className="p-3 text-[11px] text-gray-500 whitespace-nowrap">
-                                <div><span className="font-semibold text-gray-700">Added:</span> {addedDate}</div>
-                                {updatedDate && <div><span className="font-semibold text-indigo-700">Edited:</span> {updatedDate}</div>}
-                              </td>
-                              <td className="p-3 text-right space-x-1 whitespace-nowrap">
-                                <button onClick={() => openCustomerPreview(p)} className="text-green-600 hover:text-green-800 font-semibold text-xs bg-green-50 px-2 py-1.5 rounded cursor-pointer">View</button>
-                                <button onClick={() => openEditModal(p)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-xs bg-indigo-50 px-2 py-1.5 rounded cursor-pointer">Edit</button>
-                                <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs bg-red-50 px-2 py-1.5 rounded cursor-pointer">Delete</button>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -1269,621 +1170,79 @@ export default function AdminPage() {
         {/* ----------------- TAB 2: CUSTOMER ORDERS ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-2xl shadow-md">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Customer Orders ({orders.length})</h2>
-                <p className="text-xs text-gray-500">Showing {filteredAdminOrders.length} filtered results</p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
-                <input
-                  type="text"
-                  value={orderSearchQuery}
-                  onChange={(e) => setOrderSearchQuery(e.target.value)}
-                  placeholder="🔍 Search Tracking ID, Name, Email, Items..."
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 shadow-sm"
-                />
-
-                <select
-                  value={orderAmountSort}
-                  onChange={(e: any) => setOrderAmountSort(e.target.value)}
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium shadow-sm"
-                >
-                  <option value="DEFAULT">Sort Amount: Default</option>
-                  <option value="HIGH_TO_LOW">Amount: High to Low (₹₹₹)</option>
-                  <option value="LOW_TO_HIGH">Amount: Low to High (₹)</option>
-                </select>
-
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
-                  <input
-                    type="number"
-                    value={minAmountFilter}
-                    onChange={(e) => setMinAmountFilter(e.target.value)}
-                    placeholder="Min ₹"
-                    className="border border-gray-300 p-1.5 rounded-lg text-xs w-20 text-gray-900 bg-white focus:outline-indigo-600"
-                  />
-                  <span className="text-gray-400 text-xs font-bold">-</span>
-                  <input
-                    type="number"
-                    value={maxAmountFilter}
-                    onChange={(e) => setMaxAmountFilter(e.target.value)}
-                    placeholder="Max ₹"
-                    className="border border-gray-300 p-1.5 rounded-lg text-xs w-20 text-gray-900 bg-white focus:outline-indigo-600"
-                  />
-                </div>
-
-                {(orderSearchQuery || orderAmountSort !== 'DEFAULT' || minAmountFilter || maxAmountFilter) && (
-                  <button
-                    onClick={() => {
-                      setOrderSearchQuery('')
-                      setOrderAmountSort('DEFAULT')
-                      setMinAmountFilter('')
-                      setMaxAmountFilter('')
-                    }}
-                    className="text-xs text-red-600 hover:bg-red-100 font-bold px-3 py-2 bg-red-50 rounded-xl border border-red-200 transition cursor-pointer"
-                  >
-                    Clear Filters
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
-              {['ALL', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => {
-                const count = getAdminOrderCount(status)
-                return (
-                  <button
-                    key={status}
-                    onClick={() => setActiveAdminOrderTab(status)}
-                    className={`px-4 py-2 rounded-lg font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
-                      activeAdminOrderTab === status
-                        ? 'bg-indigo-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {status} <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeAdminOrderTab === status ? 'bg-indigo-800 text-white' : 'bg-gray-200 text-gray-800'}`}>{count}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {loading ? (
-              <p className="text-gray-500">Loading orders...</p>
-            ) : filteredAdminOrders.length === 0 ? (
-              <div className="py-12 text-center text-gray-500">
-                <p className="text-sm font-semibold">No orders match your filter criteria.</p>
-                <p className="text-xs text-gray-400 mt-1">Try clearing filters or switching status tabs.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50 text-gray-600">
-                      <th className="p-3">Tracking ID</th>
-                      <th className="p-3">Customer & Email</th>
-                      <th className="p-3">Items Ordered & Images</th>
-                      <th className="p-3">Total Amount</th>
-                      <th className="p-3">Shipping Address</th>
-                      <th className="p-3">Status & Actions</th>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Customer Orders ({orders.length})</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 text-gray-600">
+                    <th className="p-3">Tracking ID</th>
+                    <th className="p-3">Customer & Email</th>
+                    <th className="p-3">Payment Method</th>
+                    <th className="p-3">Total Amount</th>
+                    <th className="p-3">Status & Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((o) => (
+                    <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
+                      <td className="p-3 font-mono text-xs font-bold text-indigo-900">{o.tracking_id}</td>
+                      <td className="p-3">
+                        <div className="font-semibold text-gray-900">{o.customer_name}</div>
+                        <div className="text-[11px] text-gray-500">{o.customer_email}</div>
+                      </td>
+                      <td className="p-3 text-xs font-mono">{o.payment_method}</td>
+                      <td className="p-3 font-bold text-indigo-600">₹{o.total_amount || o.final_payable_amount}</td>
+                      <td className="p-3 space-y-2">
+                        <select
+                          value={o.status || 'Pending'}
+                          onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                          className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900"
+                        >
+                          <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Processing">Processing</option>
+                          <option value="Shipped">Shipped</option>
+                          <option value="Delivered">Delivered</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAdminOrders.map((o) => (
-                      <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                        <td className="p-3 font-mono text-xs font-bold text-indigo-900 whitespace-nowrap">
-                          {o.tracking_id || 'N/A'}
-                        </td>
-                        <td className="p-3 whitespace-nowrap">
-                          <div className="font-semibold text-gray-900">{o.customer_name || 'Guest'}</div>
-                          <div className="text-[11px] text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
-                        </td>
-                        <td className="p-3 text-xs">
-                          {Array.isArray(o.items) && o.items.length > 0 ? (
-                            <div className="space-y-2">
-                              {o.items.map((item: any, idx: number) => {
-                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
-                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
-                                return (
-                                  <div key={idx} className="flex items-center gap-3 bg-gray-50 p-2 rounded border border-gray-200">
-                                    <div 
-                                      onClick={async () => {
-                                        const productId = item.id || item.product_id
-                                        if (productId) {
-                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
-                                          if (data && data.image_url) {
-                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
-                                            setActiveOrderGalleryImages(allImgs)
-                                            setActiveGalleryIndex(0)
-                                            return
-                                          }
-                                        }
-                                        setActiveOrderGalleryImages([itemImg])
-                                        setActiveGalleryIndex(0)
-                                      }}
-                                      className="relative group flex-shrink-0 cursor-pointer"
-                                      title="Click to view all product images"
-                                    >
-                                      <img src={itemImg} alt="" className="h-12 w-12 object-cover rounded border bg-white hover:border-indigo-600 transition" />
-                                    </div>
-
-                                    <div>
-                                      <div className="font-bold text-gray-900">{item.name} × <span className="text-indigo-600">{item.quantity}</span></div>
-                                      <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">No items data</span>
-                          )}
-                        </td>
-                        <td className="p-3 font-bold text-indigo-600 whitespace-nowrap text-base">
-                          ₹{o.total_amount || o.final_payable_amount}
-                        </td>
-                        <td className="p-3 text-gray-700 text-xs max-w-xs">
-                          <div className="bg-gray-50 p-2.5 rounded border border-gray-200 leading-relaxed mb-2">
-                            {o.shipping_address || 'No address provided'}
-                          </div>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(o.shipping_address || '')
-                              alert('Shipping address copied to clipboard!')
-                            }}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded transition border border-indigo-200 cursor-pointer"
-                          >
-                            📋 Copy Full Address
-                          </button>
-                        </td>
-                        <td className="p-3 whitespace-nowrap space-y-2">
-                          <select
-                            value={o.status || 'Pending'}
-                            onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                            className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block w-full cursor-pointer"
-                          >
-                            <option value="Pending">Pending</option>
-                            <option value="Processing">Processing</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Delivered">Delivered</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
-                          {o.cancellation_reason && (
-                            <span className="text-[11px] text-red-600 font-semibold block max-w-[200px] whitespace-normal leading-tight" title={o.cancellation_reason}>
-                              {o.cancellation_reason}
-                            </span>
-                          )}
-                          <div className="flex gap-1 pt-1">
-                            <button
-                              onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200 transition cursor-pointer flex items-center gap-1"
-                              title="Download PDF Tax Invoice"
-                            >
-                              📄 Invoice
-                            </button>
-                            <button
-                              onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
-                              className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-1 rounded border border-gray-300 transition cursor-pointer flex items-center gap-1"
-                              title="Print Shipping Label / Packing Slip"
-                            >
-                              🏷️ Slip
-                            </button>
-                            <a
-                              href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                                `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${o.payment_status || 'Done'}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
-                                  Array.isArray(o.items) 
-                                    ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
-                                    : '- Order Item'
-                                }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer flex items-center gap-1"
-                              title="Open WhatsApp chat"
-                            >
-                              💬 WhatsApp
-                            </a>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* ----------------- TAB 3: CUSTOMERS DIRECTORY ----------------- */}
         {activeTab === 'customers' && (
           <div className="bg-white p-6 rounded-2xl shadow-md">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 border-b pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Registered & Active Customers ({customers.length})</h2>
-                <p className="text-xs text-gray-500">Live directory aggregated from Supabase Auth and Order Records</p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <button
-                  onClick={handleExportCustomersCSV}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer flex items-center gap-1.5 shadow-sm"
-                  title="Export customer contact list for newsletters"
-                >
-                  📤 Export Customers CSV
-                </button>
-
-                <input
-                  type="text"
-                  value={customerSearchQuery}
-                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                  placeholder="🔍 Search Name, Email, ID, Phone..."
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 shadow-sm"
-                />
-              </div>
-            </div>
-
-            {loading ? (
-              <p className="text-gray-500">Loading customers directory...</p>
-            ) : filteredCustomers.length === 0 ? (
-              <div className="py-12 text-center text-gray-500">
-                <p className="text-sm font-semibold">No customers match your search criteria.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50 text-gray-600 text-xs">
-                      <th className="p-3">12-Digit Customer ID & Name</th>
-                      <th className="p-3">Email & Contact</th>
-                      <th className="p-3">Current Dynamic Address</th>
-                      <th className="p-3">Orders & Lifetime Spend</th>
-                      <th className="p-3 text-right">Actions</th>
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Registered Customers ({customers.length})</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 text-gray-600 text-xs">
+                    <th className="p-3">Name</th>
+                    <th className="p-3">Email & Phone</th>
+                    <th className="p-3">Orders & Spend</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((c) => (
+                    <tr key={c.id} className="border-b hover:bg-gray-50">
+                      <td className="p-3 font-bold">{c.name}</td>
+                      <td className="p-3 text-xs">{c.email} • {c.phone}</td>
+                      <td className="p-3 text-xs">{c.total_orders_count} orders • ₹{c.total_spent}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {filteredCustomers.map((c) => {
-                      const twelveDigitId = getTwelveDigitId(c.id)
-                      const isRealAddress = c.current_profile_address && !c.current_profile_address.includes('No dynamic address saved')
-
-                      return (
-                        <tr key={c.id} className="border-b hover:bg-gray-50 align-top">
-                          <td className="p-3">
-                            <div className="font-bold text-gray-900 text-sm">{c.name}</div>
-                            <span className="text-xs font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 block w-fit mt-1">
-                              ID: {twelveDigitId}
-                            </span>
-                            <span className="text-[10px] text-gray-400 block mt-1 truncate max-w-[140px]" title={c.id}>UUID: {c.id}</span>
-                          </td>
-                          <td className="p-3 text-xs">
-                            <div className="font-semibold text-gray-800">{c.email || 'No email provided'}</div>
-                            <div className="text-gray-500 mt-1 font-mono">{c.phone}</div>
-                          </td>
-                          <td className="p-3 text-xs max-w-sm text-gray-700">
-                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 leading-relaxed">
-                              {c.current_profile_address}
-                            </div>
-                            {isRealAddress && (
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(c.current_profile_address)
-                                  alert(`Dynamic address for ${c.name} copied to clipboard!`)
-                                }}
-                                className="mt-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer flex items-center gap-1"
-                              >
-                                📋 Copy Address
-                              </button>
-                            )}
-                          </td>
-                          <td className="p-3 text-xs whitespace-nowrap">
-                            <div className="font-bold text-gray-900">{c.total_orders_count} Orders Placed</div>
-                            <div className="text-sm font-black text-indigo-700 mt-0.5">₹{c.total_spent}</div>
-                          </td>
-                          <td className="p-3 text-right whitespace-nowrap">
-                            <button
-                              onClick={() => setViewingCustomer(c)}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition cursor-pointer"
-                            >
-                              View Full Profile & Logs 📋
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
 
-      {/* ----------------- MODAL: INVOICE & PACKING SLIP ----------------- */}
-      {activePrintOrder && (
-        <OrderInvoiceModal
-          order={activePrintOrder.order}
-          type={activePrintOrder.type}
-          onClose={() => setActivePrintOrder(null)}
-        />
-      )}
-
-      {/* ----------------- MODAL: CUSTOMER PROFILE & ORDER LOGS ----------------- */}
-      {viewingCustomer && (
-        <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl p-6 max-h-[92vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6 border-b pb-4">
-              <div>
-                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Customer Profile Details</span>
-                <h3 className="text-2xl font-black text-gray-900 mt-1">{viewingCustomer.name}</h3>
-                <span className="text-xs font-mono text-indigo-800 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                  Customer ID: {getTwelveDigitId(viewingCustomer.id)}
-                </span>
-              </div>
-              <button
-                onClick={() => setViewingCustomer(null)}
-                className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Profile Overview Card */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
-              <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase block">Contact Email</span>
-                <span className="text-sm font-bold text-gray-900">{viewingCustomer.email || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase block">Phone Number</span>
-                <span className="text-sm font-bold text-gray-900">{viewingCustomer.phone || 'N/A'}</span>
-              </div>
-              <div>
-                <span className="text-[11px] font-bold text-gray-500 uppercase block">Total Lifetime Spend</span>
-                <span className="text-base font-extrabold text-indigo-900">₹{viewingCustomer.total_spent}</span>
-              </div>
-            </div>
-
-            {/* Current Dynamic Profile Address Card */}
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-xs font-bold text-gray-700 uppercase">Current Active Dynamic Address (Profile)</h4>
-                {viewingCustomer.current_profile_address && !viewingCustomer.current_profile_address.includes('No dynamic address saved') && (
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(viewingCustomer.current_profile_address)
-                      alert(`Address copied to clipboard!`)
-                    }}
-                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer"
-                  >
-                    📋 Copy Address
-                  </button>
-                )}
-              </div>
-              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 text-xs text-gray-800 leading-relaxed">
-                {viewingCustomer.current_profile_address}
-              </div>
-            </div>
-
-            {/* Customer Order Logs Table */}
-            <div>
-              <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">
-                Order History Logs ({viewingCustomer.order_logs.length})
-              </h4>
-
-              {viewingCustomer.order_logs.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No orders logged under this customer account yet.</p>
-              ) : (
-                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                  {viewingCustomer.order_logs.map((log: any) => (
-                    <div key={log.id} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-wrap justify-between items-center gap-4 hover:border-indigo-300 transition">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                            log.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-                            log.status === 'Delivered' ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800'
-                          }`}>
-                            {log.status || 'Pending'}
-                          </span>
-                          <span className="text-xs font-mono font-bold text-indigo-950">Tracking: {log.tracking_id}</span>
-                        </div>
-                        <p className="text-xs text-gray-600">
-                          Items: {Array.isArray(log.items) ? log.items.map((i: any) => `${i.name} (${i.quantity}x)`).join(', ') : 'No items data'}
-                        </p>
-                        <span className="text-[11px] text-gray-400 block mt-1">Date: {new Date(log.created_at).toLocaleString()}</span>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-sm font-black text-indigo-900 block">₹{log.total_amount || log.final_payable_amount}</span>
-                        <span className="text-[11px] text-gray-500">{log.payment_method || 'Online'}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stock Audit Logs Modal */}
-      {auditingProduct && (
-        <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6 border-b pb-3">
-              <div>
-                <h3 className="text-lg font-black text-indigo-900">Stock & Order Audit Logs</h3>
-                <p className="text-xs text-gray-500">Product: <span className="font-bold text-gray-800">{auditingProduct.name}</span> (Current Stock: <span className="font-bold text-indigo-600">{auditingProduct.stock}</span>)</p>
-              </div>
-              <button onClick={() => setAuditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer">✕</button>
-            </div>
-
-            {productAuditLogs.length === 0 ? (
-              <div className="text-center py-12 text-gray-500 text-sm">
-                No orders or logs found for this product yet.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {productAuditLogs.map((log: any) => {
-                  const matchingItem = log.items.find((i: any) => (i.id || i.product_id) === auditingProduct.id || i.name === auditingProduct.name)
-                  const orderedQty = matchingItem ? matchingItem.quantity : 1
-
-                  return (
-                    <div key={log.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-wrap justify-between items-center gap-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                            log.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-                            log.status === 'Delivered' ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800'
-                          }`}>
-                            {log.status || 'Pending'}
-                          </span>
-                          <span className="text-xs font-mono text-gray-500">Tracking: {log.tracking_id}</span>
-                        </div>
-                        <h4 className="text-sm font-bold text-gray-900">Customer: {log.customer_name || 'Guest'}</h4>
-                        <p className="text-xs text-gray-600 mt-0.5">Ordered Quantity: <span className="font-bold text-indigo-600">{orderedQty} units</span></p>
-                        <span className="text-[11px] text-gray-400 block mt-1">Date: {new Date(log.created_at).toLocaleString()}</span>
-                      </div>
-
-                      <div className="text-right text-xs">
-                        {log.status === 'Delivered' && <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block">✓ Delivered Log</span>}
-                        {log.status === 'Cancelled' && (
-                          <div>
-                            <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block mb-1">✕ Cancelled Log</span>
-                            {log.cancellation_reason && <span className="text-[11px] text-gray-600 italic block whitespace-normal max-w-xs">{log.cancellation_reason}</span>}
-                          </div>
-                        )}
-                        {log.status !== 'Delivered' && log.status !== 'Cancelled' && (
-                          <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block">Active Order</span>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Image Gallery Modal */}
-      {activeOrderGalleryImages && (
-        <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 relative">
-            <div className="flex justify-between items-center mb-4 border-b pb-3">
-              <h3 className="text-sm font-bold text-indigo-900">Product Image Gallery ({activeGalleryIndex + 1} of {activeOrderGalleryImages.length})</h3>
-              <button onClick={() => setActiveOrderGalleryImages(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer">✕</button>
-            </div>
-            <div className="bg-gray-100 rounded-xl overflow-hidden border h-96 flex items-center justify-center mb-4 relative">
-              <img src={activeOrderGalleryImages[activeGalleryIndex]} alt="" className="w-full h-full object-contain p-4" />
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 justify-center">
-              {activeOrderGalleryImages.map((imgUrl, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveGalleryIndex(i)}
-                  className={`border-2 rounded-xl overflow-hidden w-20 h-20 flex-shrink-0 transition bg-white ${activeGalleryIndex === i ? 'border-indigo-600 scale-105 shadow-md' : 'border-gray-200 opacity-60'}`}
-                >
-                  <img src={imgUrl} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {viewingProduct && (
-        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6 border-b pb-3">
-              <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-3 py-1 rounded-full">Customer View Preview</span>
-              <button onClick={() => setViewingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer">✕</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <div className="mb-4 bg-gray-100 rounded-xl overflow-hidden border h-80 flex items-center justify-center">
-                  <img src={activePreviewImage} alt="" className="w-full h-full object-contain" />
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {viewingProduct.image_url ? viewingProduct.image_url.split(',').map((url: string, i: number) => {
-                    const cleanUrl = url.trim()
-                    return (
-                      <button key={i} onClick={() => setActivePreviewImage(cleanUrl)} className={`border-2 rounded-lg overflow-hidden w-16 h-16 flex-shrink-0 transition ${activePreviewImage === cleanUrl ? 'border-indigo-600 scale-105' : 'border-gray-200 opacity-70'}`}>
-                        <img src={cleanUrl} alt="" className="w-full h-full object-cover" />
-                      </button>
-                    )
-                  }) : null}
-                </div>
-              </div>
-              <div className="flex flex-col justify-between">
-                <div>
-                  <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{viewingProduct.category || 'General'}</span>
-                  <h1 className="text-2xl font-black text-gray-900 mt-1 mb-2">{viewingProduct.name || viewingProduct.title}</h1>
-                  <div className="text-3xl font-extrabold text-indigo-900 mb-4">₹{viewingProduct.price}</div>
-                  <div className="mb-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${viewingProduct.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {viewingProduct.stock > 0 ? `In Stock (${viewingProduct.stock} available)` : 'Out of Stock'}
-                    </span>
-                  </div>
-                  <div className="border-t pt-4 mt-4">
-                    <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">Product Description</h3>
-                    <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{viewingProduct.description || 'No description provided.'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Product Modal */}
-      {editingProduct && (
-        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4 border-b pb-3">
-              <h2 className="text-lg font-bold text-indigo-900">Edit Product: {editingProduct.name}</h2>
-              <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
-            </div>
-            <form onSubmit={handleUpdateProduct} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
-                <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹)</label>
-                  <input type="number" step="0.01" required value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Stock</label>
-                  <input type="number" required value={editStock} onChange={(e) => setEditStock(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
-                <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
-                <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
-                {editImageInputs.map((url, index) => (
-                  <div key={index} className="flex gap-2 mb-2">
-                    <input type="url" value={url} onChange={(e) => handleEditImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
-                    {editImageInputs.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveEditImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100">✕</button>
-                    )}
-                  </div>
-                ))}
-                <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300 cursor-pointer">+ Add Another Image URL</button>
-              </div>
-              <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel</button>
-                <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-lg text-sm shadow transition cursor-pointer">Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {activePrintOrder && <OrderInvoiceModal order={activePrintOrder.order} type={activePrintOrder.type} onClose={() => setActivePrintOrder(null)} />}
     </div>
   )
 }
