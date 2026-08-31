@@ -24,6 +24,7 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
+  // Tabs: analytics, upi_verifications, orders, products, customers
   const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
@@ -419,7 +420,7 @@ export default function AdminPage() {
     let hash2 = 52711
     for (let i = 0; i < id.length; i++) {
       const char = id.charCodeAt(i)
-      hash1 = (hash1 * 33) ^ hash2
+      hash1 = (hash1 * 33) ^ char
       hash2 = (hash2 * 33) ^ char
     }
     const combined = Math.abs(hash1).toString().padStart(6, '0') + Math.abs(hash2).toString().padStart(6, '0')
@@ -939,22 +940,22 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: UPI VERIFICATIONS (Modern Card Layout - Zero Overlap) ----------------- */}
+        {/* ----------------- TAB: UPI VERIFICATIONS (Card Layout - No Scrolling Required) ----------------- */}
         {activeTab === 'upi_verifications' && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
               <div>
                 <h2 className="text-lg font-extrabold text-gray-900">⚡ Direct UPI / QR Payment Verification Center</h2>
                 <p className="text-xs text-gray-500">Review, verify, or reject direct QR/UPI transfers safely</p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
                 <input
                   type="text"
                   value={upiSearchQuery}
                   onChange={(e) => setUpiSearchQuery(e.target.value)}
                   placeholder="🔍 Search name, tracking ID, amount, UTR..."
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-72 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-80 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
                 />
 
                 <select
@@ -985,7 +986,7 @@ export default function AdminPage() {
                 <p className="text-sm font-bold text-gray-700">No UPI payment records match your search criteria.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {filteredUpiVerifications.map((o) => {
                   const twelveCustId = getTwelveDigitId(o.user_id)
                   const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
@@ -995,27 +996,27 @@ export default function AdminPage() {
                   const cleanUtr = extractUtrNumber(o.payment_method)
 
                   return (
-                    <div key={o.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:border-indigo-200 transition space-y-4">
-                      {/* Top Row: Tracking, Date, Amount, Status */}
+                    <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-amber-300 transition space-y-5">
+                      {/* Top Header */}
                       <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
                         <div className="flex items-center gap-3">
                           <div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
-                            <span className="font-mono text-sm font-black text-indigo-900">{o.tracking_id}</span>
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
+                            <span className="font-mono text-base font-black text-indigo-950">{o.tracking_id}</span>
                           </div>
                           <span className="text-gray-300">•</span>
-                          <span className="text-xs text-gray-500 font-medium">🕒 {orderDate}</span>
+                          <span className="text-xs text-gray-500 font-semibold">🕒 {orderDate}</span>
                         </div>
 
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Amount</span>
-                            <span className="text-lg font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
                           </div>
                           <div>
-                            <span className={`px-3 py-1 rounded-full font-extrabold text-[10px] uppercase ${
-                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-200' :
-                              isCancelled ? 'bg-red-100 text-red-900 border border-red-200' : 'bg-green-100 text-green-900 border border-green-200'
+                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase ${
+                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                              isCancelled ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-green-100 text-green-900 border border-green-300'
                             }`}>
                               {o.status}
                             </span>
@@ -1023,39 +1024,40 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Middle Grid: Customer, UTR, Items, Address */}
+                      {/* Main Details Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
-                        {/* Customer Info */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer Details</span>
-                          <div className="font-bold text-gray-900 text-sm">{o.customer_name}</div>
-                          <div className="text-gray-500">{o.customer_email}</div>
-                          <span className="inline-block mt-1 text-[10px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                        {/* Customer */}
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
+                          <div className="font-extrabold text-gray-900 text-sm">{o.customer_name}</div>
+                          <div className="text-gray-500 font-medium">{o.customer_email}</div>
+                          <span className="inline-block mt-1 text-[10px] font-mono text-indigo-800 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
                             ID: {twelveCustId}
                           </span>
                         </div>
 
                         {/* UTR Number */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">UTR Number</span>
-                          <span className="inline-block bg-indigo-50 text-indigo-900 font-mono font-bold px-3 py-1.5 rounded-lg border border-indigo-200 text-xs">
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">UTR Number</span>
+                          <span className="inline-block bg-white text-indigo-950 font-mono font-black px-3 py-2 rounded-xl border border-indigo-200 text-xs shadow-xs">
                             {cleanUtr}
                           </span>
                         </div>
 
                         {/* Items Ordered */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Items Ordered</span>
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
                           {Array.isArray(o.items) && o.items.length > 0 ? (
-                            <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                               {o.items.map((item: any, idx: number) => {
-                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/30'
+                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
+                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
                                 return (
-                                  <div key={idx} className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
-                                    <img src={itemImg} alt="" className="w-8 h-8 object-cover rounded border bg-white flex-shrink-0" />
+                                  <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
+                                    <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white flex-shrink-0" />
                                     <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-gray-900 truncate text-[11px]">{item.name}</div>
-                                      <div className="text-[10px] text-indigo-600 font-semibold">Qty: {item.quantity}</div>
+                                      <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
+                                      <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
                                     </div>
                                   </div>
                                 )
@@ -1067,9 +1069,9 @@ export default function AdminPage() {
                         </div>
 
                         {/* Shipping Address */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Shipping Address</span>
-                          <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-200 leading-relaxed max-h-28 overflow-y-auto text-[11px] text-gray-700">
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
+                          <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
                             {o.shipping_address || 'No address provided'}
                           </div>
                           <button
@@ -1077,25 +1079,25 @@ export default function AdminPage() {
                               navigator.clipboard.writeText(o.shipping_address || '')
                               alert('Shipping address copied to clipboard!')
                             }}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer"
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition border border-indigo-200 cursor-pointer block w-full text-center"
                           >
-                            📋 Copy Address
+                            📋 Copy Full Address
                           </button>
                         </div>
                       </div>
 
-                      {/* Bottom Action Row for Pending Orders */}
+                      {/* Bottom Action Row */}
                       {isPending && (
-                        <div className="flex justify-end gap-3 pt-3 border-t">
+                        <div className="flex justify-end gap-3 pt-4 border-t">
                           <button
                             onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
-                            className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-5 py-2.5 rounded-xl transition border border-red-200 cursor-pointer"
+                            className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-6 py-3 rounded-xl transition border border-red-200 cursor-pointer"
                           >
                             ✕ Reject & Cancel
                           </button>
                           <button
                             onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
-                            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition cursor-pointer"
+                            className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs px-8 py-3 rounded-xl shadow-md transition cursor-pointer"
                           >
                             ✓ Verify & Approve Payment
                           </button>
@@ -1428,7 +1430,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS (Modern Card Layout - Zero Overlap) ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS (Modern Card Layout - Zero Scrolling) ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
@@ -1516,7 +1518,7 @@ export default function AdminPage() {
                 <p className="text-sm font-semibold">No orders match your filter criteria.</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {filteredAdminOrders.map((o) => {
                   const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
                   const statusLower = (o.status || '').toLowerCase()
@@ -1527,27 +1529,27 @@ export default function AdminPage() {
                   const dynamicPaymentStatus = isUpiVerifiedOrPaid ? 'Paid & Verified' : (o.payment_status || 'Done')
 
                   return (
-                    <div key={o.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:border-indigo-200 transition space-y-4">
-                      {/* Top Row */}
+                    <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-indigo-300 transition space-y-5">
+                      {/* Top Header Row */}
                       <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
                         <div className="flex items-center gap-3">
                           <div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
-                            <span className="font-mono text-sm font-black text-indigo-900">{o.tracking_id || 'N/A'}</span>
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
+                            <span className="font-mono text-base font-black text-indigo-950">{o.tracking_id || 'N/A'}</span>
                           </div>
                           <span className="text-gray-300">•</span>
-                          <span className="text-xs text-gray-500 font-medium">🕒 {orderDate}</span>
+                          <span className="text-xs text-gray-500 font-semibold">🕒 {orderDate}</span>
                         </div>
 
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Amount</span>
-                            <span className="text-lg font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
                           </div>
                           <div>
-                            <span className={`px-3 py-1 rounded-full font-extrabold text-[10px] uppercase ${
-                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-200' :
-                              isCancelled ? 'bg-red-100 text-red-900 border border-red-200' : 'bg-green-100 text-green-900 border border-green-200'
+                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase ${
+                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                              isCancelled ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-green-100 text-green-900 border border-green-300'
                             }`}>
                               {o.status || 'Pending'}
                             </span>
@@ -1555,37 +1557,37 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Middle Grid */}
+                      {/* Main Details Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
                         {/* Customer */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer Details</span>
-                          <div className="font-bold text-gray-900 text-sm">{o.customer_name || 'Guest'}</div>
-                          <div className="text-gray-500">{o.customer_email || 'No email available'}</div>
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
+                          <div className="font-extrabold text-gray-900 text-sm">{o.customer_name || 'Guest'}</div>
+                          <div className="text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
                         </div>
 
                         {/* Payment Mode */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Payment Details</span>
-                          <span className="inline-block bg-indigo-50 text-indigo-900 font-mono font-bold px-3 py-1.5 rounded-lg border border-indigo-200 text-xs">
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Payment Details</span>
+                          <span className="inline-block bg-white text-indigo-950 font-mono font-bold px-3 py-1.5 rounded-xl border border-indigo-200 text-xs shadow-2xs">
                             {o.payment_method || 'Online'}
                           </span>
                         </div>
 
                         {/* Items Ordered */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Items Ordered</span>
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
                           {Array.isArray(o.items) && o.items.length > 0 ? (
-                            <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                               {o.items.map((item: any, idx: number) => {
-                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/30'
+                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
                                 const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
                                 return (
-                                  <div key={idx} className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
-                                    <img src={itemImg} alt="" className="w-8 h-8 object-cover rounded border bg-white flex-shrink-0" />
+                                  <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
+                                    <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white flex-shrink-0" />
                                     <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-gray-900 truncate text-[11px]">{item.name}</div>
-                                      <div className="text-[10px] text-indigo-600 font-semibold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
+                                      <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
+                                      <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
                                     </div>
                                   </div>
                                 )
@@ -1597,9 +1599,9 @@ export default function AdminPage() {
                         </div>
 
                         {/* Shipping Address */}
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Shipping Address</span>
-                          <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-200 leading-relaxed max-h-28 overflow-y-auto text-[11px] text-gray-700">
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
+                          <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
                             {o.shipping_address || 'No address provided'}
                           </div>
                           <button
@@ -1607,15 +1609,15 @@ export default function AdminPage() {
                               navigator.clipboard.writeText(o.shipping_address || '')
                               alert('Shipping address copied to clipboard!')
                             }}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer"
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition border border-indigo-200 cursor-pointer block w-full text-center"
                           >
-                            📋 Copy Address
+                            📋 Copy Full Address
                           </button>
                         </div>
                       </div>
 
-                      {/* Bottom Action Row */}
-                      <div className="flex flex-wrap justify-between items-center gap-4 pt-3 border-t">
+                      {/* Bottom Action Bar */}
+                      <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-gray-600">Update Status:</span>
                           <select
@@ -1640,13 +1642,13 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-2 rounded-xl border border-indigo-200 transition cursor-pointer"
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer"
                           >
                             📄 Invoice
                           </button>
                           <button
                             onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-2 rounded-xl border border-gray-300 transition cursor-pointer"
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-gray-300 transition cursor-pointer"
                           >
                             🏷️ Packing Slip
                           </button>
@@ -1660,7 +1662,7 @@ export default function AdminPage() {
                             )}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition cursor-pointer flex items-center gap-1.5"
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition cursor-pointer flex items-center gap-1.5"
                           >
                             💬 WhatsApp Update
                           </a>
