@@ -56,12 +56,10 @@ function TrackContent() {
     }
   }, [initialId])
 
-  // Determine timeline steps, active index, and calculated timestamps
   const getTimelineSteps = (orderData: any) => {
     const status = (orderData?.status || 'Pending').toLowerCase()
     const createdAt = orderData?.created_at ? new Date(orderData.created_at) : new Date()
 
-    // Helper to add hours/minutes for sequential milestone simulation
     const addMinutes = (date: Date, mins: number) => new Date(date.getTime() + mins * 60000)
 
     const placedTime = createdAt.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -92,9 +90,14 @@ function TrackContent() {
           <h1 className="text-xl font-black text-indigo-950">
             Mahin's One-Stop One-Store
           </h1>
-          <Link href="/" className="text-xs font-bold text-indigo-600 hover:underline">
-            ← Return to Store
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/orders" className="text-xs font-bold text-indigo-600 hover:underline">
+              ← Back to Order History
+            </Link>
+            <Link href="/" className="text-xs font-bold text-indigo-600 hover:underline">
+              Return to Store
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -171,7 +174,6 @@ function TrackContent() {
 
                 return (
                   <div className="relative flex items-center justify-between max-w-xl mx-auto px-4 py-2">
-                    {/* Connecting Bar Background */}
                     <div className="absolute left-12 right-12 top-4 h-1 bg-gray-200 z-0">
                       <div 
                         className="h-full bg-green-500 transition-all duration-500"
