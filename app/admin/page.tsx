@@ -655,16 +655,14 @@ export default function AdminPage() {
     return status === 'pending verification' || status === 'pending'
   })
 
-  // Filtered UPI orders for the search & status filter toolbar in the UPI Verifications tab
+  // Filtered UPI orders for search & status filter toolbar
   const filteredUpiVerifications = allUpiOrders.filter(o => {
     const status = (o.status || '').toLowerCase()
     
-    // Status Filter dropdown matching
     if (upiStatusFilter === 'PENDING' && status !== 'pending verification' && status !== 'pending') return false
     if (upiStatusFilter === 'APPROVED' && status !== 'processing' && status !== 'shipped' && status !== 'delivered') return false
     if (upiStatusFilter === 'REJECTED' && status !== 'cancelled') return false
 
-    // Search query matching (Name, Tracking ID, Customer ID, Order Value / Amount, UTR)
     const q = upiSearchQuery.toLowerCase().trim()
     if (!q) return true
 
@@ -1531,6 +1529,10 @@ export default function AdminPage() {
                       const isPending = statusLower === 'pending verification' || statusLower === 'pending'
                       const isCancelled = statusLower === 'cancelled'
 
+                      // Dynamic WhatsApp payment status determination fix
+                      const isUpiVerifiedOrPaid = (o.payment_method || '').includes('Paid') || (o.payment_method || '').includes('UTR')
+                      const dynamicPaymentStatus = isUpiVerifiedOrPaid ? 'Paid & Verified' : (o.payment_status || 'Done')
+
                       return (
                         <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
                           <td className="p-3 whitespace-nowrap">
@@ -1645,7 +1647,7 @@ export default function AdminPage() {
                               </button>
                               <a
                                 href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                                  `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${o.payment_status || 'Done'}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
+                                  `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${dynamicPaymentStatus}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
                                     Array.isArray(o.items) 
                                       ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
                                       : '- Order Item'
