@@ -248,9 +248,9 @@ export default function HomePage() {
                     {inWish ? '★' : '☆'}
                   </button>
 
-                  <div className="h-48 w-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                  <div className="h-48 w-full bg-gray-50 flex items-center justify-center overflow-hidden">
                     {firstImage ? (
-                      <img src={firstImage} alt={product.name} className="h-full w-full object-cover" />
+                      <img src={firstImage} alt={product.name} className="h-full w-full object-contain p-2" />
                     ) : (
                       <span className="text-gray-400 text-xs">Image Coming Soon</span>
                     )}
