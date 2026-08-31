@@ -991,17 +991,17 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
+                <table className="w-full table-fixed border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-amber-50/50 text-gray-700 text-xs">
-                      <th className="p-3">Tracking ID & Date/Time</th>
-                      <th className="p-3">Customer & ID</th>
-                      <th className="p-3">Items Ordered</th>
-                      <th className="p-3">Payment & UTR</th>
-                      <th className="p-3">Shipping Address</th>
-                      <th className="p-3">Total Amount</th>
-                      <th className="p-3">Current Status</th>
-                      <th className="p-3 text-right">Verification Actions</th>
+                      <th className="p-3 w-36">Tracking ID & Date/Time</th>
+                      <th className="p-3 w-40">Customer & ID</th>
+                      <th className="p-3 w-52">Items Ordered</th>
+                      <th className="p-3 w-40">Payment & UTR</th>
+                      <th className="p-3 w-56">Shipping Address</th>
+                      <th className="p-3 w-24">Total Amount</th>
+                      <th className="p-3 w-32">Current Status</th>
+                      <th className="p-3 w-36 text-right">Verification Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1014,13 +1014,13 @@ export default function AdminPage() {
 
                       return (
                         <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                          <td className="p-3 whitespace-nowrap">
+                          <td className="p-3 truncate">
                             <div className="font-mono text-xs font-bold text-indigo-900">{o.tracking_id}</div>
                             <div className="text-[10px] text-gray-500 mt-0.5">🕒 {orderDate}</div>
                           </td>
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="font-bold text-gray-900">{o.customer_name}</div>
-                            <div className="text-xs text-gray-500">{o.customer_email}</div>
+                          <td className="p-3 truncate">
+                            <div className="font-bold text-gray-900 truncate">{o.customer_name}</div>
+                            <div className="text-xs text-gray-500 truncate">{o.customer_email}</div>
                             <span className="text-[10px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 inline-block mt-1">
                               ID: {twelveCustId}
                             </span>
@@ -1029,7 +1029,7 @@ export default function AdminPage() {
                             {Array.isArray(o.items) && o.items.length > 0 ? (
                               <div className="space-y-1">
                                 {o.items.map((item: any, idx: number) => (
-                                  <div key={idx} className="font-medium text-gray-800">
+                                  <div key={idx} className="font-medium text-gray-800 truncate" title={`${item.name} × ${item.quantity}`}>
                                     {item.name} × <span className="text-indigo-600 font-bold">{item.quantity}</span>
                                   </div>
                                 ))}
@@ -1038,13 +1038,13 @@ export default function AdminPage() {
                               <span className="text-gray-400">No items</span>
                             )}
                           </td>
-                          <td className="p-3">
-                            <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2 py-1 rounded border border-indigo-200 inline-block">
+                          <td className="p-3 truncate">
+                            <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2 py-1 rounded border border-indigo-200 inline-block truncate max-w-full" title={o.payment_method}>
                               {o.payment_method}
                             </span>
                           </td>
-                          <td className="p-3 text-xs text-gray-700 max-w-xs">
-                            <div className="bg-gray-50 p-2 rounded border border-gray-200 leading-relaxed mb-1.5">
+                          <td className="p-3 text-xs text-gray-700">
+                            <div className="bg-gray-50 p-2 rounded border border-gray-200 leading-relaxed mb-1.5 max-h-24 overflow-y-auto text-[11px]">
                               {o.shipping_address || 'No address provided'}
                             </div>
                             <button
@@ -1299,7 +1299,7 @@ export default function AdminPage() {
                         )}
                       </div>
                     ))}
-                    <button type="button" onClick={handleAddImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300 cursor-pointer">+ Add Another Image URL</button>
+                    <button type="button" onClick={handleAddImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
                   </div>
 
                   <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg text-sm shadow">Add Product</button>
@@ -1420,7 +1420,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS (Enhanced with Payment Mode & Status Column) ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS (Fixed Table Layout & Widths) ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-2xl shadow-md">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
@@ -1510,16 +1510,16 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
+                <table className="w-full table-fixed border-collapse text-sm">
                   <thead>
-                    <tr className="border-b bg-gray-50 text-gray-600">
-                      <th className="p-3">Tracking ID & Date/Time</th>
-                      <th className="p-3">Customer & Email</th>
-                      <th className="p-3">Items Ordered & Images</th>
-                      <th className="p-3">Total Amount</th>
-                      <th className="p-3">Payment Mode & Status</th>
-                      <th className="p-3">Shipping Address</th>
-                      <th className="p-3">Status & Actions</th>
+                    <tr className="border-b bg-gray-50 text-gray-600 text-xs">
+                      <th className="p-3 w-36">Tracking ID & Date/Time</th>
+                      <th className="p-3 w-40">Customer & Email</th>
+                      <th className="p-3 w-52">Items Ordered & Images</th>
+                      <th className="p-3 w-28">Total Amount</th>
+                      <th className="p-3 w-40">Payment Mode & Status</th>
+                      <th className="p-3 w-52">Shipping Address</th>
+                      <th className="p-3 w-40 text-right">Status & Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1529,19 +1529,18 @@ export default function AdminPage() {
                       const isPending = statusLower === 'pending verification' || statusLower === 'pending'
                       const isCancelled = statusLower === 'cancelled'
 
-                      // Dynamic WhatsApp payment status determination fix
                       const isUpiVerifiedOrPaid = (o.payment_method || '').includes('Paid') || (o.payment_method || '').includes('UTR')
                       const dynamicPaymentStatus = isUpiVerifiedOrPaid ? 'Paid & Verified' : (o.payment_status || 'Done')
 
                       return (
                         <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                          <td className="p-3 whitespace-nowrap">
+                          <td className="p-3 truncate">
                             <div className="font-mono text-xs font-bold text-indigo-900">{o.tracking_id || 'N/A'}</div>
                             <div className="text-[10px] text-gray-500 mt-0.5">🕒 {orderDate}</div>
                           </td>
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="font-semibold text-gray-900">{o.customer_name || 'Guest'}</div>
-                            <div className="text-[11px] text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
+                          <td className="p-3 truncate">
+                            <div className="font-semibold text-gray-900 truncate">{o.customer_name || 'Guest'}</div>
+                            <div className="text-[11px] text-gray-500 font-medium truncate">{o.customer_email || 'No email available'}</div>
                           </td>
                           <td className="p-3 text-xs">
                             {Array.isArray(o.items) && o.items.length > 0 ? (
@@ -1550,7 +1549,7 @@ export default function AdminPage() {
                                   const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
                                   const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
                                   return (
-                                    <div key={idx} className="flex items-center gap-3 bg-gray-50 p-2 rounded border border-gray-200">
+                                    <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200 truncate">
                                       <div 
                                         onClick={async () => {
                                           const productId = item.id || item.product_id
@@ -1569,12 +1568,14 @@ export default function AdminPage() {
                                         className="relative group flex-shrink-0 cursor-pointer"
                                         title="Click to view all product images"
                                       >
-                                        <img src={itemImg} alt="" className="h-12 w-12 object-cover rounded border bg-white hover:border-indigo-600 transition" />
+                                        <img src={itemImg} alt="" className="h-10 w-10 object-cover rounded border bg-white hover:border-indigo-600 transition" />
                                       </div>
 
-                                      <div>
-                                        <div className="font-bold text-gray-900">{item.name} × <span className="text-indigo-600">{item.quantity}</span></div>
-                                        <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
+                                      <div className="truncate">
+                                        <div className="font-bold text-gray-900 truncate" title={`${item.name} x ${item.quantity}`}>
+                                          {item.name} × <span className="text-indigo-600">{item.quantity}</span>
+                                        </div>
+                                        <div className="text-[10px] text-gray-500 font-mono tracking-wider truncate">ID: {twelveDigitId}</div>
                                       </div>
                                     </div>
                                   )
@@ -1587,8 +1588,8 @@ export default function AdminPage() {
                           <td className="p-3 font-bold text-indigo-600 whitespace-nowrap text-base">
                             ₹{o.total_amount || o.final_payable_amount}
                           </td>
-                          <td className="p-3 whitespace-nowrap space-y-1.5">
-                            <span className="bg-indigo-50 text-indigo-800 text-[11px] font-mono font-bold px-2 py-1 rounded border border-indigo-200 block w-fit">
+                          <td className="p-3 truncate space-y-1.5">
+                            <span className="bg-indigo-50 text-indigo-800 text-[11px] font-mono font-bold px-2 py-1 rounded border border-indigo-200 block truncate" title={o.payment_method || 'Online'}>
                               {o.payment_method || 'Online'}
                             </span>
                             <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase block w-fit ${
@@ -1598,8 +1599,8 @@ export default function AdminPage() {
                               {o.status || 'Pending'}
                             </span>
                           </td>
-                          <td className="p-3 text-gray-700 text-xs max-w-xs">
-                            <div className="bg-gray-50 p-2.5 rounded border border-gray-200 leading-relaxed mb-2">
+                          <td className="p-3 text-gray-700 text-xs">
+                            <div className="bg-gray-50 p-2.5 rounded border border-gray-200 leading-relaxed mb-2 max-h-24 overflow-y-auto text-[11px]">
                               {o.shipping_address || 'No address provided'}
                             </div>
                             <button
@@ -1609,10 +1610,10 @@ export default function AdminPage() {
                               }}
                               className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded transition border border-indigo-200 cursor-pointer"
                             >
-                              📋 Copy Full Address
+                              📋 Copy Address
                             </button>
                           </td>
-                          <td className="p-3 whitespace-nowrap space-y-2">
+                          <td className="p-3 whitespace-nowrap space-y-2 text-right">
                             <select
                               value={o.status || 'Pending'}
                               onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
@@ -1626,21 +1627,21 @@ export default function AdminPage() {
                               <option value="Cancelled">Cancelled</option>
                             </select>
                             {o.cancellation_reason && (
-                              <span className="text-[11px] text-red-600 font-semibold block max-w-[200px] whitespace-normal leading-tight" title={o.cancellation_reason}>
+                              <span className="text-[11px] text-red-600 font-semibold block leading-tight truncate" title={o.cancellation_reason}>
                                 {o.cancellation_reason}
                               </span>
                             )}
-                            <div className="flex gap-1 pt-1">
+                            <div className="flex gap-1 pt-1 justify-end">
                               <button
                                 onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
-                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200 transition cursor-pointer flex items-center gap-1"
+                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200 transition cursor-pointer"
                                 title="Download PDF Tax Invoice"
                               >
                                 📄 Invoice
                               </button>
                               <button
                                 onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-1 rounded border border-gray-300 transition cursor-pointer flex items-center gap-1"
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-1 rounded border border-gray-300 transition cursor-pointer"
                                 title="Print Shipping Label / Packing Slip"
                               >
                                 🏷️ Slip
@@ -1655,7 +1656,7 @@ export default function AdminPage() {
                                 )}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer flex items-center gap-1"
+                                className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer"
                                 title="Open WhatsApp chat"
                               >
                                 💬 WhatsApp
@@ -1708,14 +1709,14 @@ export default function AdminPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-sm">
+                <table className="w-full table-fixed border-collapse text-sm">
                   <thead>
                     <tr className="border-b bg-gray-50 text-gray-600 text-xs">
-                      <th className="p-3">12-Digit Customer ID & Name</th>
-                      <th className="p-3">Email & Contact</th>
-                      <th className="p-3">Current Dynamic Address</th>
-                      <th className="p-3">Orders & Lifetime Spend</th>
-                      <th className="p-3 text-right">Actions</th>
+                      <th className="p-3 w-48">12-Digit Customer ID & Name</th>
+                      <th className="p-3 w-48">Email & Contact</th>
+                      <th className="p-3 w-72">Current Dynamic Address</th>
+                      <th className="p-3 w-36">Orders & Lifetime Spend</th>
+                      <th className="p-3 w-36 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1725,19 +1726,18 @@ export default function AdminPage() {
 
                       return (
                         <tr key={c.id} className="border-b hover:bg-gray-50 align-top">
-                          <td className="p-3">
-                            <div className="font-bold text-gray-900 text-sm">{c.name}</div>
+                          <td className="p-3 truncate">
+                            <div className="font-bold text-gray-900 text-sm truncate">{c.name}</div>
                             <span className="text-xs font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 block w-fit mt-1">
                               ID: {twelveDigitId}
                             </span>
-                            <span className="text-[10px] text-gray-400 block mt-1 truncate max-w-[140px]" title={c.id}>UUID: {c.id}</span>
                           </td>
-                          <td className="p-3 text-xs">
-                            <div className="font-semibold text-gray-800">{c.email || 'No email provided'}</div>
-                            <div className="text-gray-500 mt-1 font-mono">{c.phone}</div>
+                          <td className="p-3 text-xs truncate">
+                            <div className="font-semibold text-gray-800 truncate" title={c.email}>{c.email || 'No email'}</div>
+                            <div className="text-gray-500 mt-1 font-mono truncate">{c.phone}</div>
                           </td>
-                          <td className="p-3 text-xs max-w-sm text-gray-700">
-                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 leading-relaxed">
+                          <td className="p-3 text-xs text-gray-700">
+                            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 leading-relaxed max-h-24 overflow-y-auto">
                               {c.current_profile_address}
                             </div>
                             {isRealAddress && (
@@ -1753,7 +1753,7 @@ export default function AdminPage() {
                             )}
                           </td>
                           <td className="p-3 text-xs whitespace-nowrap">
-                            <div className="font-bold text-gray-900">{c.total_orders_count} Orders Placed</div>
+                            <div className="font-bold text-gray-900">{c.total_orders_count} Orders</div>
                             <div className="text-sm font-black text-indigo-700 mt-0.5">₹{c.total_spent}</div>
                           </td>
                           <td className="p-3 text-right whitespace-nowrap">
@@ -1761,7 +1761,7 @@ export default function AdminPage() {
                               onClick={() => setViewingCustomer(c)}
                               className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition cursor-pointer"
                             >
-                              View Full Profile & Logs 📋
+                              View Profile 📋
                             </button>
                           </td>
                         </tr>
@@ -2049,7 +2049,7 @@ export default function AdminPage() {
                 <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300 cursor-pointer">+ Add Another Image URL</button>
               </div>
               <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel</button>
+                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel/Close</button>
                 <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-lg text-sm shadow transition cursor-pointer">Save Changes</button>
               </div>
             </form>
