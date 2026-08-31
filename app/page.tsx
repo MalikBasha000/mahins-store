@@ -13,7 +13,10 @@ export default function HomePage() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  
+  const [searchInput, setSearchInput] = useState('')
+  const [submittedQuery, setSubmittedQuery] = useState('')
+  
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [categories, setCategories] = useState<string[]>([])
 
@@ -38,7 +41,9 @@ export default function HomePage() {
         setDbError(error.message)
       } else if (data) {
         setProducts(data)
-        const uniqueCategories = ['All', ...Array.from(new Set(data.map(p => p.category || 'Uncategorized')))]
+        
+        // Normalize categories to lowercase & trim to prevent duplicate casing pills (e.g., "processor" vs "PROCESSOR")
+        const uniqueCategories = ['All', ...Array.from(new Set(data.map(p => (p.category ? p.category.trim().toLowerCase() : 'uncategorized'))))]
         setCategories(uniqueCategories as string[])
       }
       setLoading(false)
@@ -54,14 +59,26 @@ export default function HomePage() {
     router.refresh()
   }
 
-  // Filter products based on search query and category
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmittedQuery(searchInput.trim())
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput('')
+    setSubmittedQuery('')
+  }
+
+  // Filter products matching normalized category and search query
   const filteredProducts = products.filter((product) => {
-    const matchesCategory = selectedCategory === 'All' || (product.category || 'Uncategorized') === selectedCategory
-    const query = searchQuery.toLowerCase()
-    const matchesSearch = 
+    const productCat = product.category ? product.category.trim().toLowerCase() : 'uncategorized'
+    const matchesCategory = selectedCategory === 'All' || productCat === selectedCategory
+    
+    const query = submittedQuery.toLowerCase()
+    const matchesSearch = !query || 
       product.name?.toLowerCase().includes(query) ||
       product.description?.toLowerCase().includes(query) ||
-      product.category?.toLowerCase().includes(query)
+      productCat.includes(query)
     
     return matchesCategory && matchesSearch
   })
@@ -80,7 +97,7 @@ export default function HomePage() {
 
           <div className="flex items-center gap-3 flex-wrap justify-end">
             <Link href="/wishlist" className="relative flex items-center gap-1.5 rounded-lg bg-pink-50 px-3 py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200">
-              🔖 Wishlist
+              ★ Wishlist
               {wishlist.length > 0 && (
                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-[10px] text-white">
                   {wishlist.length}
@@ -138,32 +155,41 @@ export default function HomePage() {
       <main className="mx-auto max-w-6xl p-8">
         {/* Search Bar & Category Filter Section */}
         <div className="mb-6 space-y-4">
-          {/* Smaller, Compact Search Input */}
-          <div className="relative max-w-md">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search components, sensors, gifts..."
-              className="w-full border border-gray-300 bg-white px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal shadow-sm focus:border-indigo-600 focus:outline-none"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-2.5 text-xs font-bold text-gray-500 hover:text-gray-800"
-              >
-                ✕ Clear
-              </button>
-            )}
-          </div>
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 max-w-md">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search components, sensors, gifts..."
+                className="w-full border border-gray-300 bg-white px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal shadow-sm focus:border-indigo-600 focus:outline-none pr-8"
+              />
+              {searchInput && (
+                <button 
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="absolute right-3 top-2.5 text-xs font-bold text-gray-400 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            
+            <button
+              type="submit"
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-sm transition whitespace-nowrap cursor-pointer"
+            >
+              Search
+            </button>
+          </form>
 
-          {/* Category Filter Pills */}
+          {/* Normalized Category Filter Pills (Capitalized nicely) */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer capitalize ${
                   selectedCategory === cat 
                     ? 'bg-indigo-600 text-white shadow-md' 
                     : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
@@ -176,8 +202,13 @@ export default function HomePage() {
         </div>
 
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-800">
+          <h2 className="text-2xl font-bold text-gray-800 capitalize">
             {selectedCategory === 'All' ? 'Featured Products' : selectedCategory} ({filteredProducts.length})
+            {submittedQuery && (
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                matching "{submittedQuery}"
+              </span>
+            )}
           </h2>
         </div>
         
@@ -189,8 +220,13 @@ export default function HomePage() {
 
         {filteredProducts.length === 0 && !dbError ? (
           <div className="py-16 text-center bg-white rounded-2xl border border-gray-200 shadow-sm">
-            <p className="text-gray-600 font-bold mb-2">No products found matching "{searchQuery}"</p>
-            <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }} className="text-xs font-bold text-indigo-600 hover:underline">
+            <p className="text-gray-600 font-bold mb-2">
+              No products found matching "{submittedQuery || selectedCategory}"
+            </p>
+            <button 
+              onClick={() => { handleClearSearch(); setSelectedCategory('All'); }} 
+              className="text-xs font-bold text-indigo-600 hover:underline"
+            >
               Clear filters and search
             </button>
           </div>
@@ -202,15 +238,14 @@ export default function HomePage() {
 
               return (
                 <div key={product.id} className="flex flex-col overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg relative">
-                  {/* Wishlist Bookmark Button */}
                   <button
                     onClick={() => inWish ? removeFromWishlist(product.id) : addToWishlist(product)}
-                    className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs shadow transition cursor-pointer ${
-                      inWish ? 'bg-indigo-600 text-white' : 'bg-white/90 text-gray-700 hover:bg-white'
+                    className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm shadow transition cursor-pointer ${
+                      inWish ? 'bg-amber-500 text-white font-black' : 'bg-white/90 text-gray-700 hover:bg-white'
                     }`}
                     title={inWish ? "Remove from Wishlist" : "Save to Wishlist"}
                   >
-                    {inWish ? '🔖' : '📑'}
+                    {inWish ? '★' : '☆'}
                   </button>
 
                   <div className="h-48 w-full bg-gray-200 flex items-center justify-center overflow-hidden">

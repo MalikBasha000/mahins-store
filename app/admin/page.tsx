@@ -1097,8 +1097,20 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
-                    <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Microcontrollers" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Category (Select existing or type new)</label>
+                    <input 
+                      type="text" 
+                      list="existing-categories"
+                      value={category} 
+                      onChange={(e) => setCategory(e.target.value)} 
+                      placeholder="e.g. Microcontrollers, Sensor" 
+                      className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900 focus:outline-indigo-600" 
+                    />
+                    <datalist id="existing-categories">
+                      {categoriesList.map((cat: any, idx: number) => (
+                        <option key={idx} value={cat} />
+                      ))}
+                    </datalist>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
