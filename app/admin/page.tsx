@@ -24,7 +24,6 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  // Tabs: analytics, upi_verifications, orders, products, customers
   const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
@@ -179,7 +178,6 @@ export default function AdminPage() {
     setLoading(true)
     setErrorMsg('')
 
-    // Fetch Products
     const { data: prodData, error: prodErr } = await supabase
       .from('products')
       .select('*')
@@ -187,7 +185,6 @@ export default function AdminPage() {
     if (prodErr) setErrorMsg(prodErr.message)
     else setProducts(prodData || [])
 
-    // Fetch Orders
     try {
       const res = await fetch('/api/admin/orders')
       const data = await res.json()
@@ -202,7 +199,6 @@ export default function AdminPage() {
       setOrders(clientOrders || [])
     }
 
-    // Fetch Customers if needed
     if (activeTab === 'customers' || activeTab === 'analytics') {
       try {
         const res = await fetch('/api/admin/customers')
@@ -408,7 +404,6 @@ export default function AdminPage() {
     setLoading(false)
   }
 
-  // Helper to extract clean UTR number from payment_method string
   const extractUtrNumber = (paymentMethodStr: string) => {
     if (!paymentMethodStr) return 'N/A'
     const match = paymentMethodStr.match(/UTR:\s*([^)]+)/i)
@@ -418,21 +413,19 @@ export default function AdminPage() {
     return paymentMethodStr
   }
 
-  // 12-Digit Numeric ID Generator for Customer and Product Display
   const getTwelveDigitId = (id: string) => {
     if (!id) return '100000000000'
     let hash1 = 5381
     let hash2 = 52711
     for (let i = 0; i < id.length; i++) {
       const char = id.charCodeAt(i)
-      hash1 = (hash1 * 33) ^ char
+      hash1 = (hash1 * 33) ^ hash2
       hash2 = (hash2 * 33) ^ char
     }
     const combined = Math.abs(hash1).toString().padStart(6, '0') + Math.abs(hash2).toString().padStart(6, '0')
     return combined.slice(0, 12)
   }
 
-  // ----------------- BULK CSV / EXCEL IMPORT & EXPORT UTILITIES -----------------
   const handleExportCSV = () => {
     if (products.length === 0) {
       alert('No products to export.')
@@ -653,19 +646,16 @@ export default function AdminPage() {
       return 0
     })
 
-  // Filter all direct UPI payment orders
   const allUpiOrders = orders.filter(o => {
     const payMethod = (o.payment_method || '').toLowerCase()
     return payMethod.includes('direct upi')
   })
 
-  // Pending queue for UPI Verifications
   const upiPendingOrders = allUpiOrders.filter(o => {
     const status = (o.status || '').toLowerCase()
     return status === 'pending verification' || status === 'pending'
   })
 
-  // Filtered UPI orders for search & status filter toolbar
   const filteredUpiVerifications = allUpiOrders.filter(o => {
     const status = (o.status || '').toLowerCase()
     
@@ -693,7 +683,6 @@ export default function AdminPage() {
     )
   })
 
-  // Filter Customers
   const filteredCustomers = customers.filter((c) => {
     const q = customerSearchQuery.toLowerCase().trim()
     if (!q) return true
@@ -712,14 +701,12 @@ export default function AdminPage() {
     return orders.filter(o => (o.status || 'Pending').toUpperCase() === status.toUpperCase()).length
   }
 
-  // ----------------- ANALYTICS AGGREGATIONS -----------------
   const activeAndDeliveredOrders = orders.filter(o => o.status !== 'Cancelled')
   const totalRevenue = activeAndDeliveredOrders.reduce((acc, o) => acc + Number(o.total_amount || o.final_payable_amount || 0), 0)
   const deliveredRevenue = orders.filter(o => o.status === 'Delivered').reduce((acc, o) => acc + Number(o.total_amount || o.final_payable_amount || 0), 0)
   const averageOrderValue = activeAndDeliveredOrders.length > 0 ? Math.round(totalRevenue / activeAndDeliveredOrders.length) : 0
   const lowStockProducts = products.filter(p => p.stock <= 5)
 
-  // Product sales performance aggregator
   const productSalesMap = new Map<string, { id: string; name: string; category: string; unitsSold: number; totalSales: number; currentStock: number }>()
   for (const order of activeAndDeliveredOrders) {
     if (Array.isArray(order.items)) {
@@ -903,7 +890,7 @@ export default function AdminPage() {
         {errorMsg && <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg border border-red-300 font-medium">{errorMsg}</div>}
         {successMsg && <div className="mb-6 p-4 bg-green-100 text-green-700 rounded-lg border border-green-300 font-medium">{successMsg}</div>}
 
-        {/* Navigation Tabs including UPI Verifications */}
+        {/* Navigation Tabs */}
         <div className="flex flex-wrap gap-4 mb-8 border-b pb-4">
           <button
             onClick={() => setActiveTab('analytics')}
@@ -952,29 +939,28 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: UPI VERIFICATIONS WINDOW (Fixed Layout & Clean UTR) ----------------- */}
+        {/* ----------------- TAB: UPI VERIFICATIONS (Modern Card Layout - Zero Overlap) ----------------- */}
         {activeTab === 'upi_verifications' && (
-          <div className="bg-white p-6 rounded-2xl shadow-md space-y-6">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">⚡ Direct UPI / QR Payment Verification Center</h2>
-                <p className="text-xs text-gray-500">Search, filter, and verify or reject all direct QR/UPI transfers</p>
+                <h2 className="text-lg font-extrabold text-gray-900">⚡ Direct UPI / QR Payment Verification Center</h2>
+                <p className="text-xs text-gray-500">Review, verify, or reject direct QR/UPI transfers safely</p>
               </div>
 
-              {/* UPI Search & Filter Toolbar */}
-              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+              <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
                 <input
                   type="text"
                   value={upiSearchQuery}
                   onChange={(e) => setUpiSearchQuery(e.target.value)}
-                  placeholder="🔍 Search Name, Tracking ID, Customer ID, Amount, UTR..."
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-80 text-gray-900 focus:outline-indigo-600 shadow-sm"
+                  placeholder="🔍 Search name, tracking ID, amount, UTR..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-72 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
                 />
 
                 <select
                   value={upiStatusFilter}
                   onChange={(e) => setUpiStatusFilter(e.target.value)}
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium shadow-sm"
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium"
                 >
                   <option value="ALL">All Statuses ({allUpiOrders.length})</option>
                   <option value="PENDING">Pending Only ({upiPendingOrders.length})</option>
@@ -982,10 +968,10 @@ export default function AdminPage() {
                   <option value="REJECTED">Rejected / Cancelled</option>
                 </select>
 
-                {(upiSearchQuery || upiStatusFilter !== 'ALL' || upiStatusFilter !== 'ALL') && (
+                {(upiSearchQuery || upiStatusFilter !== 'ALL') && (
                   <button
                     onClick={() => { setUpiSearchQuery(''); setUpiStatusFilter('ALL'); }}
-                    className="text-xs text-red-600 hover:bg-red-100 font-bold px-3 py-2 bg-red-50 rounded-xl border border-red-200 transition cursor-pointer"
+                    className="text-xs text-red-600 hover:underline font-bold px-3 py-2 bg-red-50 rounded-xl"
                   >
                     Clear Filters
                   </button>
@@ -997,146 +983,127 @@ export default function AdminPage() {
               <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-200">
                 <div className="text-3xl mb-2">🔍</div>
                 <p className="text-sm font-bold text-gray-700">No UPI payment records match your search criteria.</p>
-                <p className="text-xs text-gray-400 mt-1">Try clearing your filters or search terms.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-amber-50/50 text-gray-700 text-xs">
-                      <th className="p-3 text-left">Tracking ID & Date/Time</th>
-                      <th className="p-3 text-left">Customer & ID</th>
-                      <th className="p-3 text-left">Items Ordered</th>
-                      <th className="p-3 text-left">UTR Number</th>
-                      <th className="p-3 text-left">Shipping Address</th>
-                      <th className="p-3 text-left">Total Amount</th>
-                      <th className="p-3 text-left">Current Status</th>
-                      <th className="p-3 text-right">Verification Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUpiVerifications.map((o) => {
-                      const twelveCustId = getTwelveDigitId(o.user_id)
-                      const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
-                      const statusLower = (o.status || '').toLowerCase()
-                      const isPending = statusLower === 'pending verification' || statusLower === 'pending'
-                      const isCancelled = statusLower === 'cancelled'
-                      const cleanUtr = extractUtrNumber(o.payment_method)
+              <div className="space-y-4">
+                {filteredUpiVerifications.map((o) => {
+                  const twelveCustId = getTwelveDigitId(o.user_id)
+                  const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                  const statusLower = (o.status || '').toLowerCase()
+                  const isPending = statusLower === 'pending verification' || statusLower === 'pending'
+                  const isCancelled = statusLower === 'cancelled'
+                  const cleanUtr = extractUtrNumber(o.payment_method)
 
-                      return (
-                        <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="font-mono text-xs font-bold text-indigo-900">{o.tracking_id}</div>
-                            <div className="text-[10px] text-gray-500 mt-0.5">🕒 {orderDate}</div>
-                          </td>
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="font-bold text-gray-900">{o.customer_name}</div>
-                            <div className="text-xs text-gray-500">{o.customer_email}</div>
-                            <span className="text-[10px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 inline-block mt-1">
-                              ID: {twelveCustId}
-                            </span>
-                          </td>
-                          <td className="p-3 text-xs">
-                            {Array.isArray(o.items) && o.items.length > 0 ? (
-                              <div className="space-y-2">
-                                {o.items.map((item: any, idx: number) => {
-                                  const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
-                                  const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
-                                  return (
-                                    <div key={idx} className="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
-                                      <div 
-                                        onClick={async () => {
-                                          const productId = item.id || item.product_id
-                                          if (productId) {
-                                            const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
-                                            if (data && data.image_url) {
-                                              const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
-                                              setActiveOrderGalleryImages(allImgs)
-                                              setActiveGalleryIndex(0)
-                                              return
-                                            }
-                                          }
-                                          setActiveOrderGalleryImages([itemImg])
-                                          setActiveGalleryIndex(0)
-                                        }}
-                                        className="relative group flex-shrink-0 cursor-pointer"
-                                        title="Click to view all product images"
-                                      >
-                                        <img src={itemImg} alt="" className="h-10 w-10 object-cover rounded border bg-white hover:border-indigo-600 transition" />
-                                      </div>
+                  return (
+                    <div key={o.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:border-indigo-200 transition space-y-4">
+                      {/* Top Row: Tracking, Date, Amount, Status */}
+                      <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
+                            <span className="font-mono text-sm font-black text-indigo-900">{o.tracking_id}</span>
+                          </div>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-xs text-gray-500 font-medium">🕒 {orderDate}</span>
+                        </div>
 
-                                      <div>
-                                        <div className="font-bold text-gray-900">
-                                          {item.name} × <span className="text-indigo-600">{item.quantity}</span>
-                                        </div>
-                                        <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
-                                      </div>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">No items</span>
-                            )}
-                          </td>
-                          <td className="p-3 whitespace-nowrap">
-                            <span className="bg-indigo-50 text-indigo-800 text-xs font-mono font-bold px-2.5 py-1 rounded border border-indigo-200 inline-block">
-                              {cleanUtr}
-                            </span>
-                          </td>
-                          <td className="p-3 text-xs text-gray-700 min-w-[220px]">
-                            <div className="bg-gray-50 p-2.5 rounded border border-gray-200 leading-relaxed mb-2 max-h-28 overflow-y-auto text-[11px]">
-                              {o.shipping_address || 'No address provided'}
-                            </div>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(o.shipping_address || '')
-                                alert('Shipping address copied to clipboard!')
-                              }}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded transition border border-indigo-200 cursor-pointer"
-                            >
-                              📋 Copy Address
-                            </button>
-                          </td>
-                          <td className="p-3 font-black text-indigo-900 text-base whitespace-nowrap">₹{o.total_amount || o.final_payable_amount}</td>
-                          <td className="p-3 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-full font-bold text-[10px] uppercase block w-fit ${
-                              isPending ? 'bg-amber-100 text-amber-800' :
-                              isCancelled ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-lg font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
+                          </div>
+                          <div>
+                            <span className={`px-3 py-1 rounded-full font-extrabold text-[10px] uppercase ${
+                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-200' :
+                              isCancelled ? 'bg-red-100 text-red-900 border border-red-200' : 'bg-green-100 text-green-900 border border-green-200'
                             }`}>
                               {o.status}
                             </span>
-                            {o.cancellation_reason && (
-                              <span className="text-[10px] text-red-600 block mt-1 max-w-[150px] truncate" title={o.cancellation_reason}>
-                                {o.cancellation_reason}
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3 text-right whitespace-nowrap space-y-1">
-                            {isPending ? (
-                              <>
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
-                                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow transition cursor-pointer block text-center"
-                                >
-                                  ✓ Verify & Approve
-                                </button>
-                                <button
-                                  onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
-                                  className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs px-3.5 py-1.5 rounded-xl transition border border-red-200 cursor-pointer block text-center"
-                                >
-                                  ✕ Reject / Cancel
-                                </button>
-                              </>
-                            ) : (
-                              <span className="text-xs text-gray-400 font-semibold italic">Processed</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Middle Grid: Customer, UTR, Items, Address */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+                        {/* Customer Info */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer Details</span>
+                          <div className="font-bold text-gray-900 text-sm">{o.customer_name}</div>
+                          <div className="text-gray-500">{o.customer_email}</div>
+                          <span className="inline-block mt-1 text-[10px] font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                            ID: {twelveCustId}
+                          </span>
+                        </div>
+
+                        {/* UTR Number */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">UTR Number</span>
+                          <span className="inline-block bg-indigo-50 text-indigo-900 font-mono font-bold px-3 py-1.5 rounded-lg border border-indigo-200 text-xs">
+                            {cleanUtr}
+                          </span>
+                        </div>
+
+                        {/* Items Ordered */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Items Ordered</span>
+                          {Array.isArray(o.items) && o.items.length > 0 ? (
+                            <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                              {o.items.map((item: any, idx: number) => {
+                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/30'
+                                return (
+                                  <div key={idx} className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                                    <img src={itemImg} alt="" className="w-8 h-8 object-cover rounded border bg-white flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-gray-900 truncate text-[11px]">{item.name}</div>
+                                      <div className="text-[10px] text-indigo-600 font-semibold">Qty: {item.quantity}</div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">No items listed</span>
+                          )}
+                        </div>
+
+                        {/* Shipping Address */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Shipping Address</span>
+                          <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-200 leading-relaxed max-h-28 overflow-y-auto text-[11px] text-gray-700">
+                            {o.shipping_address || 'No address provided'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(o.shipping_address || '')
+                              alert('Shipping address copied to clipboard!')
+                            }}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer"
+                          >
+                            📋 Copy Address
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bottom Action Row for Pending Orders */}
+                      {isPending && (
+                        <div className="flex justify-end gap-3 pt-3 border-t">
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
+                            className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-5 py-2.5 rounded-xl transition border border-red-200 cursor-pointer"
+                          >
+                            ✕ Reject & Cancel
+                          </button>
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition cursor-pointer"
+                          >
+                            ✓ Verify & Approve Payment
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -1461,12 +1428,12 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS (Modern Card Layout - Zero Overlap) ----------------- */}
         {activeTab === 'orders' && (
-          <div className="bg-white p-6 rounded-2xl shadow-md">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Customer Orders ({orders.length})</h2>
+                <h2 className="text-lg font-extrabold text-gray-900">Customer Orders ({orders.length})</h2>
                 <p className="text-xs text-gray-500">Showing {filteredAdminOrders.length} filtered results</p>
               </div>
 
@@ -1476,13 +1443,13 @@ export default function AdminPage() {
                   value={orderSearchQuery}
                   onChange={(e) => setOrderSearchQuery(e.target.value)}
                   placeholder="🔍 Search Tracking ID, Name, Email, Items..."
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 shadow-sm"
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
                 />
 
                 <select
                   value={orderAmountSort}
                   onChange={(e: any) => setOrderAmountSort(e.target.value)}
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium shadow-sm"
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium"
                 >
                   <option value="DEFAULT">Sort Amount: Default</option>
                   <option value="HIGH_TO_LOW">Amount: High to Low (₹₹₹)</option>
@@ -1515,7 +1482,7 @@ export default function AdminPage() {
                       setMinAmountFilter('')
                       setMaxAmountFilter('')
                     }}
-                    className="text-xs text-red-600 hover:bg-red-100 font-bold px-3 py-2 bg-red-50 rounded-xl border border-red-200 transition cursor-pointer"
+                    className="text-xs text-red-600 hover:underline font-bold px-3 py-2 bg-red-50 rounded-xl"
                   >
                     Clear Filters
                   </button>
@@ -1530,7 +1497,7 @@ export default function AdminPage() {
                   <button
                     key={status}
                     onClick={() => setActiveAdminOrderTab(status)}
-                    className={`px-4 py-2 rounded-lg font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
+                    className={`px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
                       activeAdminOrderTab === status
                         ? 'bg-indigo-600 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1547,166 +1514,161 @@ export default function AdminPage() {
             ) : filteredAdminOrders.length === 0 ? (
               <div className="py-12 text-center text-gray-500">
                 <p className="text-sm font-semibold">No orders match your filter criteria.</p>
-                <p className="text-xs text-gray-400 mt-1">Try clearing filters or switching status tabs.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50 text-gray-600 text-xs">
-                      <th className="p-3 text-left">Tracking ID & Date/Time</th>
-                      <th className="p-3 text-left">Customer & Email</th>
-                      <th className="p-3 text-left">Items Ordered & Images</th>
-                      <th className="p-3 text-left">Total Amount</th>
-                      <th className="p-3 text-left">Payment Mode & Status</th>
-                      <th className="p-3 text-left">Shipping Address</th>
-                      <th className="p-3 text-right">Status & Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredAdminOrders.map((o) => {
-                      const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
-                      const statusLower = (o.status || '').toLowerCase()
-                      const isPending = statusLower === 'pending verification' || statusLower === 'pending'
-                      const isCancelled = statusLower === 'cancelled'
+              <div className="space-y-4">
+                {filteredAdminOrders.map((o) => {
+                  const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                  const statusLower = (o.status || '').toLowerCase()
+                  const isPending = statusLower === 'pending verification' || statusLower === 'pending'
+                  const isCancelled = statusLower === 'cancelled'
 
-                      const isUpiVerifiedOrPaid = (o.payment_method || '').includes('Paid') || (o.payment_method || '').includes('UTR')
-                      const dynamicPaymentStatus = isUpiVerifiedOrPaid ? 'Paid & Verified' : (o.payment_status || 'Done')
+                  const isUpiVerifiedOrPaid = (o.payment_method || '').includes('Paid') || (o.payment_method || '').includes('UTR')
+                  const dynamicPaymentStatus = isUpiVerifiedOrPaid ? 'Paid & Verified' : (o.payment_status || 'Done')
 
-                      return (
-                        <tr key={o.id} className="border-b hover:bg-gray-50 align-top">
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="font-mono text-xs font-bold text-indigo-900">{o.tracking_id || 'N/A'}</div>
-                            <div className="text-[10px] text-gray-500 mt-0.5">🕒 {orderDate}</div>
-                          </td>
-                          <td className="p-3 whitespace-nowrap">
-                            <div className="font-semibold text-gray-900">{o.customer_name || 'Guest'}</div>
-                            <div className="text-[11px] text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
-                          </td>
-                          <td className="p-3 text-xs">
-                            {Array.isArray(o.items) && o.items.length > 0 ? (
-                              <div className="space-y-2">
-                                {o.items.map((item: any, idx: number) => {
-                                  const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
-                                  const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
-                                  return (
-                                    <div key={idx} className="flex items-center gap-3 bg-gray-50 p-2 rounded border border-gray-200">
-                                      <div 
-                                        onClick={async () => {
-                                          const productId = item.id || item.product_id
-                                          if (productId) {
-                                            const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
-                                            if (data && data.image_url) {
-                                              const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
-                                              setActiveOrderGalleryImages(allImgs)
-                                              setActiveGalleryIndex(0)
-                                              return
-                                            }
-                                          }
-                                          setActiveOrderGalleryImages([itemImg])
-                                          setActiveGalleryIndex(0)
-                                        }}
-                                        className="relative group flex-shrink-0 cursor-pointer"
-                                        title="Click to view all product images"
-                                      >
-                                        <img src={itemImg} alt="" className="h-10 w-10 object-cover rounded border bg-white hover:border-indigo-600 transition" />
-                                      </div>
+                  return (
+                    <div key={o.id} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:border-indigo-200 transition space-y-4">
+                      {/* Top Row */}
+                      <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
+                            <span className="font-mono text-sm font-black text-indigo-900">{o.tracking_id || 'N/A'}</span>
+                          </div>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-xs text-gray-500 font-medium">🕒 {orderDate}</span>
+                        </div>
 
-                                      <div>
-                                        <div className="font-bold text-gray-900">{item.name} × <span className="text-indigo-600">{item.quantity}</span></div>
-                                        <div className="text-[10px] text-gray-500 font-mono tracking-wider">ID: {twelveDigitId}</div>
-                                      </div>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">No items data</span>
-                            )}
-                          </td>
-                          <td className="p-3 font-bold text-indigo-600 whitespace-nowrap text-base">
-                            ₹{o.total_amount || o.final_payable_amount}
-                          </td>
-                          <td className="p-3 whitespace-nowrap space-y-1.5">
-                            <span className="bg-indigo-50 text-indigo-800 text-[11px] font-mono font-bold px-2 py-1 rounded border border-indigo-200 block w-fit">
-                              {o.payment_method || 'Online'}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] uppercase block w-fit ${
-                              isPending ? 'bg-amber-100 text-amber-800' :
-                              isCancelled ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-lg font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
+                          </div>
+                          <div>
+                            <span className={`px-3 py-1 rounded-full font-extrabold text-[10px] uppercase ${
+                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-200' :
+                              isCancelled ? 'bg-red-100 text-red-900 border border-red-200' : 'bg-green-100 text-green-900 border border-green-200'
                             }`}>
                               {o.status || 'Pending'}
                             </span>
-                          </td>
-                          <td className="p-3 text-gray-700 text-xs min-w-[220px]">
-                            <div className="bg-gray-50 p-2.5 rounded border border-gray-200 leading-relaxed mb-2 max-h-28 overflow-y-auto text-[11px]">
-                              {o.shipping_address || 'No address provided'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Middle Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+                        {/* Customer */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Customer Details</span>
+                          <div className="font-bold text-gray-900 text-sm">{o.customer_name || 'Guest'}</div>
+                          <div className="text-gray-500">{o.customer_email || 'No email available'}</div>
+                        </div>
+
+                        {/* Payment Mode */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Payment Details</span>
+                          <span className="inline-block bg-indigo-50 text-indigo-900 font-mono font-bold px-3 py-1.5 rounded-lg border border-indigo-200 text-xs">
+                            {o.payment_method || 'Online'}
+                          </span>
+                        </div>
+
+                        {/* Items Ordered */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Items Ordered</span>
+                          {Array.isArray(o.items) && o.items.length > 0 ? (
+                            <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                              {o.items.map((item: any, idx: number) => {
+                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/30'
+                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
+                                return (
+                                  <div key={idx} className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                                    <img src={itemImg} alt="" className="w-8 h-8 object-cover rounded border bg-white flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-gray-900 truncate text-[11px]">{item.name}</div>
+                                      <div className="text-[10px] text-indigo-600 font-semibold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
                             </div>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(o.shipping_address || '')
-                                alert('Shipping address copied to clipboard!')
-                              }}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded transition border border-indigo-200 cursor-pointer"
-                            >
-                              📋 Copy Address
-                            </button>
-                          </td>
-                          <td className="p-3 text-right space-y-2">
-                            <select
-                              value={o.status || 'Pending'}
-                              onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                              className="border p-1.5 rounded text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm block w-full cursor-pointer"
-                            >
-                              <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
-                              <option value="Pending">Pending</option>
-                              <option value="Processing">Processing</option>
-                              <option value="Shipped">Shipped</option>
-                              <option value="Delivered">Delivered</option>
-                              <option value="Cancelled">Cancelled</option>
-                            </select>
-                            {o.cancellation_reason && (
-                              <span className="text-[11px] text-red-600 font-semibold block leading-tight text-right" title={o.cancellation_reason}>
-                                {o.cancellation_reason}
-                              </span>
-                            )}
-                            <div className="grid grid-cols-3 gap-1 pt-1">
-                              <button
-                                onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
-                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1 px-1 rounded border border-indigo-200 transition cursor-pointer text-center"
-                                title="Download PDF Tax Invoice"
-                              >
-                                Invoice
-                              </button>
-                              <button
-                                onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold py-1 px-1 rounded border border-gray-300 transition cursor-pointer text-center"
-                                title="Print Shipping Label / Packing Slip"
-                              >
-                                Slip
-                              </button>
-                              <a
-                                href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                                  `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${dynamicPaymentStatus}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
-                                    Array.isArray(o.items) 
-                                      ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
-                                      : '- Order Item'
-                                  }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
-                                )}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold py-1 px-1 rounded border border-green-200 transition cursor-pointer text-center"
-                                title="Open WhatsApp chat"
-                              >
-                                WhatsApp
-                              </a>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                          ) : (
+                            <span className="text-gray-400 italic">No items data</span>
+                          )}
+                        </div>
+
+                        {/* Shipping Address */}
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Shipping Address</span>
+                          <div className="bg-gray-50 p-2.5 rounded-xl border border-gray-200 leading-relaxed max-h-28 overflow-y-auto text-[11px] text-gray-700">
+                            {o.shipping_address || 'No address provided'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(o.shipping_address || '')
+                              alert('Shipping address copied to clipboard!')
+                            }}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer"
+                          >
+                            📋 Copy Address
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bottom Action Row */}
+                      <div className="flex flex-wrap justify-between items-center gap-4 pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-600">Update Status:</span>
+                          <select
+                            value={o.status || 'Pending'}
+                            onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                            className="border p-2 rounded-xl text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm cursor-pointer"
+                          >
+                            <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                          {o.cancellation_reason && (
+                            <span className="text-xs text-red-600 font-semibold italic ml-2">
+                              {o.cancellation_reason}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-2 rounded-xl border border-indigo-200 transition cursor-pointer"
+                          >
+                            📄 Invoice
+                          </button>
+                          <button
+                            onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3 py-2 rounded-xl border border-gray-300 transition cursor-pointer"
+                          >
+                            🏷️ Packing Slip
+                          </button>
+                          <a
+                            href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
+                              `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${dynamicPaymentStatus}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
+                                Array.isArray(o.items) 
+                                  ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
+                                  : '- Order Item'
+                              }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition cursor-pointer flex items-center gap-1.5"
+                          >
+                            💬 WhatsApp Update
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -2072,7 +2034,7 @@ export default function AdminPage() {
                 <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description / Description</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
                 <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
               </div>
               <div>
