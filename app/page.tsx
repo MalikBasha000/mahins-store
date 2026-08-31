@@ -6,15 +6,21 @@ import { createClient } from '../lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useCart } from './context/CartContext'
+import { useWishlist } from './context/WishlistContext'
 
 export default function HomePage() {
   const [user, setUser] = useState<any>(null)
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All')
+  const [categories, setCategories] = useState<string[]>([])
+
   const router = useRouter()
   const supabase = createClient()
   const { totalItems } = useCart()
+  const { wishlist, addToWishlist, removeFromWishlist, isInWishlist } = useWishlist()
 
   useEffect(() => {
     const getUser = async () => {
@@ -32,13 +38,15 @@ export default function HomePage() {
         setDbError(error.message)
       } else if (data) {
         setProducts(data)
+        const uniqueCategories = ['All', ...Array.from(new Set(data.map(p => p.category || 'Uncategorized')))]
+        setCategories(uniqueCategories as string[])
       }
       setLoading(false)
     }
 
     getUser()
     getProducts()
-  }, [])
+  }, [supabase])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -46,19 +54,59 @@ export default function HomePage() {
     router.refresh()
   }
 
+  // Filter products based on search query and category
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory = selectedCategory === 'All' || (product.category || 'Uncategorized') === selectedCategory
+    const query = searchQuery.toLowerCase()
+    const matchesSearch = 
+      product.name?.toLowerCase().includes(query) ||
+      product.description?.toLowerCase().includes(query) ||
+      product.category?.toLowerCase().includes(query)
+    
+    return matchesCategory && matchesSearch
+  })
+
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center text-gray-500">Loading Mahin's One-Stop One-Store...</div>
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white px-8 py-6 shadow-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
+      <header className="bg-white px-8 py-6 shadow-sm sticky top-0 z-50">
+        <div className="mx-auto flex max-w-6xl flex-col sm:flex-row items-center justify-between gap-4">
           <h1 className="text-3xl font-extrabold text-indigo-900">
             Mahin's One-Stop One-Store
           </h1>
           
-          <div className="flex items-center gap-4">
+          {/* Dynamic Search Input */}
+          <div className="relative w-full sm:w-80">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search components, sensors..."
+              className="w-full border border-gray-300 bg-gray-50 px-4 py-2 rounded-xl text-sm font-medium focus:border-indigo-600 focus:outline-none"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-xs font-bold text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <Link href="/wishlist" className="relative flex items-center gap-1.5 rounded-lg bg-pink-50 px-3 py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200">
+              ❤️ Wishlist
+              {wishlist.length > 0 && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-[10px] text-white">
+                  {wishlist.length}
+                </span>
+              )}
+            </Link>
+
             <Link href="/cart" className="relative flex items-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 text-indigo-600 font-semibold hover:bg-indigo-100 transition">
               🛒 Cart
               {totalItems > 0 && (
@@ -70,7 +118,7 @@ export default function HomePage() {
 
             {user ? (
               <div className="flex items-center gap-3 border-l pl-4 border-gray-200">
-                <span className="text-sm text-gray-600 font-medium">
+                <span className="text-sm text-gray-600 font-medium hidden md:inline">
                   Hi, {user.user_metadata?.full_name || 'Customer'}
                 </span>
                 
@@ -107,7 +155,28 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto max-w-6xl p-8">
-        <h2 className="mb-8 text-2xl font-bold text-gray-800">Featured Products</h2>
+        {/* Category Filter Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                selectedCategory === cat 
+                  ? 'bg-indigo-600 text-white shadow-md' 
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-800">
+            {selectedCategory === 'All' ? 'Featured Products' : selectedCategory} ({filteredProducts.length})
+          </h2>
+        </div>
         
         {dbError && (
           <div className="mb-6 rounded-lg bg-red-100 p-4 text-red-700 border border-red-300">
@@ -115,15 +184,31 @@ export default function HomePage() {
           </div>
         )}
 
-        {products.length === 0 && !dbError ? (
-          <p className="text-gray-500">No products found in the store.</p>
+        {filteredProducts.length === 0 && !dbError ? (
+          <div className="py-16 text-center bg-white rounded-2xl border border-gray-200 shadow-sm">
+            <p className="text-gray-600 font-bold mb-2">No products found matching "{searchQuery}"</p>
+            <button onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }} className="text-xs font-bold text-indigo-600 hover:underline">
+              Clear filters and search
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {products.map((product) => {
+            {filteredProducts.map((product) => {
               const firstImage = product.image_url ? product.image_url.split(',')[0].trim() : null
+              const inWish = isInWishlist(product.id)
 
               return (
-                <div key={product.id} className="flex flex-col overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg">
+                <div key={product.id} className="flex flex-col overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg relative">
+                  {/* Wishlist Toggle Button */}
+                  <button
+                    onClick={() => inWish ? removeFromWishlist(product.id) : addToWishlist(product)}
+                    className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm shadow transition cursor-pointer ${
+                      inWish ? 'bg-pink-600 text-white' : 'bg-white/90 text-gray-600 hover:bg-white'
+                    }`}
+                  >
+                    {inWish ? '❤️' : '🤍'}
+                  </button>
+
                   <div className="h-48 w-full bg-gray-200 flex items-center justify-center overflow-hidden">
                     {firstImage ? (
                       <img src={firstImage} alt={product.name} className="h-full w-full object-cover" />
@@ -136,7 +221,7 @@ export default function HomePage() {
                     <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-indigo-500">
                       {product.category || 'Uncategorized'}
                     </span>
-                    <h3 className="mb-2 text-lg font-bold text-gray-900 leading-tight">
+                    <h3 className="mb-2 text-lg font-bold text-gray-900 leading-tight line-clamp-1">
                       {product.name}
                     </h3>
                     <p className="mb-4 flex-1 text-sm text-gray-600 line-clamp-2">
