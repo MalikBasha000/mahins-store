@@ -1001,7 +1001,7 @@ export default function AdminPage() {
                       <th className="p-3 w-56">Shipping Address</th>
                       <th className="p-3 w-24">Total Amount</th>
                       <th className="p-3 w-32">Current Status</th>
-                      <th className="p-3 w-36 text-right">Verification Actions</th>
+                      <th className="p-3 w-44 text-right">Verification Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1420,7 +1420,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 2: CUSTOMER ORDERS (Fixed Table Layout & Widths) ----------------- */}
+        {/* ----------------- TAB 2: CUSTOMER ORDERS (Fully Restored & Fixed Layout) ----------------- */}
         {activeTab === 'orders' && (
           <div className="bg-white p-6 rounded-2xl shadow-md">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6 border-b pb-4">
@@ -1519,7 +1519,7 @@ export default function AdminPage() {
                       <th className="p-3 w-28">Total Amount</th>
                       <th className="p-3 w-40">Payment Mode & Status</th>
                       <th className="p-3 w-52">Shipping Address</th>
-                      <th className="p-3 w-40 text-right">Status & Actions</th>
+                      <th className="p-3 w-44 text-right">Status & Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1613,7 +1613,7 @@ export default function AdminPage() {
                               📋 Copy Address
                             </button>
                           </td>
-                          <td className="p-3 whitespace-nowrap space-y-2 text-right">
+                          <td className="p-3 text-right space-y-2">
                             <select
                               value={o.status || 'Pending'}
                               onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
@@ -1627,24 +1627,24 @@ export default function AdminPage() {
                               <option value="Cancelled">Cancelled</option>
                             </select>
                             {o.cancellation_reason && (
-                              <span className="text-[11px] text-red-600 font-semibold block leading-tight truncate" title={o.cancellation_reason}>
+                              <span className="text-[11px] text-red-600 font-semibold block leading-tight truncate text-right" title={o.cancellation_reason}>
                                 {o.cancellation_reason}
                               </span>
                             )}
-                            <div className="flex gap-1 pt-1 justify-end">
+                            <div className="grid grid-cols-3 gap-1 pt-1">
                               <button
                                 onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
-                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded border border-indigo-200 transition cursor-pointer"
+                                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold py-1 px-1 rounded border border-indigo-200 transition cursor-pointer text-center truncate"
                                 title="Download PDF Tax Invoice"
                               >
-                                📄 Invoice
+                                Invoice
                               </button>
                               <button
                                 onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-1 rounded border border-gray-300 transition cursor-pointer"
+                                className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold py-1 px-1 rounded border border-gray-300 transition cursor-pointer text-center truncate"
                                 title="Print Shipping Label / Packing Slip"
                               >
-                                🏷️ Slip
+                                Slip
                               </button>
                               <a
                                 href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
@@ -1656,10 +1656,10 @@ export default function AdminPage() {
                                 )}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded border border-green-200 transition cursor-pointer"
+                                className="bg-green-50 hover:bg-green-100 text-green-800 text-[10px] font-bold py-1 px-1 rounded border border-green-200 transition cursor-pointer text-center truncate"
                                 title="Open WhatsApp chat"
                               >
-                                💬 WhatsApp
+                                WhatsApp
                               </a>
                             </div>
                           </td>
