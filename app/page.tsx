@@ -73,33 +73,14 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white px-8 py-6 shadow-sm sticky top-0 z-50">
-        <div className="mx-auto flex max-w-6xl flex-col sm:flex-row items-center justify-between gap-4">
-          <h1 className="text-3xl font-extrabold text-indigo-900">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-indigo-900 truncate">
             Mahin's One-Stop One-Store
           </h1>
-          
-          {/* Dynamic Search Input */}
-          <div className="relative w-full sm:w-80">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search components, sensors..."
-              className="w-full border border-gray-300 bg-gray-50 px-4 py-2 rounded-xl text-sm font-medium focus:border-indigo-600 focus:outline-none"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-2.5 text-xs font-bold text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            )}
-          </div>
 
           <div className="flex items-center gap-3 flex-wrap justify-end">
             <Link href="/wishlist" className="relative flex items-center gap-1.5 rounded-lg bg-pink-50 px-3 py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200">
-              ❤️ Wishlist
+              🔖 Wishlist
               {wishlist.length > 0 && (
                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-[10px] text-white">
                   {wishlist.length}
@@ -155,21 +136,43 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto max-w-6xl p-8">
-        {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
-                selectedCategory === cat 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        {/* Search Bar & Category Filter Section */}
+        <div className="mb-6 space-y-4">
+          {/* Smaller, Compact Search Input */}
+          <div className="relative max-w-md">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search components, sensors, gifts..."
+              className="w-full border border-gray-300 bg-white px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal shadow-sm focus:border-indigo-600 focus:outline-none"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-xs font-bold text-gray-500 hover:text-gray-800"
+              >
+                ✕ Clear
+              </button>
+            )}
+          </div>
+
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer ${
+                  selectedCategory === cat 
+                    ? 'bg-indigo-600 text-white shadow-md' 
+                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="mb-6 flex items-center justify-between">
@@ -199,14 +202,15 @@ export default function HomePage() {
 
               return (
                 <div key={product.id} className="flex flex-col overflow-hidden rounded-xl bg-white shadow-md transition hover:shadow-lg relative">
-                  {/* Wishlist Toggle Button */}
+                  {/* Wishlist Bookmark Button */}
                   <button
                     onClick={() => inWish ? removeFromWishlist(product.id) : addToWishlist(product)}
-                    className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm shadow transition cursor-pointer ${
-                      inWish ? 'bg-pink-600 text-white' : 'bg-white/90 text-gray-600 hover:bg-white'
+                    className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center text-xs shadow transition cursor-pointer ${
+                      inWish ? 'bg-indigo-600 text-white' : 'bg-white/90 text-gray-700 hover:bg-white'
                     }`}
+                    title={inWish ? "Remove from Wishlist" : "Save to Wishlist"}
                   >
-                    {inWish ? '❤️' : '🤍'}
+                    {inWish ? '🔖' : '📑'}
                   </button>
 
                   <div className="h-48 w-full bg-gray-200 flex items-center justify-center overflow-hidden">
