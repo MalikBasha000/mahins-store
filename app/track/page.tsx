@@ -1,5 +1,4 @@
 // app/track/page.tsx
-'span'
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
@@ -57,25 +56,33 @@ function TrackContent() {
     }
   }, [initialId])
 
-  // Determine timeline steps based on order status
-  const getTimelineSteps = (status: string) => {
-    const currentStatus = (status || 'Pending').toLowerCase()
-    
+  // Determine timeline steps, active index, and calculated timestamps
+  const getTimelineSteps = (orderData: any) => {
+    const status = (orderData?.status || 'Pending').toLowerCase()
+    const createdAt = orderData?.created_at ? new Date(orderData.created_at) : new Date()
+
+    // Helper to add hours/minutes for sequential milestone simulation
+    const addMinutes = (date: Date, mins: number) => new Date(date.getTime() + mins * 60000)
+
+    const placedTime = createdAt.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const verifiedTime = addMinutes(createdAt, 15).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const shippedTime = addMinutes(createdAt, 120).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    const deliveredTime = addMinutes(createdAt, 1440).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+
     const steps = [
-      { label: 'Order Placed', key: 'pending' },
-      { label: 'Payment Verified', key: 'processing' },
-      { label: 'Packed & Dispatched', key: 'shipped' },
-      { label: 'Delivered', key: 'delivered' }
+      { label: 'Order Placed', key: 'pending', time: placedTime },
+      { label: 'Payment Verified', key: 'processing', time: verifiedTime },
+      { label: 'Packed & Dispatched', key: 'shipped', time: shippedTime },
+      { label: 'Delivered', key: 'delivered', time: deliveredTime }
     ]
 
     let activeIndex = 0
-    if (currentStatus.includes('pending verification') || currentStatus.includes('pending')) activeIndex = 0
-    if (currentStatus.includes('processing') || currentStatus.includes('verified')) activeIndex = 1
-    if (currentStatus.includes('shipped')) activeIndex = 2
-    if (currentStatus.includes('delivered')) activeIndex = 3
-    if (currentStatus.includes('cancelled')) activeIndex = -1
+    if (status.includes('processing') || status.includes('verified')) activeIndex = 1
+    if (status.includes('shipped')) activeIndex = 2
+    if (status.includes('delivered')) activeIndex = 3
+    if (status.includes('cancelled')) activeIndex = -1
 
-    return { steps, activeIndex, isCancelled: currentStatus.includes('cancelled') }
+    return { steps, activeIndex, isCancelled: status.includes('cancelled') }
   }
 
   return (
@@ -143,12 +150,12 @@ function TrackContent() {
               </div>
             </div>
 
-            {/* Visual Progress Timeline */}
+            {/* Visual Progress Timeline with Dates & Times */}
             <div>
               <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-6">Shipment Progress</h3>
               
               {(() => {
-                const { steps, activeIndex, isCancelled } = getTimelineSteps(order.status)
+                const { steps, activeIndex, isCancelled } = getTimelineSteps(order)
 
                 if (isCancelled) {
                   return (
@@ -163,9 +170,9 @@ function TrackContent() {
                 }
 
                 return (
-                  <div className="relative flex items-center justify-between max-w-lg mx-auto px-4 py-2">
+                  <div className="relative flex items-center justify-between max-w-xl mx-auto px-4 py-2">
                     {/* Connecting Bar Background */}
-                    <div className="absolute left-10 right-10 top-1/2 -translate-y-1/2 h-1 bg-gray-200 z-0">
+                    <div className="absolute left-12 right-12 top-4 h-1 bg-gray-200 z-0">
                       <div 
                         className="h-full bg-green-500 transition-all duration-500"
                         style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }}
@@ -176,15 +183,18 @@ function TrackContent() {
                       const isComplete = idx <= activeIndex
                       return (
                         <div key={step.key} className="relative z-10 flex flex-col items-center">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shadow-md transition-all ${
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shadow-md transition-all ${
                             isComplete ? 'bg-green-600 text-white ring-4 ring-green-100' : 'bg-gray-200 text-gray-500'
                           }`}>
                             {isComplete ? '✓' : idx + 1}
                           </div>
-                          <span className={`text-[11px] font-bold mt-2 text-center max-w-[80px] ${
+                          <span className={`text-[11px] font-bold mt-2 text-center max-w-[90px] ${
                             isComplete ? 'text-gray-900' : 'text-gray-400'
                           }`}>
                             {step.label}
+                          </span>
+                          <span className="text-[10px] font-medium text-gray-400 mt-0.5 text-center max-w-[90px]">
+                            {isComplete ? step.time : 'Pending'}
                           </span>
                         </div>
                       )
@@ -193,7 +203,7 @@ function TrackContent() {
                 )
               })()}
 
-              <div className="mt-6 text-center">
+              <div className="mt-8 text-center">
                 <span className="text-xs font-bold text-gray-500">Current Status: </span>
                 <span className="text-xs font-black uppercase text-indigo-900 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200 inline-block ml-1">
                   {order.status || 'Pending'}
