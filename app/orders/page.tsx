@@ -34,7 +34,8 @@ export default function CustomerOrdersPage() {
 
       if (data) {
         setOrders(data)
-        // Fetch live product details for all items across customer orders
+        
+        // Fetch live product details to sync updated names and images dynamically
         const prodMap: Record<string, any> = {}
         for (const order of data) {
           if (order.items && Array.isArray(order.items)) {
@@ -209,7 +210,7 @@ export default function CustomerOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Items Ordered with Live Product Names & Multi-Image Modal Support */}
+                  {/* Items Ordered with Live Product Syncing */}
                   <div className="bg-white p-4 rounded-lg border">
                     <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Items Ordered</h4>
                     <div className="space-y-3 max-h-56 overflow-y-auto">
