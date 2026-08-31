@@ -19,6 +19,7 @@ function TrackContent() {
   const [errorMsg, setErrorMsg] = useState('')
   const [selectedProductModal, setSelectedProductModal] = useState<any | null>(null)
   const [activeModalImageIndex, setActiveModalImageIndex] = useState(0)
+  const [liveProductsMap, setLiveProductsMap] = useState<Record<string, any>>({})
 
   const handleSearchTracking = async (idToSearch?: string) => {
     const queryId = (idToSearch || trackingIdInput).trim()
@@ -44,6 +45,18 @@ function TrackContent() {
         setErrorMsg('No order found with this tracking ID. Please check and try again.')
       } else {
         setOrder(data)
+        // Fetch live product details for items in this order
+        if (data.items && Array.isArray(data.items)) {
+          const prodMap: Record<string, any> = {}
+          for (const item of data.items) {
+            const pId = item.id || item.product_id
+            if (pId) {
+              const { data: liveProd } = await supabase.from('products').select('*').eq('id', pId).maybeSingle()
+              if (liveProd) prodMap[pId] = liveProd
+            }
+          }
+          setLiveProductsMap(prodMap)
+        }
       }
     } catch (err: any) {
       setErrorMsg(`Error fetching order: ${err.message}`)
@@ -213,53 +226,52 @@ function TrackContent() {
               <p className="text-xs font-medium text-gray-800 leading-relaxed">{order.shipping_address}</p>
             </div>
 
-            {/* Items Ordered List with Strict Layout Containment */}
+            {/* Items Ordered List with Live Product Name & Strict Text Wrapping */}
             <div>
               <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3">Items Ordered</h3>
               <div className="space-y-3">
                 {Array.isArray(order.items) && order.items.map((item: any, idx: number) => {
-                  const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
-                  const unitPrice = Number(item.price) || 0
+                  const pId = item.id || item.product_id
+                  const liveProd = liveProductsMap[pId]
+                  
+                  // Use live updated name and image from inventory if available
+                  const displayName = liveProd ? (liveProd.name || liveProd.title) : item.name
+                  const displayImg = liveProd?.image_url 
+                    ? liveProd.image_url.split(',')[0].trim() 
+                    : (item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50')
+                  
+                  const unitPrice = Number(liveProd?.price ?? item.price) || 0
                   const qty = Number(item.quantity) || 1
 
                   return (
-                    <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3.5 rounded-2xl border border-gray-200 overflow-hidden">
+                    <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3.5 rounded-2xl border border-gray-200 w-full overflow-hidden">
                       <img 
-                        src={itemImg} 
+                        src={displayImg} 
                         alt="" 
                         className="w-12 h-12 object-cover rounded-xl border bg-white flex-shrink-0 cursor-pointer hover:opacity-80 transition"
-                        onClick={async () => {
-                          const prodId = item.id || item.product_id
-                          if (prodId) {
-                            const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
-                            if (data) {
-                              setSelectedProductModal(data)
-                              setActiveModalImageIndex(0)
-                              return
-                            }
+                        onClick={() => {
+                          if (liveProd) {
+                            setSelectedProductModal(liveProd)
+                          } else {
+                            setSelectedProductModal({ name: displayName, price: unitPrice, description: 'No description.', image_url: displayImg })
                           }
-                          setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
                           setActiveModalImageIndex(0)
                         }}
                       />
-                      <div className="flex-1 min-w-0 pr-2">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <button 
-                          onClick={async () => {
-                            const prodId = item.id || item.product_id
-                            if (prodId) {
-                              const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
-                              if (data) {
-                                setSelectedProductModal(data)
-                                setActiveModalImageIndex(0)
-                                return
-                              }
+                          onClick={() => {
+                            if (liveProd) {
+                              setSelectedProductModal(liveProd)
+                            } else {
+                              setSelectedProductModal({ name: displayName, price: unitPrice, description: 'No description.', image_url: displayImg })
                             }
-                            setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
                             setActiveModalImageIndex(0)
                           }}
-                          className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block w-full whitespace-normal break-words cursor-pointer"
+                          className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block w-full truncate cursor-pointer"
+                          title={displayName}
                         >
-                          {item.name}
+                          {displayName}
                         </button>
                         <p className="text-[11px] text-gray-500 mt-0.5">₹{unitPrice} × {qty}</p>
                       </div>
@@ -324,7 +336,7 @@ function TrackContent() {
               <div className="flex flex-col justify-between">
                 <div>
                   <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{selectedProductModal.category || 'Electronics & Robotics'}</span>
-                  <h3 className="text-xl font-black text-gray-900 mt-1 mb-2">{selectedProductModal.name}</h3>
+                  <h3 className="text-xl font-black text-gray-900 mt-1 mb-2">{selectedProductModal.name || selectedProductModal.title}</h3>
                   <div className="text-2xl font-extrabold text-indigo-900 mb-4">₹{selectedProductModal.price}</div>
                   <div className="text-xs text-gray-600 space-y-2 leading-relaxed max-h-48 overflow-y-auto">
                     <p>{selectedProductModal.description || 'High quality hardware component for student and lab projects.'}</p>
