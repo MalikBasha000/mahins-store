@@ -18,6 +18,7 @@ function TrackContent() {
   const [order, setOrder] = useState<any | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [selectedProductModal, setSelectedProductModal] = useState<any | null>(null)
+  const [activeModalImageIndex, setActiveModalImageIndex] = useState(0)
 
   const handleSearchTracking = async (idToSearch?: string) => {
     const queryId = (idToSearch || trackingIdInput).trim()
@@ -212,7 +213,7 @@ function TrackContent() {
               <p className="text-xs font-medium text-gray-800 leading-relaxed">{order.shipping_address}</p>
             </div>
 
-            {/* Items Ordered List with Clickable Product Modal */}
+            {/* Items Ordered List with Wrapped Text & Multi-Image Modal Support */}
             <div>
               <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3">Items Ordered</h3>
               <div className="space-y-3">
@@ -233,10 +234,12 @@ function TrackContent() {
                             const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
                             if (data) {
                               setSelectedProductModal(data)
+                              setActiveModalImageIndex(0)
                               return
                             }
                           }
                           setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
+                          setActiveModalImageIndex(0)
                         }}
                       />
                       <div className="flex-1 min-w-0">
@@ -247,18 +250,20 @@ function TrackContent() {
                               const { data } = await supabase.from('products').select('*').eq('id', prodId).single()
                               if (data) {
                                 setSelectedProductModal(data)
+                                setActiveModalImageIndex(0)
                                 return
                               }
                             }
                             setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
+                            setActiveModalImageIndex(0)
                           }}
-                          className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block truncate cursor-pointer"
+                          className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block whitespace-normal break-words cursor-pointer"
                         >
                           {item.name}
                         </button>
                         <p className="text-[11px] text-gray-500 mt-0.5">₹{unitPrice} × {qty}</p>
                       </div>
-                      <div className="text-xs font-black text-indigo-950">₹{unitPrice * qty}</div>
+                      <div className="text-xs font-black text-indigo-950 whitespace-nowrap">₹{unitPrice * qty}</div>
                     </div>
                   )
                 })}
@@ -273,7 +278,7 @@ function TrackContent() {
         )}
       </div>
 
-      {/* Product Details Modal */}
+      {/* Multi-Image Product Details Modal */}
       {selectedProductModal && (
         <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
@@ -284,19 +289,44 @@ function TrackContent() {
               ✕
             </button>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-100 rounded-2xl overflow-hidden border h-72 flex items-center justify-center">
-                <img 
-                  src={selectedProductModal.image_url ? selectedProductModal.image_url.split(',')[0].trim() : 'https://via.placeholder.com/300'} 
-                  alt="" 
-                  className="w-full h-full object-contain p-2" 
-                />
+              <div>
+                <div className="bg-gray-100 rounded-2xl overflow-hidden border h-72 flex items-center justify-center mb-3">
+                  <img 
+                    src={
+                      selectedProductModal.image_url 
+                        ? selectedProductModal.image_url.split(',')[activeModalImageIndex]?.trim() || selectedProductModal.image_url.split(',')[0].trim()
+                        : 'https://via.placeholder.com/300'
+                    } 
+                    alt="" 
+                    className="w-full h-full object-contain p-2" 
+                  />
+                </div>
+                {/* Thumbnails Picker */}
+                {selectedProductModal.image_url && selectedProductModal.image_url.split(',').length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {selectedProductModal.image_url.split(',').map((url: string, i: number) => {
+                      const clean = url.trim()
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setActiveModalImageIndex(i)}
+                          className={`w-14 h-14 rounded-xl overflow-hidden border-2 flex-shrink-0 transition bg-white ${
+                            activeModalImageIndex === i ? 'border-indigo-600 scale-105 shadow-sm' : 'border-gray-200 opacity-60'
+                          }`}
+                        >
+                          <img src={clean} alt="" className="w-full h-full object-cover" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col justify-between">
                 <div>
                   <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{selectedProductModal.category || 'Electronics & Robotics'}</span>
                   <h3 className="text-xl font-black text-gray-900 mt-1 mb-2">{selectedProductModal.name}</h3>
                   <div className="text-2xl font-extrabold text-indigo-900 mb-4">₹{selectedProductModal.price}</div>
-                  <div className="text-xs text-gray-600 space-y-2 leading-relaxed">
+                  <div className="text-xs text-gray-600 space-y-2 leading-relaxed max-h-48 overflow-y-auto">
                     <p>{selectedProductModal.description || 'High quality hardware component for student and lab projects.'}</p>
                   </div>
                 </div>
