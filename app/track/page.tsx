@@ -213,7 +213,7 @@ function TrackContent() {
               <p className="text-xs font-medium text-gray-800 leading-relaxed">{order.shipping_address}</p>
             </div>
 
-            {/* Items Ordered List with Wrapped Text & Multi-Image Modal Support */}
+            {/* Items Ordered List with Strict Layout Containment */}
             <div>
               <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3">Items Ordered</h3>
               <div className="space-y-3">
@@ -223,7 +223,7 @@ function TrackContent() {
                   const qty = Number(item.quantity) || 1
 
                   return (
-                    <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3.5 rounded-2xl border border-gray-200">
+                    <div key={idx} className="flex items-center gap-4 bg-gray-50 p-3.5 rounded-2xl border border-gray-200 overflow-hidden">
                       <img 
                         src={itemImg} 
                         alt="" 
@@ -242,7 +242,7 @@ function TrackContent() {
                           setActiveModalImageIndex(0)
                         }}
                       />
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-2">
                         <button 
                           onClick={async () => {
                             const prodId = item.id || item.product_id
@@ -257,13 +257,13 @@ function TrackContent() {
                             setSelectedProductModal({ name: item.name, price: unitPrice, description: 'No additional description available.', image_url: itemImg })
                             setActiveModalImageIndex(0)
                           }}
-                          className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block whitespace-normal break-words cursor-pointer"
+                          className="text-xs font-bold text-indigo-900 hover:text-indigo-600 hover:underline text-left block w-full whitespace-normal break-words cursor-pointer"
                         >
                           {item.name}
                         </button>
                         <p className="text-[11px] text-gray-500 mt-0.5">₹{unitPrice} × {qty}</p>
                       </div>
-                      <div className="text-xs font-black text-indigo-950 whitespace-nowrap">₹{unitPrice * qty}</div>
+                      <div className="text-xs font-black text-indigo-950 whitespace-nowrap flex-shrink-0">₹{unitPrice * qty}</div>
                     </div>
                   )
                 })}
