@@ -21,7 +21,8 @@ export default function ProductDetails() {
   const [reviews, setReviews] = useState<any[]>([])
   const [userRating, setUserRating] = useState(5)
   const [userComment, setUserComment] = useState('')
-  const [userPhotoUrl, setUserPhotoUrl] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [filePreview, setFilePreview] = useState<string | null>(null)
   const [submittingReview, setSubmittingReview] = useState(false)
   const [hasUserReviewed, setHasUserReviewed] = useState(false)
 
@@ -111,6 +112,14 @@ export default function ProductDetails() {
     addToCart({ ...product, price: product.price, image_url: activeImage, stock: maxStock }, qty)
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      setFilePreview(URL.createObjectURL(file))
+    }
+  }
+
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) {
@@ -122,6 +131,29 @@ export default function ProductDetails() {
 
     setSubmittingReview(true)
     try {
+      let uploadedImageUrl = null
+
+      // Upload file to Supabase Storage bucket 'review-images' if selected
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop()
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
+        const filePath = `${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('review-images')
+          .upload(filePath, selectedFile)
+
+        if (uploadError) {
+          throw new Error(`Image upload failed: ${uploadError.message}`)
+        }
+
+        const { data: publicURLData } = supabase.storage
+          .from('review-images')
+          .getPublicUrl(filePath)
+
+        uploadedImageUrl = publicURLData.publicUrl
+      }
+
       const res = await fetch('/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,13 +163,14 @@ export default function ProductDetails() {
           customer_name: user.user_metadata?.full_name || 'Verified Customer',
           rating: userRating,
           comment: userComment.trim(),
-          image_url: userPhotoUrl.trim() || null
+          image_url: uploadedImageUrl
         })
       })
       const data = await res.json()
       if (data.success) {
         setUserComment('')
-        setUserPhotoUrl('')
+        setSelectedFile(null)
+        setFilePreview(null)
         setUserRating(5)
         setHasUserReviewed(true)
         
@@ -241,7 +274,7 @@ export default function ProductDetails() {
             </div>
           </div>
 
-          {/* Review Submission Form (Locked if already reviewed) */}
+          {/* Review Submission Form */}
           {hasUserReviewed ? (
             <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 text-center text-xs font-bold text-indigo-900 mb-8">
               ✓ Thank you! You have already submitted a review for this product. Reviews cannot be edited once posted.
@@ -278,14 +311,28 @@ export default function ProductDetails() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Attach Photo of Purchased Item <span className="text-gray-400">(Optional Image URL)</span></label>
-                  <input 
-                    type="url"
-                    value={userPhotoUrl}
-                    onChange={(e) => setUserPhotoUrl(e.target.value)}
-                    placeholder="https://example.com/my-photo.jpg"
-                    className="w-full border border-gray-300 p-2.5 rounded-xl text-xs text-gray-900 bg-white focus:outline-indigo-600"
-                  />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Attach Photo of Purchased Item <span className="text-gray-400">(Optional)</span></label>
+                  <div className="flex items-center gap-3">
+                    <label className="cursor-pointer bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-2xs">
+                      + Browse File
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleFileSelect} 
+                        className="hidden" 
+                      />
+                    </label>
+                    {selectedFile && (
+                      <span className="text-xs text-indigo-700 font-semibold truncate max-w-xs">
+                        📎 {selectedFile.name}
+                      </span>
+                    )}
+                  </div>
+                  {filePreview && (
+                    <div className="mt-3 w-24 h-24 rounded-xl overflow-hidden border bg-white p-1 shadow-2xs">
+                      <img src={filePreview} alt="Preview" className="w-full h-full object-cover rounded-lg" />
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -293,7 +340,7 @@ export default function ProductDetails() {
                   disabled={submittingReview}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow transition cursor-pointer"
                 >
-                  {submittingReview ? 'Posting Review...' : 'Submit Review ✍️'}
+                  {submittingReview ? 'Uploading & Posting...' : 'Submit Review ✍️'}
                 </button>
               </form>
             </div>
@@ -315,7 +362,7 @@ export default function ProductDetails() {
                   </div>
                   <p className="text-xs text-gray-700 leading-relaxed">{rev.comment}</p>
                   {rev.image_url && (
-                    <div className="mt-2 w-28 h-28 rounded-xl overflow-hidden border bg-gray-50">
+                    <div className="mt-2 w-28 h-28 rounded-xl overflow-hidden border bg-gray-50 shadow-2xs">
                       <img src={rev.image_url} alt="Customer purchase" className="w-full h-full object-cover" />
                     </div>
                   )}
