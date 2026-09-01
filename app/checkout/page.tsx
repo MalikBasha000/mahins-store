@@ -28,6 +28,7 @@ export default function CheckoutPage() {
   const [trackingId, setTrackingId] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   // Payment Gateway Settings from Admin Dashboard
   const [paymentSettings, setPaymentSettings] = useState({
@@ -68,15 +69,12 @@ export default function CheckoutPage() {
         if (settingsData.success && settingsData.settings) {
           const cfg = settingsData.settings
           setPaymentSettings(cfg)
-
-          if (cfg.is_razorpay_enabled) setPaymentMethod('Online Gateway (Razorpay)')
-          else if (cfg.is_upi_enabled) setPaymentMethod('Direct UPI Transfer (Scan & Pay)')
-          else if (cfg.is_cod_enabled) setPaymentMethod('Cash on Delivery (COD)')
         }
 
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           setUserId(user.id)
+          setIsLoggedIn(true)
           setEmail(user.email || '')
           setName(user.user_metadata?.full_name || '')
 
@@ -98,6 +96,8 @@ export default function CheckoutPage() {
             if (data.state) setStateName(data.state)
             if (data.pincode) setPincode(data.pincode)
           }
+        } else {
+          setIsLoggedIn(false)
         }
       } catch (err) {
         console.error('Error loading checkout configuration:', err)
@@ -108,6 +108,19 @@ export default function CheckoutPage() {
 
     fetchCheckoutConfig()
   }, [supabase])
+
+  // Determine active payment method based on login status & admin settings
+  useEffect(() => {
+    const isRazorpayActive = paymentSettings.is_razorpay_enabled
+    const isUpiActive = paymentSettings.is_upi_enabled
+    // If not logged in, COD is strictly disabled
+    const isCodActive = isLoggedIn && paymentSettings.is_cod_enabled
+
+    if (isRazorpayActive) setPaymentMethod('Online Gateway (Razorpay)')
+    else if (isUpiActive) setPaymentMethod('Direct UPI Transfer (Scan & Pay)')
+    else if (isCodActive) setPaymentMethod('Cash on Delivery (COD)')
+    else setPaymentMethod('')
+  }, [paymentSettings, isLoggedIn])
 
   const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const pin = e.target.value
@@ -142,7 +155,7 @@ export default function CheckoutPage() {
     const userEmail = email.trim() || user?.email || ''
 
     if (!currentUserId) {
-      throw new Error('Please log in to complete your checkout.')
+      throw new Error('Please sign in or create an account before placing an order.')
     }
 
     const newTrackingId = generateTrackingId()
@@ -169,7 +182,6 @@ export default function CheckoutPage() {
       formatted: formattedAddress
     }
 
-    // Upsert customer address and phone in customer_addresses table
     await supabase.from('customer_addresses').upsert({
       user_id: currentUserId,
       full_name: name,
@@ -272,6 +284,11 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
+
+    if (!isLoggedIn) {
+      setErrorMsg('Please sign in or create an account before placing an order.')
+      return
+    }
 
     if (cart.length === 0) {
       setErrorMsg('Your cart is empty. Please add items before checking out.')
@@ -410,7 +427,10 @@ export default function CheckoutPage() {
     )
   }
 
-  const allDisabled = !paymentSettings.is_razorpay_enabled && !paymentSettings.is_upi_enabled && !paymentSettings.is_cod_enabled
+  const isRazorpayActive = paymentSettings.is_razorpay_enabled
+  const isUpiActive = paymentSettings.is_upi_enabled
+  const isCodActive = isLoggedIn && paymentSettings.is_cod_enabled
+  const allDisabled = !isRazorpayActive && !isUpiActive && !isCodActive
 
   return (
     <div className="min-h-screen bg-gray-50 pb-16">
@@ -430,6 +450,23 @@ export default function CheckoutPage() {
           <h2 className="text-2xl font-extrabold text-indigo-950">Secure Checkout</h2>
           <p className="text-xs text-gray-500 mt-1">Review your items and complete shipping details</p>
         </div>
+
+        {/* Sign In Prompt Banner if NOT logged in */}
+        {!isLoggedIn && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-wrap justify-between items-center gap-4">
+            <div className="text-xs font-bold text-amber-900">
+              ⚠️ You must <Link href="/login" className="text-indigo-600 underline">Sign In</Link> or <Link href="/signup" className="text-indigo-600 underline">Create an Account</Link> before placing an order. Cash on Delivery is disabled for guest checkouts.
+            </div>
+            <div className="flex gap-2">
+              <Link href="/login" className="bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl shadow transition">
+                Sign In 🔒
+              </Link>
+              <Link href="/signup" className="bg-white border border-indigo-300 text-indigo-700 font-bold text-xs px-4 py-2 rounded-xl transition">
+                Create Account
+              </Link>
+            </div>
+          </div>
+        )}
 
         {errorMsg && (
           <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-xl text-xs font-semibold border border-red-200">
@@ -587,7 +624,7 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {paymentSettings.is_razorpay_enabled && (
+                  {isRazorpayActive && (
                     <label
                       className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${
                         paymentMethod === 'Online Gateway (Razorpay)' ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'
@@ -605,7 +642,7 @@ export default function CheckoutPage() {
                     </label>
                   )}
 
-                  {paymentSettings.is_upi_enabled && (
+                  {isUpiActive && (
                     <label
                       className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${
                         paymentMethod === 'Direct UPI Transfer (Scan & Pay)' ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'
@@ -623,7 +660,7 @@ export default function CheckoutPage() {
                     </label>
                   )}
 
-                  {paymentSettings.is_cod_enabled && (
+                  {isCodActive && (
                     <label
                       className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition ${
                         paymentMethod === 'Cash on Delivery (COD)' ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-200 hover:bg-gray-50'
@@ -640,10 +677,16 @@ export default function CheckoutPage() {
                       <span className="text-xs font-bold text-gray-800">Cash on Delivery (COD)</span>
                     </label>
                   )}
+
+                  {!isLoggedIn && paymentSettings.is_cod_enabled && (
+                    <p className="text-[11px] text-amber-700 italic mt-1">
+                      ℹ️ Cash on Delivery (COD) is disabled. Please sign in to use COD.
+                    </p>
+                  )}
                 </div>
               )}
 
-              {paymentMethod === 'Direct UPI Transfer (Scan & Pay)' && paymentSettings.is_upi_enabled && (
+              {paymentMethod === 'Direct UPI Transfer (Scan & Pay)' && isUpiActive && (
                 <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 space-y-4">
                   <div className="text-center">
                     <span className="text-xs font-bold text-indigo-900 uppercase tracking-wide block mb-1">Scan QR Code with any UPI App</span>
