@@ -3,22 +3,36 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '../../../lib/supabase/client'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useCart } from '../../context/CartContext'
 
 export default function ProductDetails() {
   const params = useParams()
-  const productId = params.slug as string // This holds your product UUID now
+  const productId = params.slug as string
+  const router = useRouter()
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState<number | string>(1)
   const [activeImage, setActiveImage] = useState<string>('')
+  
+  // Reviews State
+  const [user, setUser] = useState<any>(null)
+  const [reviews, setReviews] = useState<any[]>([])
+  const [userRating, setUserRating] = useState(5)
+  const [userComment, setUserComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+
   const { addToCart } = useCart()
   const supabase = createClient()
 
   useEffect(() => {
-    const getProduct = async () => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setUser(session?.user || null)
+    }
+
+    const getProductAndReviews = async () => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -30,12 +44,26 @@ export default function ProductDetails() {
         const imgs = data.image_url ? data.image_url.split(',').map((s: string) => s.trim()) : []
         if (imgs.length > 0) setActiveImage(imgs[0])
       }
+
+      // Fetch reviews
+      try {
+        const revRes = await fetch(`/api/reviews?product_id=${productId}`)
+        const revData = await revRes.json()
+        if (revData.success) {
+          setReviews(revData.reviews)
+        }
+      } catch (err) {
+        console.error('Error fetching reviews:', err)
+      }
+
       setLoading(false)
     }
+
+    getUser()
     if (productId) {
-      getProduct()
+      getProductAndReviews()
     }
-  }, [productId])
+  }, [productId, supabase])
 
   if (loading) return <div className="p-10 text-center text-gray-500">Loading product details...</div>
   if (!product) return <div className="p-10 text-center text-gray-500">Product not found.</div>
@@ -43,7 +71,6 @@ export default function ProductDetails() {
   const images = product.image_url ? product.image_url.split(',').map((s: string) => s.trim()) : []
   const maxStock = product.stock ?? 999
 
-  // Handle quantity typing allowing a temporary empty string
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     if (val === '') {
@@ -60,7 +87,6 @@ export default function ProductDetails() {
     }
   }
 
-  // Fallback to 1 if left completely blank on blur
   const handleQuantityBlur = () => {
     if (quantity === '' || Number(quantity) < 1) {
       setQuantity(1)
@@ -70,9 +96,52 @@ export default function ProductDetails() {
   const handleAddToCart = () => {
     const finalQty = quantity === '' ? 1 : Number(quantity)
     const qty = finalQty < 1 ? 1 : finalQty
-    // Pass product with correct price and image fields to cart context
     addToCart({ ...product, price: product.price, image_url: activeImage, stock: maxStock }, qty)
   }
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) {
+      alert('Please sign in to leave a review.')
+      router.push('/login')
+      return
+    }
+    if (!userComment.trim()) return
+
+    setSubmittingReview(true)
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: product.id,
+          user_id: user.id,
+          customer_name: user.user_metadata?.full_name || 'Verified Customer',
+          rating: userRating,
+          comment: userComment.trim()
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setUserComment('')
+        setUserRating(5)
+        // Refresh reviews
+        const revRes = await fetch(`/api/reviews?product_id=${product.id}`)
+        const revData = await revRes.json()
+        if (revData.success) setReviews(revData.reviews)
+        alert('Review posted successfully!')
+      } else {
+        alert(data.error || 'Failed to post review.')
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    }
+    setSubmittingReview(false)
+  }
+
+  const averageRating = reviews.length > 0 
+    ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+    : 'No ratings yet'
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -82,9 +151,9 @@ export default function ProductDetails() {
         <div className="mt-6 grid md:grid-cols-2 gap-8">
           {/* Image Gallery */}
           <div>
-            <div className="h-80 w-full bg-gray-100 rounded-xl overflow-hidden border flex items-center justify-center mb-4">
+            <div className="h-80 w-full bg-gray-50 rounded-xl overflow-hidden border flex items-center justify-center mb-4">
               {activeImage ? (
-                <img src={activeImage} alt={product.name} className="h-full w-full object-cover" />
+                <img src={activeImage} alt={product.name} className="h-full w-full object-contain p-2" />
               ) : (
                 <span className="text-gray-400">Image Coming Soon</span>
               )}
@@ -97,7 +166,7 @@ export default function ProductDetails() {
                   <button
                     key={idx}
                     onClick={() => setActiveImage(img)}
-                    className={`h-16 w-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition ${activeImage === img ? 'border-indigo-600 scale-105' : 'border-gray-200 opacity-70'}`}
+                    className={`h-16 w-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition bg-white ${activeImage === img ? 'border-indigo-600 scale-105' : 'border-gray-200 opacity-70'}`}
                   >
                     <img src={img} alt="" className="h-full w-full object-cover" />
                   </button>
@@ -112,7 +181,13 @@ export default function ProductDetails() {
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-500">{product.category || 'Uncategorized'}</span>
               <h1 className="text-3xl font-black text-gray-900 mt-1 mb-2">{product.name}</h1>
               <p className="text-gray-600 mb-6 text-sm leading-relaxed">{product.description || 'No description available.'}</p>
-              <div className="text-3xl font-extrabold text-indigo-900 mb-6">₹{product.price}</div>
+              
+              <div className="flex items-center gap-4 mb-4">
+                <div className="text-3xl font-extrabold text-indigo-900">₹{product.price}</div>
+                <div className="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                  ⭐ {averageRating} {reviews.length > 0 && `(${reviews.length})`}
+                </div>
+              </div>
               
               <div className="mb-4">
                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${product.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -144,6 +219,77 @@ export default function ProductDetails() {
               Add to Cart
             </button>
           </div>
+        </div>
+
+        {/* Customer Reviews Section */}
+        <div className="mt-12 border-t pt-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-black text-gray-900">Customer Reviews & Ratings</h3>
+            <div className="text-sm font-bold text-indigo-900 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">
+              ⭐ {averageRating} {reviews.length > 0 && `(${reviews.length} reviews)`}
+            </div>
+          </div>
+
+          {/* Review Submission Form */}
+          <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 mb-8">
+            <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Leave a Review</h4>
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Rating</label>
+                <select 
+                  value={userRating} 
+                  onChange={(e) => setUserRating(Number(e.target.value))}
+                  className="border border-gray-300 p-2 rounded-xl text-xs bg-white text-gray-900 font-bold focus:outline-indigo-600"
+                >
+                  <option value="5">⭐⭐⭐⭐⭐ (5/5 - Excellent)</option>
+                  <option value="4">⭐⭐⭐⭐ (4/5 - Good)</option>
+                  <option value="3">⭐⭐⭐ (3/5 - Average)</option>
+                  <option value="2">⭐⭐ (2/5 - Poor)</option>
+                  <option value="1">⭐ (1/5 - Terrible)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Your Feedback</label>
+                <textarea 
+                  rows={3}
+                  required
+                  value={userComment}
+                  onChange={(e) => setUserComment(e.target.value)}
+                  placeholder="Write your experience with this component..."
+                  className="w-full border border-gray-300 p-3 rounded-xl text-xs text-gray-900 bg-white focus:outline-indigo-600"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingReview}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow transition cursor-pointer"
+              >
+                {submittingReview ? 'Posting Review...' : 'Submit Review ✍️'}
+              </button>
+            </form>
+          </div>
+
+          {/* Reviews List */}
+          {reviews.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Be the first to review this product!</p>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((rev) => (
+                <div key={rev.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-gray-900">{rev.customer_name}</span>
+                    <span className="text-[11px] text-gray-400">{new Date(rev.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <div className="text-amber-500 text-xs font-bold">
+                    {'⭐'.repeat(rev.rating)}
+                  </div>
+                  <p className="text-xs text-gray-700 leading-relaxed">{rev.comment}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

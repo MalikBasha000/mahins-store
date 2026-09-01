@@ -82,7 +82,7 @@ async function extractOrderEmail(order: any, supabaseAdmin: any): Promise<string
   return ''
 }
 
-// GET: Return all orders
+// GET: Return all orders with live product name/image syncing
 export async function GET() {
   try {
     const supabaseAdmin = getSupabaseAdmin()
@@ -96,12 +96,41 @@ export async function GET() {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
+    // Fetch all products once to map live inventory details efficiently
+    const { data: allProducts } = await supabaseAdmin.from('products').select('*')
+    const productMap: Record<string, any> = {}
+    if (allProducts) {
+      for (const p of allProducts) {
+        productMap[p.id] = p
+      }
+    }
+
     const resolvedOrders = await Promise.all(
       (orders || []).map(async (order) => {
         const resolvedEmail = await extractOrderEmail(order, supabaseAdmin)
+        
+        // Dynamically update item names & images from live inventory if available
+        let updatedItems = order.items
+        if (Array.isArray(order.items)) {
+          updatedItems = order.items.map((item: any) => {
+            const pId = item.id || item.product_id
+            const liveProd = pId ? productMap[pId] : null
+            if (liveProd) {
+              return {
+                ...item,
+                name: liveProd.name || liveProd.title || item.name,
+                price: liveProd.price ?? item.price,
+                image_url: liveProd.image_url || item.image_url,
+              }
+            }
+            return item
+          })
+        }
+
         return {
           ...order,
           customer_email: resolvedEmail || '',
+          items: updatedItems,
         }
       })
     )
@@ -312,7 +341,7 @@ export async function PATCH(req: Request) {
       message: 'Status updated successfully',
       customerEmail: customerEmail || 'None found',
     })
-  } catch (err: any) {
+  }	catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }
