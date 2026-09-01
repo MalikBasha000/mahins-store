@@ -109,11 +109,11 @@ export default function CheckoutPage() {
     fetchCheckoutConfig()
   }, [supabase])
 
-  // Determine active payment method based on login status & admin settings
+  // Determine active payment method availability
   useEffect(() => {
     const isRazorpayActive = paymentSettings.is_razorpay_enabled
     const isUpiActive = paymentSettings.is_upi_enabled
-    // If not logged in, COD is strictly disabled
+    // COD requires login
     const isCodActive = isLoggedIn && paymentSettings.is_cod_enabled
 
     if (isRazorpayActive) setPaymentMethod('Online Gateway (Razorpay)')
@@ -151,12 +151,8 @@ export default function CheckoutPage() {
 
   const processOrderSubmission = async (paymentRefId?: string) => {
     const { data: { user } } = await supabase.auth.getUser()
-    const currentUserId = user?.id || userId
+    const currentUserId = user?.id || userId || null
     const userEmail = email.trim() || user?.email || ''
-
-    if (!currentUserId) {
-      throw new Error('Please sign in or create an account before placing an order.')
-    }
 
     const newTrackingId = generateTrackingId()
     const housePlotPart = [
@@ -182,21 +178,24 @@ export default function CheckoutPage() {
       formatted: formattedAddress
     }
 
-    await supabase.from('customer_addresses').upsert({
-      user_id: currentUserId,
-      full_name: name,
-      email: userEmail,
-      phone: formattedPhone,
-      country_code: countryCode,
-      house_no: houseNo,
-      plot_no: plotNo,
-      street: street,
-      city: city,
-      district: district,
-      state: stateName,
-      pincode: pincode,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id' })
+    // Save address if logged in
+    if (currentUserId) {
+      await supabase.from('customer_addresses').upsert({
+        user_id: currentUserId,
+        full_name: name,
+        email: userEmail,
+        phone: formattedPhone,
+        country_code: countryCode,
+        house_no: houseNo,
+        plot_no: plotNo,
+        street: street,
+        city: city,
+        district: district,
+        state: stateName,
+        pincode: pincode,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' })
+    }
 
     let finalPaymentMethod = paymentMethod
     if (paymentRefId) {
@@ -209,7 +208,7 @@ export default function CheckoutPage() {
     const initialOrderStatus = paymentMethod === 'Direct UPI Transfer (Scan & Pay)' ? 'PENDING VERIFICATION' : 'Pending'
 
     const orderPayload: any = {
-      user_id: currentUserId,
+      user_id: currentUserId, // Can be null for guest checkouts
       tracking_id: newTrackingId,
       customer_name: name,
       customer_phone: formattedPhone,
@@ -285,8 +284,9 @@ export default function CheckoutPage() {
     e.preventDefault()
     setErrorMsg('')
 
-    if (!isLoggedIn) {
-      setErrorMsg('Please sign in or create an account before placing an order.')
+    // If user selects COD while not logged in, block them
+    if (paymentMethod === 'Cash on Delivery (COD)' && !isLoggedIn) {
+      setErrorMsg('Please sign in or create an account to use Cash on Delivery (COD).')
       return
     }
 
@@ -451,18 +451,15 @@ export default function CheckoutPage() {
           <p className="text-xs text-gray-500 mt-1">Review your items and complete shipping details</p>
         </div>
 
-        {/* Sign In Prompt Banner if NOT logged in */}
+        {/* Optional Sign In Banner for Guests */}
         {!isLoggedIn && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-wrap justify-between items-center gap-4">
-            <div className="text-xs font-bold text-amber-900">
-              ⚠️ You must <Link href="/login" className="text-indigo-600 underline">Sign In</Link> or <Link href="/signup" className="text-indigo-600 underline">Create an Account</Link> before placing an order. Cash on Delivery is disabled for guest checkouts.
+          <div className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-2xl flex flex-wrap justify-between items-center gap-4">
+            <div className="text-xs font-bold text-indigo-950">
+              💡 Checking out as guest? You can place prepaid orders instantly. <Link href="/login" className="text-indigo-600 underline">Sign In</Link> or <Link href="/signup" className="text-indigo-600 underline">Create an Account</Link> to unlock Cash on Delivery (COD).
             </div>
             <div className="flex gap-2">
               <Link href="/login" className="bg-indigo-600 text-white font-bold text-xs px-4 py-2 rounded-xl shadow transition">
                 Sign In 🔒
-              </Link>
-              <Link href="/signup" className="bg-white border border-indigo-300 text-indigo-700 font-bold text-xs px-4 py-2 rounded-xl transition">
-                Create Account
               </Link>
             </div>
           </div>
@@ -679,9 +676,10 @@ export default function CheckoutPage() {
                   )}
 
                   {!isLoggedIn && paymentSettings.is_cod_enabled && (
-                    <p className="text-[11px] text-amber-700 italic mt-1">
-                      ℹ️ Cash on Delivery (COD) is disabled. Please sign in to use COD.
-                    </p>
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex justify-between items-center">
+                      <span>🔒 Cash on Delivery is locked for guest checkouts.</span>
+                      <Link href="/login" className="font-bold underline text-indigo-600">Sign in to unlock COD</Link>
+                    </div>
                   )}
                 </div>
               )}
