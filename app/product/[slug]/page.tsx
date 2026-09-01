@@ -16,7 +16,7 @@ export default function ProductDetails() {
   const [quantity, setQuantity] = useState<number | string>(1)
   const [activeImage, setActiveImage] = useState<string>('')
   
-  // Reviews State
+  // Reviews & Purchase Verification State
   const [user, setUser] = useState<any>(null)
   const [reviews, setReviews] = useState<any[]>([])
   const [userRating, setUserRating] = useState(5)
@@ -25,18 +25,31 @@ export default function ProductDetails() {
   const [filePreview, setFilePreview] = useState<string | null>(null)
   const [submittingReview, setSubmittingReview] = useState(false)
   const [hasUserReviewed, setHasUserReviewed] = useState(false)
+  const [hasPurchasedProduct, setHasPurchasedProduct] = useState(false)
 
   const { addToCart } = useCart()
   const supabase = createClient()
 
   useEffect(() => {
-    const getUser = async () => {
+    const getUserAndPurchases = async (prodId: string) => {
       const { data: { session } } = await supabase.auth.getSession()
       const currentUser = session?.user || null
       setUser(currentUser)
       
-      if (currentUser && reviews.length > 0) {
-        setHasUserReviewed(reviews.some(r => r.user_id === currentUser.id))
+      if (currentUser) {
+        // Check if user has purchased this product in any past order
+        const { data: userOrders } = await supabase
+          .from('orders')
+          .select('items')
+          .eq('user_id', currentUser.id)
+
+        if (userOrders) {
+          const purchased = userOrders.some((order: any) => {
+            if (!Array.isArray(order.items)) return false
+            return order.items.some((item: any) => (item.id || item.product_id) === prodId)
+          })
+          setHasPurchasedProduct(purchased)
+        }
       }
     }
 
@@ -51,6 +64,7 @@ export default function ProductDetails() {
         setProduct(data)
         const imgs = data.image_url ? data.image_url.split(',').map((s: string) => s.trim()) : []
         if (imgs.length > 0) setActiveImage(imgs[0])
+        getUserAndPurchases(data.id)
       }
 
       try {
@@ -66,7 +80,6 @@ export default function ProductDetails() {
       setLoading(false)
     }
 
-    getUser()
     if (productId) {
       getProductAndReviews()
     }
@@ -127,13 +140,16 @@ export default function ProductDetails() {
       router.push('/login')
       return
     }
+    if (!hasPurchasedProduct) {
+      alert('Only customers who have purchased this product can leave a review.')
+      return
+    }
     if (!userComment.trim()) return
 
     setSubmittingReview(true)
     try {
       let uploadedImageUrl = null
 
-      // Upload file to Supabase Storage bucket 'review-images' if selected
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop()
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
@@ -160,7 +176,7 @@ export default function ProductDetails() {
         body: JSON.stringify({
           product_id: product.id,
           user_id: user.id,
-          customer_name: user.user_metadata?.full_name || 'Verified Customer',
+          customer_name: user.user_metadata?.full_name || 'Verified Buyer',
           rating: userRating,
           comment: userComment.trim(),
           image_url: uploadedImageUrl
@@ -274,14 +290,22 @@ export default function ProductDetails() {
             </div>
           </div>
 
-          {/* Review Submission Form */}
-          {hasUserReviewed ? (
+          {/* Review Submission Form with Purchase Verification */}
+          {!user ? (
+            <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200 text-center text-xs font-bold text-amber-900 mb-8">
+              Please <Link href="/login" className="underline text-indigo-600">sign in</Link> and purchase this item to leave a review.
+            </div>
+          ) : !hasPurchasedProduct ? (
+            <div className="bg-amber-50 p-5 rounded-2xl border border-amber-200 text-center text-xs font-bold text-amber-900 mb-8">
+              🔒 Only customers who have purchased this item can leave a review.
+            </div>
+          ) : hasUserReviewed ? (
             <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 text-center text-xs font-bold text-indigo-900 mb-8">
               ✓ Thank you! You have already submitted a review for this product. Reviews cannot be edited once posted.
             </div>
           ) : (
             <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 mb-8">
-              <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Leave a Review</h4>
+              <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Leave a Verified Purchase Review</h4>
               <form onSubmit={handleReviewSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Rating</label>
