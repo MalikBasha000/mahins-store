@@ -84,6 +84,13 @@ export default function SignupPage() {
 
       const userId = authData.user?.id
       if (userId) {
+        // Automatically link/claim past guest orders placed with this email address
+        await supabase
+          .from('orders')
+          .update({ user_id: userId })
+          .eq('customer_email', email.trim().toLowerCase())
+          .is('user_id', null)
+
         await supabase.from('customer_addresses').upsert({
           user_id: userId,
           full_name: fullName.trim(),
@@ -92,7 +99,7 @@ export default function SignupPage() {
         }, { onConflict: 'user_id' })
       }
 
-      setSuccessMsg('Account created and verified successfully!')
+      setSuccessMsg('Account created & past orders linked successfully!')
       setTimeout(() => {
         router.push('/')
         router.refresh()
@@ -115,7 +122,7 @@ export default function SignupPage() {
           {step === 'form' ? 'Create an Account' : 'Verify Your Email'}
         </h2>
         <p className="text-xs text-gray-500 text-center mb-6">
-          {step === 'form' ? 'Sign up to start shopping and tracking orders' : 'Enter the 6-digit code sent to your email'}
+          {step === 'form' ? 'Sign up to sync your guest orders and track purchases' : 'Enter the 6-digit code sent to your email'}
         </p>
 
         {errorMsg && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">{errorMsg}</div>}
@@ -222,7 +229,7 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full rounded-lg bg-green-600 py-3 font-bold text-white hover:bg-green-700 transition disabled:opacity-50 text-sm shadow cursor-pointer"
             >
-              {loading ? 'Verifying & Registering...' : 'Verify Email & Create Account ✓'}
+              {loading ? 'Verifying & Linking Orders...' : 'Verify Email & Create Account ✓'}
             </button>
 
             <button
