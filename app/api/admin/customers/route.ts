@@ -46,10 +46,15 @@ export async function GET() {
     }
 
     const customersMap = new Map<string, any>()
+    const emailToUserIdMap = new Map<string, string>()
 
     // Index registered auth users first
     for (const u of authUsers) {
       const addr = (addresses || []).find((a) => a.user_id === u.id)
+      const userEmail = (u.email || '').trim().toLowerCase()
+      if (userEmail) {
+        emailToUserIdMap.set(userEmail, u.id)
+      }
       
       const formattedAddress = addr
         ? [
@@ -78,28 +83,36 @@ export async function GET() {
       })
     }
 
-    // Aggregate orders and attach logs to each customer
+    // Aggregate orders and attach logs to each customer (matching user_id or email)
     for (const o of orders || []) {
-      const userId = o.user_id || o.tracking_id
-      let customer = customersMap.get(userId)
+      const snapshot = typeof o.shipping_address_snapshot === 'string'
+        ? JSON.parse(o.shipping_address_snapshot || '{}')
+        : (o.shipping_address_snapshot || {})
+
+      const resolvedEmail = (
+        snapshot.email ||
+        o.customer_email ||
+        o.email ||
+        ''
+      ).trim().toLowerCase()
+
+      // Determine map key: user_id if present, or check if email matches a registered user, else fallback to guest tracking ID
+      let targetKey = o.user_id
+      if (!targetKey && resolvedEmail && emailToUserIdMap.has(resolvedEmail)) {
+        targetKey = emailToUserIdMap.get(resolvedEmail)
+      }
+      if (!targetKey) {
+        targetKey = o.tracking_id || 'guest_' + o.id
+      }
+
+      let customer = customersMap.get(targetKey)
 
       if (!customer) {
-        // Handle guest or legacy order customer
-        const snapshot = typeof o.shipping_address_snapshot === 'string'
-          ? JSON.parse(o.shipping_address_snapshot || '{}')
-          : (o.shipping_address_snapshot || {})
-
-        const resolvedEmail =
-          snapshot.email ||
-          o.customer_email ||
-          o.email ||
-          ''
-
         customer = {
-          id: userId,
+          id: targetKey,
           name: o.customer_name || snapshot.full_name || 'Guest Customer',
           email: resolvedEmail,
-          phone: snapshot.phone || 'N/A',
+          phone: snapshot.phone || o.customer_phone || 'N/A',
           current_profile_address: o.shipping_address || 'N/A',
           raw_address: snapshot || null,
           total_orders_count: 0,
@@ -107,7 +120,7 @@ export async function GET() {
           order_logs: [],
           created_at: o.created_at,
         }
-        customersMap.set(userId, customer)
+        customersMap.set(targetKey, customer)
       }
 
       const orderTotal = Number(o.total_amount || o.final_payable_amount || 0)

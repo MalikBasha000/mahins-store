@@ -26,14 +26,26 @@ export default function CustomerOrdersPage() {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
+      const userEmail = (user.email || '').trim().toLowerCase()
+
+      // Fetch orders matching user_id OR customer_email to sync past guest orders
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .eq('user_id', user.id)
+        .or(`user_id.eq.${user.id},customer_email.ilike.${userEmail}`)
         .order('created_at', { ascending: false })
 
       if (data) {
         setOrders(data)
+        
+        // Automatically claim unclaimed guest orders matching this email
+        const unclaimed = data.filter(o => !o.user_id)
+        if (unclaimed.length > 0) {
+          await supabase
+            .from('orders')
+            .update({ user_id: user.id })
+            .in('id', unclaimed.map(o => o.id))
+        }
         
         // Fetch live product details to sync updated names and images dynamically
         const prodMap: Record<string, any> = {}
