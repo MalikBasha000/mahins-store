@@ -60,24 +60,20 @@ export default function CheckoutPage() {
     script.async = true
     document.body.appendChild(script)
 
-    // Fetch store payment settings & customer profile
     const fetchCheckoutConfig = async () => {
       setDataLoading(true)
       try {
-        // Fetch payment settings
         const settingsRes = await fetch('/api/settings')
         const settingsData = await settingsRes.json()
         if (settingsData.success && settingsData.settings) {
           const cfg = settingsData.settings
           setPaymentSettings(cfg)
 
-          // Set default payment method to the first available enabled option
           if (cfg.is_razorpay_enabled) setPaymentMethod('Online Gateway (Razorpay)')
           else if (cfg.is_upi_enabled) setPaymentMethod('Direct UPI Transfer (Scan & Pay)')
           else if (cfg.is_cod_enabled) setPaymentMethod('Cash on Delivery (COD)')
         }
 
-        // Fetch customer profile
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           setUserId(user.id)
@@ -173,6 +169,23 @@ export default function CheckoutPage() {
       formatted: formattedAddress
     }
 
+    // Upsert customer address and phone in customer_addresses table
+    await supabase.from('customer_addresses').upsert({
+      user_id: currentUserId,
+      full_name: name,
+      email: userEmail,
+      phone: formattedPhone,
+      country_code: countryCode,
+      house_no: houseNo,
+      plot_no: plotNo,
+      street: street,
+      city: city,
+      district: district,
+      state: stateName,
+      pincode: pincode,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' })
+
     let finalPaymentMethod = paymentMethod
     if (paymentRefId) {
       finalPaymentMethod = `${paymentMethod} (Paid - ID: ${paymentRefId})`
@@ -187,6 +200,7 @@ export default function CheckoutPage() {
       user_id: currentUserId,
       tracking_id: newTrackingId,
       customer_name: name,
+      customer_phone: formattedPhone,
       shipping_address: formattedAddress,
       shipping_address_snapshot: addressSnapshotObj,
       payment_method: finalPaymentMethod,
@@ -266,6 +280,11 @@ export default function CheckoutPage() {
 
     if (!email || !email.trim()) {
       setErrorMsg('Please enter a valid email address.')
+      return
+    }
+
+    if (!phone || phone.trim().length < 10) {
+      setErrorMsg('Please enter a valid mobile number.')
       return
     }
 
@@ -391,7 +410,6 @@ export default function CheckoutPage() {
     )
   }
 
-  // Check if ALL payment methods are disabled
   const allDisabled = !paymentSettings.is_razorpay_enabled && !paymentSettings.is_upi_enabled && !paymentSettings.is_cod_enabled
 
   return (
@@ -625,7 +643,6 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Secure Direct UPI Scanner & Optional UTR Section */}
               {paymentMethod === 'Direct UPI Transfer (Scan & Pay)' && paymentSettings.is_upi_enabled && (
                 <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 space-y-4">
                   <div className="text-center">
@@ -663,7 +680,6 @@ export default function CheckoutPage() {
             </form>
           </div>
 
-          {/* Sidebar */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 h-fit">
             <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-3 mb-4">
               Order Summary ({cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)} items)
