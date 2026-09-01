@@ -24,7 +24,7 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers' | 'payments'>('analytics')
+  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers' | 'payments' | 'reviews'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -37,6 +37,12 @@ export default function AdminPage() {
     is_cod_enabled: true,
     cod_message: 'Payments not accepting currently'
   })
+
+  // Reviews Moderation State
+  const [adminReviews, setAdminReviews] = useState<any[]>([])
+  const [editingReview, setReviewEditing] = useState<any | null>(null)
+  const [editReviewComment, setEditReviewComment] = useState('')
+  const [editReviewRating, setEditReviewRating] = useState(5)
 
   // Inventory Products State
   const [products, setProducts] = useState<any[]>([])
@@ -105,6 +111,9 @@ export default function AdminPage() {
     if (isAdminAuthenticated && activeTab === 'payments') {
       fetchPaymentSettings()
     }
+    if (isAdminAuthenticated && activeTab === 'reviews') {
+      fetchAdminReviews()
+    }
   }, [activeTab, isAdminAuthenticated])
 
   const fetchPaymentSettings = async () => {
@@ -116,6 +125,57 @@ export default function AdminPage() {
       }
     } catch (err) {
       console.error('Failed to load payment settings', err)
+    }
+  }
+
+  const fetchAdminReviews = async () => {
+    try {
+      const res = await fetch('/api/reviews?admin_fetch=true')
+      const data = await res.json()
+      if (data.success) {
+        setAdminReviews(data.reviews)
+      }
+    } catch (err) {
+      console.error('Failed to load reviews', err)
+    }
+  }
+
+  const handleAdminDeleteReview = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this review?')) return
+    try {
+      const res = await fetch(`/api/reviews?id=${id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        fetchAdminReviews()
+        alert('Review deleted successfully.')
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    }
+  }
+
+  const handleAdminUpdateReview = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingReview) return
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviewId: editingReview.id,
+          rating: editReviewRating,
+          comment: editReviewComment.trim(),
+          image_url: editingReview.image_url
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setReviewEditing(null)
+        fetchAdminReviews()
+        alert('Review updated successfully!')
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
     }
   }
 
@@ -469,7 +529,7 @@ export default function AdminPage() {
     let hash2 = 52711
     for (let i = 0; i < id.length; i++) {
       const char = id.charCodeAt(i)
-      hash1 = (hash1 * 33) ^ char
+      hash1 = (hash1 * 33) ^ hash2
       hash2 = (hash2 * 33) ^ char
     }
     const combined = Math.abs(hash1).toString().padStart(6, '0') + Math.abs(hash2).toString().padStart(6, '0')
@@ -995,7 +1055,119 @@ export default function AdminPage() {
           >
             💳 Payments
           </button>
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer flex items-center gap-2 ${
+              activeTab === 'reviews' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
+            }`}
+          >
+            ⭐ Reviews Moderation
+          </button>
         </div>
+
+        {/* ----------------- TAB: REVIEWS MODERATION ----------------- */}
+        {activeTab === 'reviews' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">⭐ Customer Reviews Moderation</h2>
+              <p className="text-xs text-gray-500 mt-1">Review feedback, edit comments, or delete inappropriate reviews.</p>
+            </div>
+
+            {adminReviews.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-12 text-center">No customer reviews submitted yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {adminReviews.map((rev) => (
+                  <div key={rev.id} className="bg-gray-50 p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs font-bold text-gray-900">{rev.customer_name}</span>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded">Product: {rev.products?.name || 'Item'}</span>
+                        <span className="text-xs text-amber-500 font-bold">{'⭐'.repeat(rev.rating)}</span>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed">{rev.comment}</p>
+                      {rev.image_url && (
+                        <a href={rev.image_url} target="_blank" rel="noreferrer" className="text-[11px] text-indigo-600 font-bold hover:underline block">
+                          📷 View Attached Customer Photo
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setReviewEditing(rev)
+                          setEditReviewComment(rev.comment)
+                          setEditReviewRating(rev.rating)
+                        }}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2 rounded-xl transition border border-indigo-200 cursor-pointer"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={() => handleAdminDeleteReview(rev.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3.5 py-2 rounded-xl transition border border-red-200 cursor-pointer"
+                      >
+                        Delete ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Admin Edit Review Modal */}
+            {editingReview && (
+              <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative">
+                  <h3 className="text-base font-black text-indigo-950 mb-4">Edit Customer Review</h3>
+                  <form onSubmit={handleAdminUpdateReview} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Rating</label>
+                      <select 
+                        value={editReviewRating} 
+                        onChange={(e) => setEditReviewRating(Number(e.target.value))}
+                        className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold w-full"
+                      >
+                        <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                        <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                        <option value="3">⭐⭐⭐ (3/5)</option>
+                        <option value="2">⭐⭐ (2/5)</option>
+                        <option value="1">⭐ (1/5)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Comment</label>
+                      <textarea 
+                        rows={4}
+                        value={editReviewComment}
+                        onChange={(e) => setEditReviewComment(e.target.value)}
+                        className="w-full border border-gray-300 p-3 rounded-xl text-xs text-gray-900 bg-white"
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewEditing(null)}
+                        className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ----------------- TAB: PAYMENTS MANAGEMENT ----------------- */}
         {activeTab === 'payments' && (
@@ -1006,7 +1178,6 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleSavePaymentSettings} className="space-y-6">
-              {/* Razorpay Toggle */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200">
                 <div>
                   <h4 className="text-sm font-bold text-gray-900">Razorpay Gateway</h4>
@@ -1023,7 +1194,6 @@ export default function AdminPage() {
                 </label>
               </div>
 
-              {/* Direct UPI Toggle */}
               <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200">
                 <div>
                   <h4 className="text-sm font-bold text-gray-900">Direct UPI / QR Transfer</h4>
@@ -1040,7 +1210,6 @@ export default function AdminPage() {
                 </label>
               </div>
 
-              {/* COD Toggle & Custom Message */}
               <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>

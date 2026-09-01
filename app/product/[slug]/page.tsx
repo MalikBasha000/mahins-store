@@ -21,7 +21,9 @@ export default function ProductDetails() {
   const [reviews, setReviews] = useState<any[]>([])
   const [userRating, setUserRating] = useState(5)
   const [userComment, setUserComment] = useState('')
+  const [userPhotoUrl, setUserPhotoUrl] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
+  const [hasUserReviewed, setHasUserReviewed] = useState(false)
 
   const { addToCart } = useCart()
   const supabase = createClient()
@@ -29,7 +31,12 @@ export default function ProductDetails() {
   useEffect(() => {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user || null)
+      const currentUser = session?.user || null
+      setUser(currentUser)
+      
+      if (currentUser && reviews.length > 0) {
+        setHasUserReviewed(reviews.some(r => r.user_id === currentUser.id))
+      }
     }
 
     const getProductAndReviews = async () => {
@@ -45,7 +52,6 @@ export default function ProductDetails() {
         if (imgs.length > 0) setActiveImage(imgs[0])
       }
 
-      // Fetch reviews
       try {
         const revRes = await fetch(`/api/reviews?product_id=${productId}`)
         const revData = await revRes.json()
@@ -64,6 +70,12 @@ export default function ProductDetails() {
       getProductAndReviews()
     }
   }, [productId, supabase])
+
+  useEffect(() => {
+    if (user && reviews.length > 0) {
+      setHasUserReviewed(reviews.some(r => r.user_id === user.id))
+    }
+  }, [user, reviews])
 
   if (loading) return <div className="p-10 text-center text-gray-500">Loading product details...</div>
   if (!product) return <div className="p-10 text-center text-gray-500">Product not found.</div>
@@ -118,14 +130,17 @@ export default function ProductDetails() {
           user_id: user.id,
           customer_name: user.user_metadata?.full_name || 'Verified Customer',
           rating: userRating,
-          comment: userComment.trim()
+          comment: userComment.trim(),
+          image_url: userPhotoUrl.trim() || null
         })
       })
       const data = await res.json()
       if (data.success) {
         setUserComment('')
+        setUserPhotoUrl('')
         setUserRating(5)
-        // Refresh reviews
+        setHasUserReviewed(true)
+        
         const revRes = await fetch(`/api/reviews?product_id=${product.id}`)
         const revData = await revRes.json()
         if (revData.success) setReviews(revData.reviews)
@@ -149,7 +164,6 @@ export default function ProductDetails() {
         <Link href="/" className="text-sm font-semibold text-indigo-600 hover:underline">← Back to Store</Link>
         
         <div className="mt-6 grid md:grid-cols-2 gap-8">
-          {/* Image Gallery */}
           <div>
             <div className="h-80 w-full bg-gray-50 rounded-xl overflow-hidden border flex items-center justify-center mb-4">
               {activeImage ? (
@@ -159,7 +173,6 @@ export default function ProductDetails() {
               )}
             </div>
             
-            {/* Thumbnails */}
             {images.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {images.map((img: string, idx: number) => (
@@ -175,7 +188,6 @@ export default function ProductDetails() {
             )}
           </div>
 
-          {/* Details */}
           <div className="flex flex-col justify-between">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-indigo-500">{product.category || 'Uncategorized'}</span>
@@ -195,7 +207,6 @@ export default function ProductDetails() {
                 </span>
               </div>
 
-              {/* Quantity Input Box */}
               <div className="mb-6 flex items-center gap-4">
                 <label htmlFor="quantity" className="text-sm font-medium text-gray-700">Quantity:</label>
                 <input
@@ -230,46 +241,63 @@ export default function ProductDetails() {
             </div>
           </div>
 
-          {/* Review Submission Form */}
-          <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 mb-8">
-            <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Leave a Review</h4>
-            <form onSubmit={handleReviewSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Rating</label>
-                <select 
-                  value={userRating} 
-                  onChange={(e) => setUserRating(Number(e.target.value))}
-                  className="border border-gray-300 p-2 rounded-xl text-xs bg-white text-gray-900 font-bold focus:outline-indigo-600"
+          {/* Review Submission Form (Locked if already reviewed) */}
+          {hasUserReviewed ? (
+            <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 text-center text-xs font-bold text-indigo-900 mb-8">
+              ✓ Thank you! You have already submitted a review for this product. Reviews cannot be edited once posted.
+            </div>
+          ) : (
+            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 mb-8">
+              <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">Leave a Review</h4>
+              <form onSubmit={handleReviewSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Rating</label>
+                  <select 
+                    value={userRating} 
+                    onChange={(e) => setUserRating(Number(e.target.value))}
+                    className="border border-gray-300 p-2 rounded-xl text-xs bg-white text-gray-900 font-bold focus:outline-indigo-600"
+                  >
+                    <option value="5">⭐⭐⭐⭐⭐ (5/5 - Excellent)</option>
+                    <option value="4">⭐⭐⭐⭐ (4/5 - Good)</option>
+                    <option value="3">⭐⭐⭐ (3/5 - Average)</option>
+                    <option value="2">⭐⭐ (2/5 - Poor)</option>
+                    <option value="1">⭐ (1/5 - Terrible)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Your Feedback</label>
+                  <textarea 
+                    rows={3}
+                    required
+                    value={userComment}
+                    onChange={(e) => setUserComment(e.target.value)}
+                    placeholder="Write your experience with this component..."
+                    className="w-full border border-gray-300 p-3 rounded-xl text-xs text-gray-900 bg-white focus:outline-indigo-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Attach Photo of Purchased Item <span className="text-gray-400">(Optional Image URL)</span></label>
+                  <input 
+                    type="url"
+                    value={userPhotoUrl}
+                    onChange={(e) => setUserPhotoUrl(e.target.value)}
+                    placeholder="https://example.com/my-photo.jpg"
+                    className="w-full border border-gray-300 p-2.5 rounded-xl text-xs text-gray-900 bg-white focus:outline-indigo-600"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submittingReview}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow transition cursor-pointer"
                 >
-                  <option value="5">⭐⭐⭐⭐⭐ (5/5 - Excellent)</option>
-                  <option value="4">⭐⭐⭐⭐ (4/5 - Good)</option>
-                  <option value="3">⭐⭐⭐ (3/5 - Average)</option>
-                  <option value="2">⭐⭐ (2/5 - Poor)</option>
-                  <option value="1">⭐ (1/5 - Terrible)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Your Feedback</label>
-                <textarea 
-                  rows={3}
-                  required
-                  value={userComment}
-                  onChange={(e) => setUserComment(e.target.value)}
-                  placeholder="Write your experience with this component..."
-                  className="w-full border border-gray-300 p-3 rounded-xl text-xs text-gray-900 bg-white focus:outline-indigo-600"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingReview}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow transition cursor-pointer"
-              >
-                {submittingReview ? 'Posting Review...' : 'Submit Review ✍️'}
-              </button>
-            </form>
-          </div>
+                  {submittingReview ? 'Posting Review...' : 'Submit Review ✍️'}
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Reviews List */}
           {reviews.length === 0 ? (
@@ -277,7 +305,7 @@ export default function ProductDetails() {
           ) : (
             <div className="space-y-4">
               {reviews.map((rev) => (
-                <div key={rev.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-2">
+                <div key={rev.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-gray-900">{rev.customer_name}</span>
                     <span className="text-[11px] text-gray-400">{new Date(rev.created_at).toLocaleDateString()}</span>
@@ -286,6 +314,11 @@ export default function ProductDetails() {
                     {'⭐'.repeat(rev.rating)}
                   </div>
                   <p className="text-xs text-gray-700 leading-relaxed">{rev.comment}</p>
+                  {rev.image_url && (
+                    <div className="mt-2 w-28 h-28 rounded-xl overflow-hidden border bg-gray-50">
+                      <img src={rev.image_url} alt="Customer purchase" className="w-full h-full object-cover" />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
