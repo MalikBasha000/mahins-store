@@ -70,8 +70,10 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
+      const cleanEmail = email.trim().toLowerCase()
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: cleanEmail,
         password,
         options: {
           data: {
@@ -84,17 +86,20 @@ export default function SignupPage() {
 
       const userId = authData.user?.id
       if (userId) {
-        // Automatically link/claim past guest orders placed with this email address
-        await supabase
+        // Robustly claim all past guest orders matching this email
+        const { error: claimError } = await supabase
           .from('orders')
           .update({ user_id: userId })
-          .eq('customer_email', email.trim().toLowerCase())
-          .is('user_id', null)
+          .eq('customer_email', cleanEmail)
+
+        if (claimError) {
+          console.error('Error claiming past orders:', claimError.message)
+        }
 
         await supabase.from('customer_addresses').upsert({
           user_id: userId,
           full_name: fullName.trim(),
-          email: email.trim(),
+          email: cleanEmail,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' })
       }
