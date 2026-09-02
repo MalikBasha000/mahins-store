@@ -14,15 +14,25 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const userId = searchParams.get('userId')
-    const email = searchParams.get('email')?.trim().toLowerCase()
 
-    if (!userId && !email) {
-      return NextResponse.json({ success: false, error: 'Missing user credentials' }, { status: 400 })
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'Missing userId' }, { status: 400 })
     }
 
     const supabaseAdmin = getSupabaseAdmin()
 
-    // Fetch all orders to evaluate matching safely on the server side
+    // 1. Get the user's registered email directly from Supabase Auth Admin
+    let userEmail = ''
+    try {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
+      if (userData?.user?.email) {
+        userEmail = userData.user.email.trim().toLowerCase()
+      }
+    } catch (e) {
+      console.error('Error fetching user email from admin:', e)
+    }
+
+    // 2. Fetch all orders from the database
     const { data: allOrders, error } = await supabaseAdmin
       .from('orders')
       .select('*')
@@ -30,7 +40,7 @@ export async function GET(req: Request) {
 
     if (error) throw error
 
-    // Filter orders belonging to this user ID or matching their email address
+    // 3. Find matching orders (either matching user_id OR matching email)
     const matchedOrders = (allOrders || []).filter(o => {
       if (o.user_id === userId) return true
 
@@ -40,15 +50,15 @@ export async function GET(req: Request) {
 
       const orderEmail = (o.customer_email || snapshot.email || snapshot.customer_email || '').trim().toLowerCase()
 
-      if (!o.user_id && email && orderEmail === email) {
+      if (userEmail && orderEmail === userEmail) {
         return true
       }
 
       return false
     })
 
-    // Automatically claim/link any unassigned guest orders matching this email
-    if (userId && email) {
+    // 4. Automatically claim/link any unassigned guest orders to this user ID
+    if (userId) {
       const unclaimedIds = matchedOrders.filter(o => !o.user_id).map(o => o.id)
       if (unclaimedIds.length > 0) {
         await supabaseAdmin
