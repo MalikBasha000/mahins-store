@@ -96,6 +96,11 @@ export default function HomePage() {
           </h1>
 
           <div className="flex items-center gap-3 flex-wrap justify-end">
+            {/* Track Order Link Added Here */}
+            <Link href="/track" className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200">
+              📦 Track Order
+            </Link>
+
             <Link href="/wishlist" className="relative flex items-center gap-1.5 rounded-lg bg-pink-50 px-3 py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200">
               ★ Wishlist
               {wishlist.length > 0 && (
