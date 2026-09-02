@@ -34,7 +34,7 @@ export async function GET() {
       .from('customer_addresses')
       .select('*')
 
-    // 3. Fetch all registered auth users
+    // 3. Fetch all registered auth users safely
     let authUsers: any[] = []
     try {
       const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
@@ -42,7 +42,7 @@ export async function GET() {
         authUsers = usersData.users
       }
     } catch (e) {
-      console.error('Error fetching auth users:', e)
+      console.error('Error fetching auth users list:', e)
     }
 
     const customersMap = new Map<string, any>()
@@ -83,7 +83,7 @@ export async function GET() {
       })
     }
 
-    // Aggregate orders and attach logs to each customer (matching user_id or email)
+    // 4. Aggregate orders and attach logs (matching user_id or email, or creating profiles for guests)
     for (const o of orders || []) {
       const snapshot = typeof o.shipping_address_snapshot === 'string'
         ? JSON.parse(o.shipping_address_snapshot || '{}')
@@ -91,18 +91,18 @@ export async function GET() {
 
       const resolvedEmail = (
         snapshot.email ||
+        snapshot.customer_email ||
         o.customer_email ||
         o.email ||
         ''
       ).trim().toLowerCase()
 
-      // Determine map key: user_id if present, or check if email matches a registered user, else fallback to guest tracking ID
       let targetKey = o.user_id
       if (!targetKey && resolvedEmail && emailToUserIdMap.has(resolvedEmail)) {
         targetKey = emailToUserIdMap.get(resolvedEmail)
       }
       if (!targetKey) {
-        targetKey = o.tracking_id || 'guest_' + o.id
+        targetKey = resolvedEmail ? `email_${resolvedEmail}` : (o.tracking_id || 'guest_' + o.id)
       }
 
       let customer = customersMap.get(targetKey)
@@ -110,7 +110,7 @@ export async function GET() {
       if (!customer) {
         customer = {
           id: targetKey,
-          name: o.customer_name || snapshot.full_name || 'Guest Customer',
+          name: o.customer_name || snapshot.full_name || 'Guest / Customer',
           email: resolvedEmail,
           phone: snapshot.phone || o.customer_phone || 'N/A',
           current_profile_address: o.shipping_address || 'N/A',
