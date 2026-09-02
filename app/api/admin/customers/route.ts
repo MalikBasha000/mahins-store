@@ -34,7 +34,7 @@ export async function GET() {
       .from('customer_addresses')
       .select('*')
 
-    // 3. Fetch all registered auth users safely
+    // 3. Safely fetch registered auth users (won't crash if unprivileged)
     let authUsers: any[] = []
     try {
       const { data: usersData } = await supabaseAdmin.auth.admin.listUsers()
@@ -42,7 +42,7 @@ export async function GET() {
         authUsers = usersData.users
       }
     } catch (e) {
-      console.error('Error fetching auth users list:', e)
+      console.error('Auth admin listUsers skipped or failed:', e)
     }
 
     const customersMap = new Map<string, any>()
@@ -83,11 +83,16 @@ export async function GET() {
       })
     }
 
-    // 4. Aggregate orders and attach logs (matching user_id or email, or creating profiles for guests)
+    // 4. Aggregate EVERY order into customer profiles (matches user_id, email, or groups guests)
     for (const o of orders || []) {
-      const snapshot = typeof o.shipping_address_snapshot === 'string'
-        ? JSON.parse(o.shipping_address_snapshot || '{}')
-        : (o.shipping_address_snapshot || {})
+      let snapshot: any = {}
+      try {
+        snapshot = typeof o.shipping_address_snapshot === 'string'
+          ? JSON.parse(o.shipping_address_snapshot || '{}')
+          : (o.shipping_address_snapshot || {})
+      } catch (err) {
+        snapshot = {}
+      }
 
       const resolvedEmail = (
         snapshot.email ||
@@ -108,12 +113,15 @@ export async function GET() {
       let customer = customersMap.get(targetKey)
 
       if (!customer) {
+        // Find if any saved address matches this customer
+        const matchingAddr = (addresses || []).find(a => a.user_id === o.user_id)
+        
         customer = {
           id: targetKey,
-          name: o.customer_name || snapshot.full_name || 'Guest / Customer',
+          name: o.customer_name || snapshot.full_name || 'Valued Customer',
           email: resolvedEmail,
-          phone: snapshot.phone || o.customer_phone || 'N/A',
-          current_profile_address: o.shipping_address || 'N/A',
+          phone: snapshot.phone || o.customer_phone || matchingAddr?.phone || 'N/A',
+          current_profile_address: o.shipping_address || 'No dynamic address saved in profile yet',
           raw_address: snapshot || null,
           total_orders_count: 0,
           total_spent: 0,
