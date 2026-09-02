@@ -90,10 +90,12 @@ export default function HomePage() {
       {/* Header strictly single-line flex container */}
       <header className="bg-white px-6 lg:px-12 py-5 shadow-sm sticky top-0 z-50">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 flex-nowrap">
-          {/* Brand Name */}
-          <h1 className="text-xl sm:text-2xl font-black text-indigo-900 tracking-tight whitespace-nowrap shrink-0">
-            Mahin's One-Stop One-Store
-          </h1>
+          {/* Brand Name wrapped with Link to Home */}
+          <Link href="/" className="hover:opacity-90 transition cursor-pointer shrink-0">
+            <h1 className="text-xl sm:text-2xl font-black text-indigo-900 tracking-tight whitespace-nowrap">
+              Mahin's One-Stop One-Store
+            </h1>
+          </Link>
 
           {/* Navigation Controls in a Single Line */}
           <div className="flex items-center gap-3 shrink-0">
