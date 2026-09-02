@@ -6,8 +6,6 @@ import { useSearchParams } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
 
-export const dynamic = 'force-dynamic'
-
 function TrackContent() {
   const supabase = createClient()
   const searchParams = useSearchParams()
@@ -66,6 +64,7 @@ function TrackContent() {
 
   useEffect(() => {
     if (initialId) {
+      setTrackingIdInput(initialId)
       handleSearchTracking(initialId)
     }
   }, [initialId])
@@ -225,7 +224,7 @@ function TrackContent() {
               <p className="text-xs font-medium text-gray-800 leading-relaxed">{order.shipping_address}</p>
             </div>
 
-            {/* Items Ordered List with Proper Block Stacking to Prevent Overlap */}
+            {/* Items Ordered List */}
             <div>
               <h3 className="text-xs font-extrabold text-gray-800 uppercase tracking-wider mb-3">Items Ordered</h3>
               <div className="space-y-3">
