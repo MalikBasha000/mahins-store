@@ -22,24 +22,34 @@ export async function GET(req: Request) {
 
     const supabaseAdmin = getSupabaseAdmin()
 
-    // Query orders matching user_id OR customer_email
-    let query = supabaseAdmin.from('orders').select('*')
-
-    if (userId && email) {
-      query = query.or(`user_id.eq.${userId},customer_email.ilike.${email}`)
-    } else if (userId) {
-      query = query.eq('user_id', userId)
-    } else if (email) {
-      query = query.ilike('customer_email', email)
-    }
-
-    const { data: orders, error } = await query.order('created_at', { ascending: false })
+    // Fetch all orders to evaluate matching safely on the server side
+    const { data: allOrders, error } = await supabaseAdmin
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false })
 
     if (error) throw error
 
-    // Automatically claim/link any unassigned guest orders to this user ID
-    if (userId && orders) {
-      const unclaimedIds = orders.filter(o => !o.user_id).map(o => o.id)
+    // Filter orders belonging to this user ID or matching their email address
+    const matchedOrders = (allOrders || []).filter(o => {
+      if (o.user_id === userId) return true
+
+      const snapshot = typeof o.shipping_address_snapshot === 'string'
+        ? JSON.parse(o.shipping_address_snapshot || '{}')
+        : (o.shipping_address_snapshot || {})
+
+      const orderEmail = (o.customer_email || snapshot.email || snapshot.customer_email || '').trim().toLowerCase()
+
+      if (!o.user_id && email && orderEmail === email) {
+        return true
+      }
+
+      return false
+    })
+
+    // Automatically claim/link any unassigned guest orders matching this email
+    if (userId && email) {
+      const unclaimedIds = matchedOrders.filter(o => !o.user_id).map(o => o.id)
       if (unclaimedIds.length > 0) {
         await supabaseAdmin
           .from('orders')
@@ -48,7 +58,7 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({ success: true, orders: orders || [] })
+    return NextResponse.json({ success: true, orders: matchedOrders })
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
