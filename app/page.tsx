@@ -42,7 +42,6 @@ export default function HomePage() {
       } else if (data) {
         setProducts(data)
         
-        // Normalize categories to lowercase & trim to prevent duplicate casing pills (e.g., "processor" vs "PROCESSOR")
         const uniqueCategories = ['All', ...Array.from(new Set(data.map(p => (p.category ? p.category.trim().toLowerCase() : 'uncategorized'))))]
         setCategories(uniqueCategories as string[])
       }
@@ -69,7 +68,6 @@ export default function HomePage() {
     setSubmittedQuery('')
   }
 
-  // Filter products matching normalized category and search query
   const filteredProducts = products.filter((product) => {
     const productCat = product.category ? product.category.trim().toLowerCase() : 'uncategorized'
     const matchesCategory = selectedCategory === 'All' || productCat === selectedCategory
@@ -89,19 +87,21 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white px-8 py-6 shadow-sm sticky top-0 z-50">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-indigo-900 truncate">
+      {/* Header strictly single-line flex container */}
+      <header className="bg-white px-6 lg:px-12 py-5 shadow-sm sticky top-0 z-50">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 flex-nowrap">
+          {/* Brand Name */}
+          <h1 className="text-xl sm:text-2xl font-black text-indigo-900 tracking-tight whitespace-nowrap shrink-0">
             Mahin's One-Stop One-Store
           </h1>
 
-          <div className="flex items-center gap-3 flex-wrap justify-end">
-            {/* Track Order Link Added Here */}
-            <Link href="/track" className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200">
+          {/* Navigation Controls in a Single Line */}
+          <div className="flex items-center gap-3 shrink-0">
+            <Link href="/track" className="flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200 whitespace-nowrap">
               📦 Track Order
             </Link>
 
-            <Link href="/wishlist" className="relative flex items-center gap-1.5 rounded-lg bg-pink-50 px-3 py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200">
+            <Link href="/wishlist" className="relative flex items-center gap-1.5 rounded-xl bg-pink-50 px-3.5 py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200 whitespace-nowrap">
               ★ Wishlist
               {wishlist.length > 0 && (
                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-[10px] text-white">
@@ -110,54 +110,45 @@ export default function HomePage() {
               )}
             </Link>
 
-            <Link href="/cart" className="relative flex items-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 text-indigo-600 font-semibold hover:bg-indigo-100 transition">
+            <Link href="/cart" className="relative flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-2 text-indigo-600 font-semibold hover:bg-indigo-100 transition border border-indigo-100 whitespace-nowrap">
               🛒 Cart
               {totalItems > 0 && (
-                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white font-bold">
                   {totalItems}
                 </span>
               )}
             </Link>
 
             {user ? (
-              <div className="flex items-center gap-3 border-l pl-4 border-gray-200">
-                <span className="text-sm text-gray-600 font-medium hidden md:inline">
+              <div className="flex items-center gap-3 border-l pl-4 border-gray-200 shrink-0">
+                <span className="text-xs text-gray-600 font-medium hidden xl:inline truncate max-w-[120px]">
                   Hi, {user.user_metadata?.full_name || 'Customer'}
                 </span>
                 
-                <Link 
-                  href="/orders" 
-                  className="rounded-lg bg-green-50 px-3 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-100"
-                >
+                <Link href="/orders" className="rounded-xl bg-green-50 px-3 py-2 text-xs font-bold text-green-700 transition hover:bg-green-100 whitespace-nowrap">
                   📦 Your Orders
                 </Link>
 
-                <Link 
-                  href="/profile" 
-                  className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                >
+                <Link href="/profile" className="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 whitespace-nowrap">
                   Your Profile
                 </Link>
                 
-                <button 
-                  onClick={handleSignOut}
-                  className="rounded-lg bg-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-300"
-                >
+                <button onClick={handleSignOut} className="rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-200 whitespace-nowrap cursor-pointer">
                   Sign Out
                 </button>
               </div>
             ) : (
-              <div className="flex gap-3 border-l pl-4 border-gray-200">
-                <Link href="/login" className="font-medium text-indigo-600 hover:underline">Sign In</Link>
+              <div className="flex items-center gap-3 border-l pl-4 border-gray-200 shrink-0">
+                <Link href="/login" className="text-xs font-bold text-indigo-600 hover:underline whitespace-nowrap">Sign In</Link>
                 <span className="text-gray-300">|</span>
-                <Link href="/signup" className="font-medium text-indigo-600 hover:underline">Create Account</Link>
+                <Link href="/signup" className="text-xs font-bold text-indigo-600 hover:underline whitespace-nowrap">Create Account</Link>
               </div>
             )}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl p-8">
+      <main className="mx-auto max-w-7xl p-8">
         {/* Search Bar & Category Filter Section */}
         <div className="mb-6 space-y-4">
           <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 max-w-md">
@@ -170,25 +161,18 @@ export default function HomePage() {
                 className="w-full border border-gray-300 bg-white px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal shadow-sm focus:border-indigo-600 focus:outline-none pr-8"
               />
               {searchInput && (
-                <button 
-                  type="button"
-                  onClick={handleClearSearch}
-                  className="absolute right-3 top-2.5 text-xs font-bold text-gray-400 hover:text-gray-700"
-                >
+                <button type="button" onClick={handleClearSearch} className="absolute right-3 top-2.5 text-xs font-bold text-gray-400 hover:text-gray-700">
                   ✕
                 </button>
               )}
             </div>
             
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-sm transition whitespace-nowrap cursor-pointer"
-            >
+            <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-sm transition whitespace-nowrap cursor-pointer">
               Search
             </button>
           </form>
 
-          {/* Normalized Category Filter Pills (Capitalized nicely) */}
+          {/* Normalized Category Filter Pills */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
             {categories.map((cat) => (
               <button
@@ -228,10 +212,7 @@ export default function HomePage() {
             <p className="text-gray-600 font-bold mb-2">
               No products found matching "{submittedQuery || selectedCategory}"
             </p>
-            <button 
-              onClick={() => { handleClearSearch(); setSelectedCategory('All'); }} 
-              className="text-xs font-bold text-indigo-600 hover:underline"
-            >
+            <button onClick={() => { handleClearSearch(); setSelectedCategory('All'); }} className="text-xs font-bold text-indigo-600 hover:underline">
               Clear filters and search
             </button>
           </div>
@@ -275,10 +256,7 @@ export default function HomePage() {
                       <span className="text-xl font-extrabold text-gray-900">
                         ₹{product.price}
                       </span>
-                      <Link 
-                        href={`/product/${product.id}`}
-                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                      >
+                      <Link href={`/product/${product.id}`} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700">
                         View
                       </Link>
                     </div>
