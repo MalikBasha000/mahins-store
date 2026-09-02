@@ -14,6 +14,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const userId = searchParams.get('userId')
+    let email = searchParams.get('email')?.trim().toLowerCase()
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Missing userId' }, { status: 400 })
@@ -21,15 +22,16 @@ export async function GET(req: Request) {
 
     const supabaseAdmin = getSupabaseAdmin()
 
-    // 1. Get the user's registered email directly from Supabase Auth Admin
-    let userEmail = ''
-    try {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-      if (userData?.user?.email) {
-        userEmail = userData.user.email.trim().toLowerCase()
+    // 1. Fallback: If email wasn't passed via query params, fetch it directly from Auth Admin
+    if (!email) {
+      try {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
+        if (userData?.user?.email) {
+          email = userData.user.email.trim().toLowerCase()
+        }
+      } catch (e) {
+        console.error('Error fetching user email from admin:', e)
       }
-    } catch (e) {
-      console.error('Error fetching user email from admin:', e)
     }
 
     // 2. Fetch all orders from the database
@@ -40,17 +42,26 @@ export async function GET(req: Request) {
 
     if (error) throw error
 
-    // 3. Find matching orders (either matching user_id OR matching email)
+    // 3. Multi-layer matching to catch guest orders securely
     const matchedOrders = (allOrders || []).filter(o => {
+      // Direct user ID match
       if (o.user_id === userId) return true
 
-      const snapshot = typeof o.shipping_address_snapshot === 'string'
-        ? JSON.parse(o.shipping_address_snapshot || '{}')
-        : (o.shipping_address_snapshot || {})
+      // Parse snapshot safely
+      let snapshot: any = {}
+      try {
+        snapshot = typeof o.shipping_address_snapshot === 'string'
+          ? JSON.parse(o.shipping_address_snapshot || '{}')
+          : (o.shipping_address_snapshot || {})
+      } catch (err) {
+        snapshot = {}
+      }
 
       const orderEmail = (o.customer_email || snapshot.email || snapshot.customer_email || '').trim().toLowerCase()
+      const shippingAddressText = (o.shipping_address || '').toLowerCase()
 
-      if (userEmail && orderEmail === userEmail) {
+      // Match if email matches top-level/snapshot OR if the email text appears inside the shipping address string
+      if (email && (orderEmail === email || shippingAddressText.includes(email))) {
         return true
       }
 
