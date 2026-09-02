@@ -24,32 +24,26 @@ export default function CustomerOrdersPage() {
 
   const fetchCustomerOrders = async () => {
     setLoading(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const userEmail = (user.email || '').trim().toLowerCase()
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) {
+        setLoading(false)
+        return
+      }
 
-      // Fetch orders matching user_id OR customer_email to sync past guest orders
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .or(`user_id.eq.${user.id},customer_email.ilike.${userEmail}`)
-        .order('created_at', { ascending: false })
+      const userId = session.user.id
+      const email = session.user.email || ''
 
-      if (data) {
-        setOrders(data)
-        
-        // Automatically claim unclaimed guest orders matching this email
-        const unclaimed = data.filter(o => !o.user_id)
-        if (unclaimed.length > 0) {
-          await supabase
-            .from('orders')
-            .update({ user_id: user.id })
-            .in('id', unclaimed.map(o => o.id))
-        }
+      // Fetch orders securely via API route (matching user ID or email)
+      const res = await fetch(`/api/customer-orders?userId=${userId}&email=${encodeURIComponent(email)}`)
+      const data = await res.json()
+
+      if (data.success && data.orders) {
+        setOrders(data.orders)
         
         // Fetch live product details to sync updated names and images dynamically
         const prodMap: Record<string, any> = {}
-        for (const order of data) {
+        for (const order of data.orders) {
           if (order.items && Array.isArray(order.items)) {
             for (const item of order.items) {
               const pId = item.id || item.product_id
@@ -62,6 +56,8 @@ export default function CustomerOrdersPage() {
         }
         setLiveProductsMap(prodMap)
       }
+    } catch (err) {
+      console.error('Failed to fetch customer orders:', err)
     }
     setLoading(false)
   }
