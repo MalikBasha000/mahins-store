@@ -309,16 +309,14 @@ export default function AdminPage() {
       setOrders(clientOrders || [])
     }
 
-    if (activeTab === 'customers' || activeTab === 'analytics') {
-      try {
-        const res = await fetch('/api/admin/customers')
-        const data = await res.json()
-        if (data.success) {
-          setCustomers(data.customers || [])
-        }
-      } catch (err: any) {
-        console.error('Failed to load customers:', err)
+    try {
+      const res = await fetch('/api/admin/customers')
+      const data = await res.json()
+      if (data.success) {
+        setCustomers(data.customers || data.data || [])
       }
+    } catch (err: any) {
+      console.error('Failed to load customers:', err)
     }
 
     setLoading(false)
