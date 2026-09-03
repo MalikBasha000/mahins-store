@@ -11,6 +11,7 @@ import { useWishlist } from './context/WishlistContext'
 export default function HomePage() {
   const [user, setUser] = useState<any>(null)
   const [products, setProducts] = useState<any[]>([])
+  const [banners, setBanners] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState<string | null>(null)
   
@@ -26,12 +27,11 @@ export default function HomePage() {
   const { wishlist, addToWishlist, removeFromWishlist, isInWishlist } = useWishlist()
 
   useEffect(() => {
-    const getUser = async () => {
+    const getStoreData = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      setUser(session?.user || null)
-    }
+      const currentUser = session?.user || null
+      setUser(currentUser)
 
-    const getProducts = async () => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -45,11 +45,27 @@ export default function HomePage() {
         const uniqueCategories = ['All', ...Array.from(new Set(data.map(p => (p.category ? p.category.trim().toLowerCase() : 'uncategorized'))))]
         setCategories(uniqueCategories as string[])
       }
+
+      // Fetch active banners & posters from Supabase
+      const { data: bannerData } = await supabase
+        .from('banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+
+      if (bannerData) {
+        const userEmail = (currentUser?.email || '').trim().toLowerCase()
+        // Show public banners (no target email) OR banners specifically targeted to this logged-in user
+        const relevantBanners = bannerData.filter(b => 
+          !b.target_customer_email || b.target_customer_email.toLowerCase() === userEmail
+        )
+        setBanners(relevantBanners)
+      }
+
       setLoading(false)
     }
 
-    getUser()
-    getProducts()
+    getStoreData()
   }, [supabase])
 
   const handleSignOut = async () => {
@@ -150,9 +166,23 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl p-8">
+      <main className="mx-auto max-w-7xl p-8 space-y-8">
+        {/* Dynamic Promotional Banners & Posters Grid */}
+        {banners.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {banners.map((b) => (
+              <div key={b.id} className="rounded-3xl overflow-hidden shadow-md border bg-white relative group h-56 sm:h-64">
+                <img src={b.image_url} alt={b.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-6">
+                  <h3 className="text-white font-black text-lg tracking-wide">{b.title}</h3>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Search Bar & Category Filter Section */}
-        <div className="mb-6 space-y-4">
+        <div className="space-y-4">
           <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 max-w-md">
             <div className="relative flex-1">
               <input
@@ -192,7 +222,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-800 capitalize">
             {selectedCategory === 'All' ? 'Featured Products' : selectedCategory} ({filteredProducts.length})
             {submittedQuery && (
