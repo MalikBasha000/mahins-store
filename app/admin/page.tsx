@@ -24,7 +24,7 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers' | 'payments' | 'reviews'>('analytics')
+  const [activeTab, setActiveTab] = useState<'analytics' | 'upi_verifications' | 'orders' | 'products' | 'customers' | 'coupons' | 'payments' | 'reviews'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -37,6 +37,14 @@ export default function AdminPage() {
     is_cod_enabled: true,
     cod_message: 'Payments not accepting currently'
   })
+
+  // Coupons Management State
+  const [coupons, setCoupons] = useState<any[]>([])
+  const [couponCode, setCouponCode] = useState('')
+  const [couponDiscountType, setCouponDiscountType] = useState('percentage')
+  const [couponDiscountValue, setCouponDiscountValue] = useState('')
+  const [couponMinOrder, setCouponMinOrder] = useState('')
+  const [couponTargetEmail, setCouponTargetEmail] = useState('')
 
   // Reviews Moderation State
   const [adminReviews, setAdminReviews] = useState<any[]>([])
@@ -106,14 +114,12 @@ export default function AdminPage() {
     }
   }, [activeTab, isAdminAuthenticated])
 
-  // Fetch payment settings when switching to payments tab
+  // Fetch contextual settings when switching tabs
   useEffect(() => {
-    if (isAdminAuthenticated && activeTab === 'payments') {
-      fetchPaymentSettings()
-    }
-    if (isAdminAuthenticated && activeTab === 'reviews') {
-      fetchAdminReviews()
-    }
+    if (!isAdminAuthenticated) return
+    if (activeTab === 'payments') fetchPaymentSettings()
+    if (activeTab === 'reviews') fetchAdminReviews()
+    if (activeTab === 'coupons') fetchCoupons()
   }, [activeTab, isAdminAuthenticated])
 
   const fetchPaymentSettings = async () => {
@@ -138,6 +144,60 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to load reviews', err)
     }
+  }
+
+  const fetchCoupons = async () => {
+    try {
+      const { data } = await supabase
+        .from('coupons')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (data) setCoupons(data)
+    } catch (err) {
+      console.error('Failed to fetch coupons', err)
+    }
+  }
+
+  const handleCreateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!couponCode.trim() || !couponDiscountValue) {
+      alert('Please fill in coupon code and discount value.')
+      return
+    }
+
+    const { error } = await supabase.from('coupons').insert([
+      {
+        code: couponCode.trim().toUpperCase(),
+        discount_type: couponDiscountType,
+        discount_value: Number(couponDiscountValue),
+        min_order_amount: Number(couponMinOrder) || 0,
+        target_customer_email: couponTargetEmail.trim() ? couponTargetEmail.trim().toLowerCase() : null,
+        is_active: true
+      }
+    ])
+
+    if (error) {
+      alert(`Error creating coupon: ${error.message}`)
+      return
+    }
+
+    setCouponCode('')
+    setCouponDiscountValue('')
+    setCouponMinOrder('')
+    setCouponTargetEmail('')
+    fetchCoupons()
+    alert('Coupon created successfully!')
+  }
+
+  const toggleCouponStatus = async (id: string, currentStatus: boolean) => {
+    await supabase.from('coupons').update({ is_active: !currentStatus }).eq('id', id)
+    fetchCoupons()
+  }
+
+  const deleteCoupon = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this coupon?')) return
+    await supabase.from('coupons').delete().eq('id', id)
+    fetchCoupons()
   }
 
   const handleAdminDeleteReview = async (id: string) => {
@@ -319,6 +379,7 @@ export default function AdminPage() {
       console.error('Failed to load customers:', err)
     }
 
+    fetchCoupons()
     setLoading(false)
   }
 
@@ -1046,6 +1107,14 @@ export default function AdminPage() {
             👥 Customers Directory ({customers.length})
           </button>
           <button
+            onClick={() => setActiveTab('coupons')}
+            className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer flex items-center gap-2 ${
+              activeTab === 'coupons' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
+            }`}
+          >
+            🏷️ Coupons ({coupons.length})
+          </button>
+          <button
             onClick={() => setActiveTab('payments')}
             className={`px-6 py-2.5 rounded-lg font-bold text-sm transition cursor-pointer flex items-center gap-2 ${
               activeTab === 'payments' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-700 border hover:bg-gray-100'
@@ -1062,6 +1131,116 @@ export default function AdminPage() {
             ⭐ Reviews Moderation
           </button>
         </div>
+
+        {/* ----------------- TAB: COUPONS MANAGEMENT ----------------- */}
+        {activeTab === 'coupons' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">🏷️ Discount Coupons & Targeted Offers</h2>
+              <p className="text-xs text-gray-500 mt-1">Create public promo codes or assign exclusive discounts to specific customer emails.</p>
+            </div>
+
+            <form onSubmit={handleCreateCoupon} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Create New Coupon</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Coupon Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. LABDISCOUNT10"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs font-mono uppercase bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Discount Type</label>
+                  <select
+                    value={couponDiscountType}
+                    onChange={(e) => setCouponDiscountType(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Value ({couponDiscountType === 'percentage' ? '%' : '₹'})</label>
+                  <input
+                    type="number"
+                    placeholder={couponDiscountType === 'percentage' ? 'e.g. 10' : 'e.g. 100'}
+                    value={couponDiscountValue}
+                    onChange={(e) => setCouponDiscountValue(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Min Order Amount (₹) Optional</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 500"
+                    value={couponMinOrder}
+                    onChange={(e) => setCouponMinOrder(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Assign to Specific Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="Leave blank for public use, or enter customer email"
+                    value={couponTargetEmail}
+                    onChange={(e) => setCouponTargetEmail(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer">
+                Create Coupon Code 🚀
+              </button>
+            </form>
+
+            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Coupons</h3>
+            {coupons.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-6 text-center">No coupons created yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {coupons.map((c) => (
+                  <div key={c.id} className="flex flex-wrap items-center justify-between border p-4 rounded-2xl bg-white shadow-sm gap-2">
+                    <div>
+                      <span className="font-mono font-black text-indigo-900 text-sm tracking-wider">{c.code}</span>
+                      <div className="text-xs text-gray-600 mt-0.5 font-medium">
+                        {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
+                        {c.min_order_amount > 0 ? ` (Min order: ₹${c.min_order_amount})` : ''}
+                      </div>
+                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
+                        {c.target_customer_email ? `🔒 Restricted to: ${c.target_customer_email}` : '🌐 Public Coupon (Anyone can use)'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => toggleCouponStatus(c.id, c.is_active)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          c.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {c.is_active ? 'Active ✓' : 'Inactive ✕'}
+                      </button>
+                      <button
+                        onClick={() => deleteCoupon(c.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ----------------- TAB: REVIEWS MODERATION ----------------- */}
         {activeTab === 'reviews' && (
