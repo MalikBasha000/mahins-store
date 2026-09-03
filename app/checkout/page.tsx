@@ -151,11 +151,11 @@ export default function CheckoutPage() {
       return
     }
 
-    // Enforce targeted customer restriction if set
+    // Enforce targeted customer restriction securely without revealing email
     if (data.target_customer_email) {
       const currentUserEmail = (email || '').trim().toLowerCase()
       if (!currentUserEmail || currentUserEmail !== data.target_customer_email.toLowerCase()) {
-        setCouponError(`This coupon code is exclusively assigned to ${data.target_customer_email}.`)
+        setCouponError('This coupon code is not valid for your account.')
         return
       }
     }
