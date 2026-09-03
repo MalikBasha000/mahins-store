@@ -51,6 +51,7 @@ export default function AdminPage() {
   const [bannerTitle, setBannerTitle] = useState('')
   const [bannerImageUrl, setBannerImageUrl] = useState('')
   const [bannerTargetEmail, setBannerTargetEmail] = useState('')
+  const [uploadingPoster, setUploadingPoster] = useState(false)
 
   // Reviews Moderation State
   const [adminReviews, setAdminReviews] = useState<any[]>([])
@@ -217,6 +218,38 @@ export default function AdminPage() {
     if (!confirm('Are you sure you want to delete this coupon?')) return
     await supabase.from('coupons').delete().eq('id', id)
     fetchCoupons()
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingPoster(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
+      const filePath = `${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('store-posters')
+        .upload(filePath, file)
+
+      if (uploadError) {
+        alert(`Error uploading file: ${uploadError.message}`)
+        setUploadingPoster(false)
+        return
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('store-posters')
+        .getPublicUrl(filePath)
+
+      setBannerImageUrl(publicUrl)
+      alert('Poster image uploaded successfully! URL populated automatically.')
+    } catch (err: any) {
+      alert(`Upload failed: ${err.message}`)
+    }
+    setUploadingPoster(false)
   }
 
   const handleCreateBanner = async (e: React.FormEvent) => {
@@ -842,7 +875,7 @@ export default function AdminPage() {
         const customerEmail = (o.customer_email || '').toLowerCase()
         const shippingAddr = (o.shipping_address || '').toLowerCase()
         const itemsList = Array.isArray(o.items) ? o.items.map((i: any) => (i.name || '').toLowerCase()).join(' ') : ''
-         
+        
         matchesSearch = 
           tracking.includes(searchTarget) || 
           customerName.includes(searchTarget) || 
@@ -879,7 +912,7 @@ export default function AdminPage() {
 
   const filteredUpiVerifications = allUpiOrders.filter(o => {
     const status = (o.status || '').toLowerCase()
-     
+    
     if (upiStatusFilter === 'PENDING' && status !== 'pending verification' && status !== 'pending') return false
     if (upiStatusFilter === 'APPROVED' && status !== 'processing' && status !== 'shipped' && status !== 'delivered') return false
     if (upiStatusFilter === 'REJECTED' && status !== 'cancelled') return false
@@ -1070,7 +1103,7 @@ export default function AdminPage() {
               <button type="submit" disabled={loading} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold p-3 rounded-lg text-sm shadow-lg transition disabled:opacity-50">
                 {loading ? 'Verifying...' : 'Verify & Enter Dashboard'}
               </button>
-               
+              
               <button 
                 type="button" 
                 onClick={() => { setAuthStep('credentials'); setOtpToken(''); setSuccessMsg(''); }} 
@@ -1192,12 +1225,12 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: BANNERS / POSTERS MANAGEMENT ----------------- */}
+        {/* ----------------- TAB: BANNERS & POSTERS MANAGEMENT ----------------- */}
         {activeTab === 'banners' && (
           <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="border-b pb-4">
               <h2 className="text-xl font-black text-indigo-950">🖼️ Store Promotional Posters & Banners</h2>
-              <p className="text-xs text-gray-500 mt-1">Upload custom store posters or targeted banners for specific customer accounts.</p>
+              <p className="text-xs text-gray-500 mt-1">Upload store posters or exclusive targeted banners for specific customers.</p>
             </div>
 
             <form onSubmit={handleCreateBanner} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
@@ -1215,7 +1248,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Image URL</label>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Image URL (or upload from file below)</label>
                   <input
                     type="url"
                     placeholder="https://example.com/poster.jpg"
@@ -1225,6 +1258,27 @@ export default function AdminPage() {
                     required
                   />
                 </div>
+
+                {/* Direct File Upload Option */}
+                <div className="sm:col-span-2 bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 block">Upload Poster from Laptop</span>
+                    <span className="text-[10px] text-gray-500">Select an image file (PNG, JPG, WEBP) to upload directly to cloud storage.</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
+
+                {uploadingPoster && (
+                  <div className="sm:col-span-2 text-xs text-indigo-600 font-bold animate-pulse">
+                    Uploading poster to cloud storage... Please wait...
+                  </div>
+                )}
+
                 <div className="sm:col-span-2">
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">Target Specific Customer Email (Optional)</label>
                   <input
@@ -1236,7 +1290,7 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
-              <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer">
+              <button type="submit" disabled={uploadingPoster} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer disabled:opacity-50">
                 Publish Poster 🚀
               </button>
             </form>
@@ -1976,7 +2030,7 @@ export default function AdminPage() {
               <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-md">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
                   <h2 className="text-lg font-bold text-gray-900">Store Inventory ({filteredProducts.length})</h2>
-                   
+                  
                   <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                     <input
                       type="text"
