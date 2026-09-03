@@ -30,6 +30,11 @@ export default function CheckoutPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
+  // Coupon & Discount States
+  const [couponInput, setCouponInput] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null)
+  const [couponError, setCouponError] = useState('')
+
   // Payment Gateway Settings from Admin Dashboard
   const [paymentSettings, setPaymentSettings] = useState({
     is_razorpay_enabled: true,
@@ -121,6 +126,50 @@ export default function CheckoutPage() {
     else setPaymentMethod('')
   }, [paymentSettings, isLoggedIn])
 
+  // Calculate discount and final payable amounts
+  const discountAmount = appliedCoupon 
+    ? (appliedCoupon.discount_type === 'percentage' 
+        ? (totalPrice * appliedCoupon.discount_value) / 100 
+        : appliedCoupon.discount_value)
+    : 0
+
+  const finalPayableAmount = Math.max(0, totalPrice - discountAmount)
+
+  const handleApplyCoupon = async () => {
+    setCouponError('')
+    if (!couponInput.trim()) return
+
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('code', couponInput.trim().toUpperCase())
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (error || !data) {
+      setCouponError('Invalid or inactive coupon code.')
+      return
+    }
+
+    // Enforce targeted customer restriction if set
+    if (data.target_customer_email) {
+      const currentUserEmail = (email || '').trim().toLowerCase()
+      if (!currentUserEmail || currentUserEmail !== data.target_customer_email.toLowerCase()) {
+        setCouponError(`This coupon code is exclusively assigned to ${data.target_customer_email}.`)
+        return
+      }
+    }
+
+    // Enforce minimum order threshold
+    if (totalPrice < (data.min_order_amount || 0)) {
+      setCouponError(`Minimum order amount of ₹${data.min_order_amount} required for this code.`)
+      return
+    }
+
+    setAppliedCoupon(data)
+    setCouponInput('')
+  }
+
   const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const pin = e.target.value
     setPincode(pin)
@@ -203,6 +252,10 @@ export default function CheckoutPage() {
       finalPaymentMethod = `Direct UPI Transfer (UTR: ${cleanUtr})`
     }
 
+    if (appliedCoupon) {
+      finalPaymentMethod += ` [Coupon: ${appliedCoupon.code} - ₹${discountAmount} OFF]`
+    }
+
     const initialOrderStatus = paymentMethod === 'Direct UPI Transfer (Scan & Pay)' ? 'PENDING VERIFICATION' : 'Pending'
 
     const orderPayload: any = {
@@ -215,7 +268,7 @@ export default function CheckoutPage() {
       shipping_address_snapshot: addressSnapshotObj,
       payment_method: finalPaymentMethod,
       total_amount: totalPrice,
-      final_payable_amount: totalPrice,
+      final_payable_amount: finalPayableAmount,
       status: initialOrderStatus,
       items: cart.map((item) => ({
         id: item.id,
@@ -259,7 +312,7 @@ export default function CheckoutPage() {
             phone: formattedPhone,
             shipping_address: formattedAddress,
             payment_method: finalPaymentMethod,
-            total_amount: totalPrice,
+            total_amount: finalPayableAmount,
             items: cart.map((item) => ({
               id: item.id,
               name: item.name,
@@ -317,7 +370,7 @@ export default function CheckoutPage() {
         const res = await fetch('/api/razorpay', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: totalPrice }),
+          body: JSON.stringify({ amount: finalPayableAmount }),
         })
         const data = await res.json()
 
@@ -713,67 +766,108 @@ export default function CheckoutPage() {
                 disabled={loading || cart.length === 0 || allDisabled}
                 className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3.5 rounded-xl text-sm shadow-lg transition disabled:opacity-50 cursor-pointer"
               >
-                {loading ? 'Processing Order...' : allDisabled ? 'Payments Not Accepting Currently' : `Place Order • ₹${totalPrice}`}
+                {loading ? 'Processing Order...' : allDisabled ? 'Payments Not Accepting Currently' : `Place Order • ₹${finalPayableAmount}`}
               </button>
             </form>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 h-fit">
-            <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-3 mb-4">
-              Order Summary ({cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)} items)
-            </h3>
-
-            {cart.length === 0 ? (
-              <div className="py-6 text-center">
-                <p className="text-xs text-gray-400 mb-3">No items found in cart.</p>
-                <Link href="/cart" className="text-xs font-bold text-indigo-600 hover:underline">
-                  Go to Cart Page
-                </Link>
+          <div className="space-y-6">
+            {/* Coupon Application Box */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-3 mb-4">
+                Discount Coupon 🏷️
+              </h3>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value)}
+                    placeholder="Enter promo code"
+                    className="border border-gray-300 p-2.5 rounded-xl text-xs uppercase font-mono bg-white text-gray-900 flex-1 focus:outline-indigo-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs cursor-pointer transition shadow-sm"
+                  >
+                    Apply
+                  </button>
+                </div>
+                {couponError && <p className="text-red-600 text-[11px] font-semibold">{couponError}</p>}
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center bg-green-50 text-green-800 p-3 rounded-xl text-xs border border-green-200">
+                    <span>Applied: <b>{appliedCoupon.code}</b> ({appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : `₹${appliedCoupon.discount_value}`} OFF)</span>
+                    <button type="button" onClick={() => setAppliedCoupon(null)} className="text-red-600 font-bold hover:underline cursor-pointer">Remove</button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                {cart.map((item) => {
-                  const firstImg = item.image_url
-                    ? item.image_url.split(',')[0].trim()
-                    : 'https://via.placeholder.com/50'
-                  const unitPrice = Number(item.price) || 0
-                  const qty = Number(item.quantity) || 1
-                  const itemTotal = unitPrice * qty
+            </div>
 
-                  return (
-                    <div key={item.id} className="flex items-center gap-3 border-b border-gray-100 pb-3">
-                      <img
-                        src={firstImg}
-                        alt={item.name}
-                        className="w-12 h-12 object-cover rounded-lg border bg-white flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold text-gray-900 truncate">{item.name}</h4>
-                        <p className="text-[11px] text-gray-500">
-                          ₹{unitPrice} × {qty}
-                        </p>
+            {/* Order Summary Box */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 h-fit">
+              <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider border-b pb-3 mb-4">
+                Order Summary ({cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)} items)
+              </h3>
+
+              {cart.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="text-xs text-gray-400 mb-3">No items found in cart.</p>
+                  <Link href="/cart" className="text-xs font-bold text-indigo-600 hover:underline">
+                    Go to Cart Page
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {cart.map((item) => {
+                    const firstImg = item.image_url
+                      ? item.image_url.split(',')[0].trim()
+                      : 'https://via.placeholder.com/50'
+                    const unitPrice = Number(item.price) || 0
+                    const qty = Number(item.quantity) || 1
+                    const itemTotal = unitPrice * qty
+
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 border-b border-gray-100 pb-3">
+                        <img
+                          src={firstImg}
+                          alt={item.name}
+                          className="w-12 h-12 object-cover rounded-lg border bg-white flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-bold text-gray-900 truncate">{item.name}</h4>
+                          <p className="text-[11px] text-gray-500">
+                            ₹{unitPrice} × {qty}
+                          </p>
+                        </div>
+                        <div className="text-xs font-bold text-gray-900 whitespace-nowrap">
+                          ₹{itemTotal}
+                        </div>
                       </div>
-                      <div className="text-xs font-bold text-gray-900 whitespace-nowrap">
-                        ₹{itemTotal}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                    )
+                  })}
+                </div>
+              )}
 
-            <div className="border-t pt-4 mt-4 space-y-2 text-xs">
-              <div className="flex justify-between text-gray-600">
-                <span>Subtotal</span>
-                <span>₹{totalPrice}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Shipping</span>
-                <span className="text-green-600 font-bold">FREE</span>
-              </div>
-              <div className="flex justify-between text-sm font-black text-indigo-950 border-t pt-2">
-                <span>Total Payable</span>
-                <span>₹{totalPrice}</span>
+              <div className="border-t pt-4 mt-4 space-y-2 text-xs">
+                <div className="flex justify-between text-gray-600">
+                  <span>Subtotal</span>
+                  <span>₹{totalPrice}</span>
+                </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-green-700 font-bold">
+                    <span>Discount ({appliedCoupon.code})</span>
+                    <span>-₹{discountAmount}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-600">
+                  <span>Shipping</span>
+                  <span className="text-green-600 font-bold">FREE</span>
+                </div>
+                <div className="flex justify-between text-sm font-black text-indigo-950 border-t pt-2">
+                  <span>Total Payable</span>
+                  <span>₹{finalPayableAmount}</span>
+                </div>
               </div>
             </div>
           </div>
