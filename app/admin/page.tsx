@@ -53,6 +53,13 @@ export default function AdminPage() {
   const [bannerTargetEmail, setBannerTargetEmail] = useState('')
   const [uploadingPoster, setUploadingPoster] = useState(false)
 
+  // Edit Banner Modal State
+  const [editingBanner, setEditingBanner] = useState<any | null>(null)
+  const [editBannerTitle, setEditBannerTitle] = useState('')
+  const [editBannerImageUrl, setEditBannerImageUrl] = useState('')
+  const [editBannerTargetEmail, setEditBannerTargetEmail] = useState('')
+  const [uploadingEditPoster, setUploadingEditPoster] = useState(false)
+
   // Reviews Moderation State
   const [adminReviews, setAdminReviews] = useState<any[]>([])
   const [editingReview, setReviewEditing] = useState<any | null>(null)
@@ -220,11 +227,13 @@ export default function AdminPage() {
     fetchCoupons()
   }
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setUploadingPoster(true)
+    if (isEdit) setUploadingEditPoster(true)
+    else setUploadingPoster(true)
+
     try {
       const fileExt = file.name.split('.').pop()
       const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
@@ -236,7 +245,8 @@ export default function AdminPage() {
 
       if (uploadError) {
         alert(`Error uploading file: ${uploadError.message}`)
-        setUploadingPoster(false)
+        if (isEdit) setUploadingEditPoster(false)
+        else setUploadingPoster(false)
         return
       }
 
@@ -244,12 +254,18 @@ export default function AdminPage() {
         .from('store-posters')
         .getPublicUrl(filePath)
 
-      setBannerImageUrl(publicUrl)
-      alert('Poster image uploaded successfully! URL populated automatically.')
+      if (isEdit) {
+        setEditBannerImageUrl(publicUrl)
+      } else {
+        setBannerImageUrl(publicUrl)
+      }
+      alert('Poster image uploaded successfully!')
     } catch (err: any) {
       alert(`Upload failed: ${err.message}`)
     }
-    setUploadingPoster(false)
+
+    if (isEdit) setUploadingEditPoster(false)
+    else setUploadingPoster(false)
   }
 
   const handleCreateBanner = async (e: React.FormEvent) => {
@@ -275,7 +291,37 @@ export default function AdminPage() {
     setBannerImageUrl('')
     setBannerTargetEmail('')
     fetchBanners()
-    alert('Poster uploaded successfully!')
+    alert('Poster published successfully!')
+  }
+
+  const openEditBannerModal = (b: any) => {
+    setEditingBanner(b)
+    setEditBannerTitle(b.title || '')
+    setEditBannerImageUrl(b.image_url || '')
+    setEditBannerTargetEmail(b.target_customer_email || '')
+  }
+
+  const handleUpdateBanner = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingBanner) return
+
+    const { error } = await supabase
+      .from('banners')
+      .update({
+        title: editBannerTitle.trim(),
+        image_url: editBannerImageUrl.trim(),
+        target_customer_email: editBannerTargetEmail.trim() ? editBannerTargetEmail.trim().toLowerCase() : null,
+      })
+      .eq('id', editingBanner.id)
+
+    if (error) {
+      alert(`Error updating poster: ${error.message}`)
+      return
+    }
+
+    setEditingBanner(null)
+    fetchBanners()
+    alert('Poster updated successfully!')
   }
 
   const deleteBanner = async (id: string) => {
@@ -1234,13 +1280,13 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleCreateBanner} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
-              <h3 className="text-xs font-bold text-indigo-950 uppercase">Upload / Add New Poster</h3>
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Upload New Poster</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Title / Campaign Name</label>
                   <input
                     type="text"
-                    placeholder="e.g. Special Festival Discount Poster"
+                    placeholder="e.g. Summer Robotics Sale"
                     value={bannerTitle}
                     onChange={(e) => setBannerTitle(e.target.value)}
                     className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
@@ -1259,7 +1305,6 @@ export default function AdminPage() {
                   />
                 </div>
 
-                {/* Direct File Upload Option */}
                 <div className="sm:col-span-2 bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <span className="text-xs font-bold text-gray-800 block">Upload Poster from Laptop</span>
@@ -1268,7 +1313,7 @@ export default function AdminPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={handleFileUpload}
+                    onChange={(e) => handleFileUpload(e, false)}
                     className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                   />
                 </div>
@@ -1283,7 +1328,7 @@ export default function AdminPage() {
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">Target Specific Customer Email (Optional)</label>
                   <input
                     type="email"
-                    placeholder="Leave blank to show to everyone, or enter specific customer email"
+                    placeholder="Leave blank for public store display, or enter customer email"
                     value={bannerTargetEmail}
                     onChange={(e) => setBannerTargetEmail(e.target.value)}
                     className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
@@ -1311,7 +1356,13 @@ export default function AdminPage() {
                         {b.target_customer_email ? `🔒 Exclusive to: ${b.target_customer_email}` : '🌐 Public Banner (Shown to all)'}
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-2 border-t">
+                    <div className="flex items-center justify-between pt-2 border-t gap-2">
+                      <button
+                        onClick={() => openEditBannerModal(b)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer flex-1 text-center"
+                      >
+                        Edit ✏️
+                      </button>
                       <button
                         onClick={async () => {
                           await supabase.from('banners').update({ is_active: !b.is_active }).eq('id', b.id)
@@ -1334,6 +1385,75 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ----------------- EDIT BANNER MODAL ----------------- */}
+        {editingBanner && (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-base font-black text-indigo-950">Edit Promotional Poster</h3>
+              <form onSubmit={handleUpdateBanner} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Title</label>
+                  <input
+                    type="text"
+                    value={editBannerTitle}
+                    onChange={(e) => setEditBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Image URL (or upload new file)</label>
+                  <input
+                    type="url"
+                    value={editBannerImageUrl}
+                    onChange={(e) => setEditBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-mono"
+                    required
+                  />
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700">Upload New File Replacement</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, true)}
+                    className="text-xs text-gray-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer"
+                  />
+                </div>
+                {uploadingEditPoster && <p className="text-xs text-indigo-600 font-bold animate-pulse">Uploading new image...</p>}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editBannerTargetEmail}
+                    onChange={(e) => setEditBannerTargetEmail(e.target.value)}
+                    placeholder="Leave blank for public display"
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingBanner(null)}
+                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploadingEditPoster}
+                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer disabled:opacity-50"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
@@ -2383,25 +2503,25 @@ export default function AdminPage() {
             <form onSubmit={handleUpdateProduct} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
-                <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹)</label>
-                  <input type="number" step="0.01" required value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                  <input type="number" step="0.01" required value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1">Stock</label>
-                  <input type="number" required value={editStock} onChange={(e) => setEditStock(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                  <input type="number" required value={editStock} onChange={(e) => setEditStock(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
-                <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
-                <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
@@ -2416,8 +2536,8 @@ export default function AdminPage() {
                 <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
               </div>
               <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel/Close</button>
-                <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-lg text-sm shadow transition cursor-pointer">Save Changes</button>
+                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-xl text-xs cursor-pointer">Cancel/Close</button>
+                <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-xl text-xs shadow cursor-pointer">Save Changes</button>
               </div>
             </form>
           </div>
