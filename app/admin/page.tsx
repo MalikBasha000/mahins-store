@@ -46,6 +46,14 @@ export default function AdminPage() {
   const [couponMinOrder, setCouponMinOrder] = useState('')
   const [couponTargetEmail, setCouponTargetEmail] = useState('')
 
+  // Edit Coupon Modal State
+  const [editingCoupon, setEditingCoupon] = useState<any | null>(null)
+  const [editCouponCode, setEditCouponCode] = useState('')
+  const [editCouponDiscountType, setEditCouponDiscountType] = useState('percentage')
+  const [editCouponDiscountValue, setEditCouponDiscountValue] = useState('')
+  const [editCouponMinOrder, setEditCouponMinOrder] = useState('')
+  const [editCouponTargetEmail, setEditCouponTargetEmail] = useState('')
+
   // Banners & Posters Management State
   const [banners, setBanners] = useState<any[]>([])
   const [bannerTitle, setBannerTitle] = useState('')
@@ -214,6 +222,40 @@ export default function AdminPage() {
     setCouponTargetEmail('')
     fetchCoupons()
     alert('Coupon created successfully!')
+  }
+
+  const openEditCouponModal = (c: any) => {
+    setEditingCoupon(c)
+    setEditCouponCode(c.code || '')
+    setEditCouponDiscountType(c.discount_type || 'percentage')
+    setEditCouponDiscountValue(c.discount_value || '')
+    setEditCouponMinOrder(c.min_order_amount || '')
+    setEditCouponTargetEmail(c.target_customer_email || '')
+  }
+
+  const handleUpdateCoupon = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingCoupon) return
+
+    const { error } = await supabase
+      .from('coupons')
+      .update({
+        code: editCouponCode.trim().toUpperCase(),
+        discount_type: editCouponDiscountType,
+        discount_value: Number(editCouponDiscountValue),
+        min_order_amount: Number(editCouponMinOrder) || 0,
+        target_customer_email: editCouponTargetEmail.trim() ? editCouponTargetEmail.trim().toLowerCase() : null,
+      })
+      .eq('id', editingCoupon.id)
+
+    if (error) {
+      alert(`Error updating coupon: ${error.message}`)
+      return
+    }
+
+    setEditingCoupon(null)
+    fetchCoupons()
+    alert('Coupon updated successfully!')
   }
 
   const toggleCouponStatus = async (id: string, currentStatus: boolean) => {
@@ -1271,7 +1313,200 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: BANNERS & POSTERS MANAGEMENT ----------------- */}
+        {/* ----------------- TAB: COUPONS MANAGEMENT (WITH EDIT) ----------------- */}
+        {activeTab === 'coupons' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">🏷️ Discount Coupons & Targeted Offers</h2>
+              <p className="text-xs text-gray-500 mt-1">Create public promo codes or assign exclusive discounts to specific customer emails.</p>
+            </div>
+
+            <form onSubmit={handleCreateCoupon} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Create New Coupon</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Coupon Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. LABDISCOUNT10"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs font-mono uppercase bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Discount Type</label>
+                  <select
+                    value={couponDiscountType}
+                    onChange={(e) => setCouponDiscountType(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Value ({couponDiscountType === 'percentage' ? '%' : '₹'})</label>
+                  <input
+                    type="number"
+                    placeholder={couponDiscountType === 'percentage' ? 'e.g. 10' : 'e.g. 100'}
+                    value={couponDiscountValue}
+                    onChange={(e) => setCouponDiscountValue(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Min Order Amount (₹) Optional</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 500"
+                    value={couponMinOrder}
+                    onChange={(e) => setCouponMinOrder(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Assign to Specific Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="Leave blank for public use, or enter customer email"
+                    value={couponTargetEmail}
+                    onChange={(e) => setCouponTargetEmail(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer">
+                Create Coupon Code 🚀
+              </button>
+            </form>
+
+            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Coupons</h3>
+            {coupons.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-6 text-center">No coupons created yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {coupons.map((c) => (
+                  <div key={c.id} className="flex flex-wrap items-center justify-between border p-4 rounded-2xl bg-white shadow-sm gap-2">
+                    <div>
+                      <span className="font-mono font-black text-indigo-900 text-sm tracking-wider">{c.code}</span>
+                      <div className="text-xs text-gray-600 mt-0.5 font-medium">
+                        {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
+                        {c.min_order_amount > 0 ? ` (Min order: ₹${c.min_order_amount})` : ''}
+                      </div>
+                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
+                        {c.target_customer_email ? `🔒 Restricted to: ${c.target_customer_email}` : '🌐 Public Coupon (Anyone can use)'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => openEditCouponModal(c)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={() => toggleCouponStatus(c.id, c.is_active)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          c.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {c.is_active ? 'Active ✓' : 'Inactive ✕'}
+                      </button>
+                      <button
+                        onClick={() => deleteCoupon(c.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- EDIT COUPON MODAL ----------------- */}
+        {editingCoupon && (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-base font-black text-indigo-950">Edit Published Coupon</h3>
+              <form onSubmit={handleUpdateCoupon} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Coupon Code</label>
+                  <input
+                    type="text"
+                    value={editCouponCode}
+                    onChange={(e) => setEditCouponCode(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs font-mono uppercase bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Discount Type</label>
+                  <select
+                    value={editCouponDiscountType}
+                    onChange={(e) => setEditCouponDiscountType(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Discount Value</label>
+                  <input
+                    type="number"
+                    value={editCouponDiscountValue}
+                    onChange={(e) => setEditCouponDiscountValue(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Min Order Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={editCouponMinOrder}
+                    onChange={(e) => setEditCouponMinOrder(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editCouponTargetEmail}
+                    onChange={(e) => setEditCouponTargetEmail(e.target.value)}
+                    placeholder="Leave blank for public use"
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCoupon(null)}
+                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: BANNERS MANAGEMENT ----------------- */}
         {activeTab === 'banners' && (
           <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="border-b pb-4">
@@ -1454,116 +1689,6 @@ export default function AdminPage() {
                 </div>
               </form>
             </div>
-          </div>
-        )}
-
-        {/* ----------------- TAB: COUPONS MANAGEMENT ----------------- */}
-        {activeTab === 'coupons' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
-            <div className="border-b pb-4">
-              <h2 className="text-xl font-black text-indigo-950">🏷️ Discount Coupons & Targeted Offers</h2>
-              <p className="text-xs text-gray-500 mt-1">Create public promo codes or assign exclusive discounts to specific customer emails.</p>
-            </div>
-
-            <form onSubmit={handleCreateCoupon} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
-              <h3 className="text-xs font-bold text-indigo-950 uppercase">Create New Coupon</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Coupon Code</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. LABDISCOUNT10"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs font-mono uppercase bg-white text-gray-900"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Discount Type</label>
-                  <select
-                    value={couponDiscountType}
-                    onChange={(e) => setCouponDiscountType(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
-                  >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="flat">Flat Amount (₹)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Value ({couponDiscountType === 'percentage' ? '%' : '₹'})</label>
-                  <input
-                    type="number"
-                    placeholder={couponDiscountType === 'percentage' ? 'e.g. 10' : 'e.g. 100'}
-                    value={couponDiscountValue}
-                    onChange={(e) => setCouponDiscountValue(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Min Order Amount (₹) Optional</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 500"
-                    value={couponMinOrder}
-                    onChange={(e) => setCouponMinOrder(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Assign to Specific Customer Email (Optional)</label>
-                  <input
-                    type="email"
-                    placeholder="Leave blank for public use, or enter customer email"
-                    value={couponTargetEmail}
-                    onChange={(e) => setCouponTargetEmail(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
-                  />
-                </div>
-              </div>
-              <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer">
-                Create Coupon Code 🚀
-              </button>
-            </form>
-
-            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Coupons</h3>
-            {coupons.length === 0 ? (
-              <p className="text-xs text-gray-400 italic py-6 text-center">No coupons created yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {coupons.map((c) => (
-                  <div key={c.id} className="flex flex-wrap items-center justify-between border p-4 rounded-2xl bg-white shadow-sm gap-2">
-                    <div>
-                      <span className="font-mono font-black text-indigo-900 text-sm tracking-wider">{c.code}</span>
-                      <div className="text-xs text-gray-600 mt-0.5 font-medium">
-                        {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
-                        {c.min_order_amount > 0 ? ` (Min order: ₹${c.min_order_amount})` : ''}
-                      </div>
-                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
-                        {c.target_customer_email ? `🔒 Restricted to: ${c.target_customer_email}` : '🌐 Public Coupon (Anyone can use)'}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => toggleCouponStatus(c.id, c.is_active)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          c.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
-                        }`}
-                      >
-                        {c.is_active ? 'Active ✓' : 'Inactive ✕'}
-                      </button>
-                      <button
-                        onClick={() => deleteCoupon(c.id)}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
@@ -2536,8 +2661,8 @@ export default function AdminPage() {
                 <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
               </div>
               <div className="flex gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-xl text-xs cursor-pointer">Cancel/Close</button>
-                <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-xl text-xs shadow cursor-pointer">Save Changes</button>
+                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel/Close</button>
+                <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-lg text-sm shadow cursor-pointer">Save Changes</button>
               </div>
             </form>
           </div>
