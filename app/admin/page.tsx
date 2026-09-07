@@ -1313,7 +1313,193 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: COUPONS MANAGEMENT (WITH EDIT) ----------------- */}
+        {/* ----------------- TAB: BANNERS & POSTERS MANAGEMENT ----------------- */}
+        {activeTab === 'banners' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">🖼️ Store Promotional Posters & Banners</h2>
+              <p className="text-xs text-gray-500 mt-1">Upload store posters or exclusive targeted banners for specific customers.</p>
+            </div>
+
+            <form onSubmit={handleCreateBanner} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Upload New Poster</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Title / Campaign Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Summer Robotics Sale"
+                    value={bannerTitle}
+                    onChange={(e) => setBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Image URL (or upload from file below)</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/poster.jpg"
+                    value={bannerImageUrl}
+                    onChange={(e) => setBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
+                    required
+                  />
+                </div>
+
+                <div className="sm:col-span-2 bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 block">Upload Poster from Laptop</span>
+                    <span className="text-[10px] text-gray-500">Select an image file (PNG, JPG, WEBP) to upload directly to cloud storage.</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, false)}
+                    className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
+
+                {uploadingPoster && (
+                  <div className="sm:col-span-2 text-xs text-indigo-600 font-bold animate-pulse">
+                    Uploading poster to cloud storage... Please wait...
+                  </div>
+                )}
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Target Specific Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="Leave blank for public store display, or enter customer email"
+                    value={bannerTargetEmail}
+                    onChange={(e) => setBannerTargetEmail(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+              </div>
+              <button type="submit" disabled={uploadingPoster} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer disabled:opacity-50">
+                Publish Poster 🚀
+              </button>
+            </form>
+
+            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Posters</h3>
+            {banners.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-6 text-center">No promotional posters uploaded yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {banners.map((b) => (
+                  <div key={b.id} className="border rounded-2xl p-4 bg-white shadow-sm space-y-3">
+                    <div className="h-40 bg-gray-100 rounded-xl overflow-hidden border">
+                      <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-gray-900">{b.title}</h4>
+                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
+                        {b.target_customer_email ? `🔒 Exclusive to: ${b.target_customer_email}` : '🌐 Public Banner (Shown to all)'}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t gap-2">
+                      <button
+                        onClick={() => openEditBannerModal(b)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer flex-1 text-center"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await supabase.from('banners').update({ is_active: !b.is_active }).eq('id', b.id)
+                          fetchBanners()
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          b.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {b.is_active ? 'Active ✓' : 'Inactive ✕'}
+                      </button>
+                      <button
+                        onClick={() => deleteBanner(b.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- EDIT BANNER MODAL ----------------- */}
+        {editingBanner && (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-base font-black text-indigo-950">Edit Promotional Poster</h3>
+              <form onSubmit={handleUpdateBanner} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Title</label>
+                  <input
+                    type="text"
+                    value={editBannerTitle}
+                    onChange={(e) => setEditBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Image URL (or upload new file)</label>
+                  <input
+                    type="url"
+                    value={editBannerImageUrl}
+                    onChange={(e) => setEditBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-mono"
+                    required
+                  />
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700">Upload New File Replacement</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, true)}
+                    className="text-xs text-gray-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer"
+                  />
+                </div>
+                {uploadingEditPoster && <p className="text-xs text-indigo-600 font-bold animate-pulse">Uploading new image...</p>}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editBannerTargetEmail}
+                    onChange={(e) => setEditBannerTargetEmail(e.target.value)}
+                    placeholder="Leave blank for public display"
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingBanner(null)}
+                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploadingEditPoster}
+                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer disabled:opacity-50"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: COUPONS MANAGEMENT ----------------- */}
         {activeTab === 'coupons' && (
           <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="border-b pb-4">
@@ -1497,192 +1683,6 @@ export default function AdminPage() {
                   <button
                     type="submit"
                     className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* ----------------- TAB: BANNERS MANAGEMENT ----------------- */}
-        {activeTab === 'banners' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
-            <div className="border-b pb-4">
-              <h2 className="text-xl font-black text-indigo-950">🖼️ Store Promotional Posters & Banners</h2>
-              <p className="text-xs text-gray-500 mt-1">Upload store posters or exclusive targeted banners for specific customers.</p>
-            </div>
-
-            <form onSubmit={handleCreateBanner} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
-              <h3 className="text-xs font-bold text-indigo-950 uppercase">Upload New Poster</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Title / Campaign Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Summer Robotics Sale"
-                    value={bannerTitle}
-                    onChange={(e) => setBannerTitle(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Image URL (or upload from file below)</label>
-                  <input
-                    type="url"
-                    placeholder="https://example.com/poster.jpg"
-                    value={bannerImageUrl}
-                    onChange={(e) => setBannerImageUrl(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-2 bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-bold text-gray-800 block">Upload Poster from Laptop</span>
-                    <span className="text-[10px] text-gray-500">Select an image file (PNG, JPG, WEBP) to upload directly to cloud storage.</span>
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileUpload(e, false)}
-                    className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                  />
-                </div>
-
-                {uploadingPoster && (
-                  <div className="sm:col-span-2 text-xs text-indigo-600 font-bold animate-pulse">
-                    Uploading poster to cloud storage... Please wait...
-                  </div>
-                )}
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Target Specific Customer Email (Optional)</label>
-                  <input
-                    type="email"
-                    placeholder="Leave blank for public store display, or enter customer email"
-                    value={bannerTargetEmail}
-                    onChange={(e) => setBannerTargetEmail(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
-                  />
-                </div>
-              </div>
-              <button type="submit" disabled={uploadingPoster} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer disabled:opacity-50">
-                Publish Poster 🚀
-              </button>
-            </form>
-
-            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Posters</h3>
-            {banners.length === 0 ? (
-              <p className="text-xs text-gray-400 italic py-6 text-center">No promotional posters uploaded yet.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {banners.map((b) => (
-                  <div key={b.id} className="border rounded-2xl p-4 bg-white shadow-sm space-y-3">
-                    <div className="h-40 bg-gray-100 rounded-xl overflow-hidden border">
-                      <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-gray-900">{b.title}</h4>
-                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
-                        {b.target_customer_email ? `🔒 Exclusive to: ${b.target_customer_email}` : '🌐 Public Banner (Shown to all)'}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t gap-2">
-                      <button
-                        onClick={() => openEditBannerModal(b)}
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer flex-1 text-center"
-                      >
-                        Edit ✏️
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await supabase.from('banners').update({ is_active: !b.is_active }).eq('id', b.id)
-                          fetchBanners()
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          b.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
-                        }`}
-                      >
-                        {b.is_active ? 'Active ✓' : 'Inactive ✕'}
-                      </button>
-                      <button
-                        onClick={() => deleteBanner(b.id)}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ----------------- EDIT BANNER MODAL ----------------- */}
-        {editingBanner && (
-          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-base font-black text-indigo-950">Edit Promotional Poster</h3>
-              <form onSubmit={handleUpdateBanner} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Title</label>
-                  <input
-                    type="text"
-                    value={editBannerTitle}
-                    onChange={(e) => setEditBannerTitle(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Image URL (or upload new file)</label>
-                  <input
-                    type="url"
-                    value={editBannerImageUrl}
-                    onChange={(e) => setEditBannerImageUrl(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-mono"
-                    required
-                  />
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-700">Upload New File Replacement</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileUpload(e, true)}
-                    className="text-xs text-gray-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer"
-                  />
-                </div>
-                {uploadingEditPoster && <p className="text-xs text-indigo-600 font-bold animate-pulse">Uploading new image...</p>}
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
-                  <input
-                    type="email"
-                    value={editBannerTargetEmail}
-                    onChange={(e) => setEditBannerTargetEmail(e.target.value)}
-                    placeholder="Leave blank for public display"
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingBanner(null)}
-                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={uploadingEditPoster}
-                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer disabled:opacity-50"
                   >
                     Save Changes
                   </button>
