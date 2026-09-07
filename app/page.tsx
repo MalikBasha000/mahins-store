@@ -15,6 +15,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [dbError, setDbError] = useState<string | null>(null)
   
+  // Popup Modal State for Posters
+  const [selectedPoster, setSelectedPoster] = useState<any | null>(null)
+  
   const [searchInput, setSearchInput] = useState('')
   const [submittedQuery, setSubmittedQuery] = useState('')
   
@@ -167,17 +170,53 @@ export default function HomePage() {
       </header>
 
       <main className="mx-auto max-w-7xl p-8 space-y-8">
-        {/* Dynamic Promotional Banners & Posters Grid */}
+        {/* Fully Visible Clickable Promotional Banners & Posters */}
         {banners.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {banners.map((b) => (
-              <div key={b.id} className="rounded-3xl overflow-hidden shadow-md border bg-white relative group h-56 sm:h-64">
-                <img src={b.image_url} alt={b.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-6">
-                  <h3 className="text-white font-black text-lg tracking-wide">{b.title}</h3>
+              <div 
+                key={b.id} 
+                onClick={() => setSelectedPoster(b)}
+                className="rounded-3xl overflow-hidden shadow-md border bg-white relative group cursor-pointer transition transform hover:scale-[1.01]"
+                title="Click to view full poster"
+              >
+                <div className="w-full bg-gray-900 flex items-center justify-center">
+                  <img 
+                    src={b.image_url} 
+                    alt={b.title} 
+                    className="w-full h-auto object-contain max-h-[400px]" 
+                  />
+                </div>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 flex items-center justify-between">
+                  <h3 className="text-white font-black text-sm sm:text-base tracking-wide truncate">{b.title}</h3>
+                  <span className="text-[10px] font-bold bg-white/20 text-white px-2.5 py-1 rounded-full backdrop-blur-xs">Click to Zoom 🔍</span>
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Poster Lightbox Popup Modal */}
+        {selectedPoster && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center p-4 z-50 animate-fadeIn" onClick={() => setSelectedPoster(null)}>
+            <div className="relative max-w-4xl w-full bg-white rounded-3xl overflow-hidden shadow-2xl p-4 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+              <div className="w-full flex justify-between items-center mb-3 px-2">
+                <h3 className="text-base font-black text-indigo-950">{selectedPoster.title}</h3>
+                <button 
+                  onClick={() => setSelectedPoster(null)}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-sm px-3 py-1 rounded-full cursor-pointer transition"
+                >
+                  ✕ Close
+                </button>
+              </div>
+              <div className="w-full max-h-[80vh] flex items-center justify-center bg-gray-950 rounded-2xl overflow-hidden">
+                <img 
+                  src={selectedPoster.image_url} 
+                  alt={selectedPoster.title} 
+                  className="max-w-full max-h-[75vh] object-contain"
+                />
+              </div>
+            </div>
           </div>
         )}
 
