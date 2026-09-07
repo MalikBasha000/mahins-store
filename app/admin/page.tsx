@@ -1313,6 +1313,332 @@ export default function AdminPage() {
           </button>
         </div>
 
+        {/* ----------------- TAB: CUSTOMER ORDERS ----------------- */}
+        {activeTab === 'orders' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Customer Orders ({orders.length})</h2>
+                <p className="text-xs text-gray-500">Showing {filteredAdminOrders.length} filtered results</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+                <input
+                  type="text"
+                  value={orderSearchQuery}
+                  onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  placeholder="🔍 Search Tracking ID, Name, Email, Items..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                />
+
+                <select
+                  value={orderAmountSort}
+                  onChange={(e: any) => setOrderAmountSort(e.target.value)}
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium"
+                >
+                  <option value="DEFAULT">Sort Amount: Default</option>
+                  <option value="HIGH_TO_LOW">Amount: High to Low (₹₹₹)</option>
+                  <option value="LOW_TO_HIGH">Amount: Low to High (₹)</option>
+                </select>
+
+                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
+                  <input
+                    type="number"
+                    value={minAmountFilter}
+                    onChange={(e) => setMinAmountFilter(e.target.value)}
+                    placeholder="Min ₹"
+                    className="border border-gray-300 p-1.5 rounded-lg text-xs w-20 text-gray-900 bg-white focus:outline-indigo-600"
+                  />
+                  <span className="text-gray-400 text-xs font-bold">-</span>
+                  <input
+                    type="number"
+                    value={maxAmountFilter}
+                    onChange={(e) => setMaxAmountFilter(e.target.value)}
+                    placeholder="Max ₹"
+                    className="border border-gray-300 p-1.5 rounded-lg text-xs w-20 text-gray-900 bg-white focus:outline-indigo-600"
+                  />
+                </div>
+
+                {(orderSearchQuery || orderAmountSort !== 'DEFAULT' || minAmountFilter !== '' || maxAmountFilter !== '') && (
+                  <button
+                    onClick={() => {
+                      setOrderSearchQuery('')
+                      setOrderAmountSort('DEFAULT')
+                      setMinAmountFilter('')
+                      setMaxAmountFilter('')
+                    }}
+                    className="text-xs text-red-600 hover:underline font-bold px-3 py-2 bg-red-50 rounded-xl cursor-pointer"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
+              {['ALL', 'PENDING VERIFICATION', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => {
+                const count = getAdminOrderCount(status)
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setActiveAdminOrderTab(status)}
+                    className={`px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
+                      activeAdminOrderTab === status
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {status} <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeAdminOrderTab === status ? 'bg-indigo-800 text-white' : 'bg-gray-200 text-gray-800'}`}>{count}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {loading ? (
+              <p className="text-gray-500">Loading orders...</p>
+            ) : filteredAdminOrders.length === 0 ? (
+              <div className="py-12 text-center text-gray-500">
+                <p className="text-sm font-semibold">No orders match your filter criteria.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {filteredAdminOrders.map((o) => {
+                  const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                  const statusLower = (o.status || '').toLowerCase()
+                  const isPending = statusLower === 'pending verification' || statusLower === 'pending'
+                  const isCancelled = statusLower === 'cancelled'
+                  const isUpiVerifiedOrPaid = (o.payment_method || '').includes('Paid') || (o.payment_method || '').includes('UTR')
+                  const dynamicPaymentStatus = isUpiVerifiedOrPaid ? 'Paid & Verified' : (o.payment_status || 'Done')
+
+                  return (
+                    <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-indigo-300 transition space-y-5">
+                      <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
+                            <span className="font-mono text-base font-black text-indigo-950">{o.tracking_id || 'N/A'}</span>
+                          </div>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-xs text-gray-500 font-semibold">🕒 {orderDate}</span>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase inline-block ${
+                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                              isCancelled ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-green-100 text-green-900 border border-green-300'
+                            }`}>
+                              {o.status || 'Pending'}
+                            </span>
+                            {o.cancellation_reason && (
+                              <span className="text-[11px] text-red-600 font-semibold block mt-1 max-w-xs text-right leading-tight">
+                                {o.cancellation_reason}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
+                          <div className="font-extrabold text-gray-900 text-sm">{o.customer_name || 'Guest'}</div>
+                          <div className="text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Payment Details</span>
+                          <span className="inline-block bg-white text-indigo-950 font-mono font-bold px-3 py-1.5 rounded-xl border border-indigo-200 text-xs shadow-2xs">
+                            {o.payment_method || 'Online'}
+                          </span>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
+                          {Array.isArray(o.items) && o.items.length > 0 ? (
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                              {o.items.map((item: any, idx: number) => {
+                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
+                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
+                                return (
+                                  <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
+                                    <div 
+                                      onClick={async () => {
+                                        const productId = item.id || item.product_id
+                                        if (productId) {
+                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
+                                          if (data && data.image_url) {
+                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
+                                            setActiveOrderGalleryImages(allImgs)
+                                            setActiveGalleryIndex(0)
+                                            return
+                                          }
+                                        }
+                                        setActiveOrderGalleryImages([itemImg])
+                                        setActiveGalleryIndex(0)
+                                      }}
+                                      className="relative group flex-shrink-0 cursor-pointer"
+                                      title="Click to view all product images"
+                                    >
+                                      <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white hover:border-indigo-600 transition" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
+                                      <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">No items data</span>
+                          )}
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
+                          <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
+                            {o.shipping_address || 'No address provided'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(o.shipping_address || '')
+                              alert('Shipping address copied to clipboard!')
+                            }}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition border border-indigo-200 cursor-pointer block w-full text-center"
+                          >
+                            📋 Copy Full Address
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-gray-600">Update Status:</span>
+                          <select
+                            value={o.status || 'Pending'}
+                            onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                            className="border p-2 rounded-xl text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm cursor-pointer"
+                          >
+                            <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer"
+                          >
+                            📄 Invoice
+                          </button>
+                          <button
+                            onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
+                            className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-gray-300 transition cursor-pointer"
+                          >
+                            🏷️ Packing Slip
+                          </button>
+                          <a
+                            href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
+                              `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${dynamicPaymentStatus}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
+                                Array.isArray(o.items) 
+                                  ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
+                                  : '- Order Item'
+                              }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
+                            )}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition cursor-pointer flex items-center gap-1.5"
+                          >
+                            💬 WhatsApp Update
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- TAB: CUSTOMERS DIRECTORY ----------------- */}
+        {activeTab === 'customers' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Customers Directory ({customers.length})</h2>
+                <p className="text-xs text-gray-500">View customer lifetime orders, total spend, and contact records</p>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <input
+                  type="text"
+                  value={customerSearchQuery}
+                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                  placeholder="🔍 Search name, email, phone, ID..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                />
+                <button
+                  type="button"
+                  onClick={handleExportCustomersCSV}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer whitespace-nowrap"
+                >
+                  📤 Export Customers
+                </button>
+              </div>
+            </div>
+
+            {filteredCustomers.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-12 text-center">No customer records matching your search.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredCustomers.map((cust) => {
+                  const cust12 = getTwelveDigitId(cust.id)
+                  return (
+                    <div key={cust.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3 hover:border-indigo-300 transition">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-sm text-gray-900">{cust.name || 'Guest User'}</h4>
+                          <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 block mt-0.5">
+                            ID: {cust12}
+                          </span>
+                        </div>
+                        <span className="bg-indigo-50 text-indigo-900 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-indigo-100">
+                          ₹{cust.total_spent || 0}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1 text-xs text-gray-600">
+                        <div>✉️ {cust.email || 'No email registered'}</div>
+                        <div>📞 {cust.phone || 'No phone registered'}</div>
+                        <div>📦 {cust.total_orders_count || 0} total orders</div>
+                      </div>
+
+                      <div className="pt-2 border-t flex justify-end">
+                        <button
+                          onClick={() => setViewingCustomer(cust)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+                        >
+                          View Full Profile & Orders →
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ----------------- TAB: BANNERS & POSTERS MANAGEMENT ----------------- */}
         {activeTab === 'banners' && (
           <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
