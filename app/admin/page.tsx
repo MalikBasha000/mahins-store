@@ -1313,519 +1313,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* ----------------- TAB: CUSTOMER ORDERS ----------------- */}
-        {activeTab === 'orders' && (
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
-              <div>
-                <h2 className="text-lg font-extrabold text-gray-900">Customer Orders ({orders.length})</h2>
-                <p className="text-xs text-gray-500">Showing {filteredAdminOrders.length} filtered results</p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
-                <input
-                  type="text"
-                  value={orderSearchQuery}
-                  onChange={(e) => setOrderSearchQuery(e.target.value)}
-                  placeholder="🔍 Search Tracking ID, Name, Email, Items..."
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
-                />
-
-                <select
-                  value={orderAmountSort}
-                  onChange={(e: any) => setOrderAmountSort(e.target.value)}
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium"
-                >
-                  <option value="DEFAULT">Sort Amount: Default</option>
-                  <option value="HIGH_TO_LOW">Amount: High to Low (₹₹₹)</option>
-                  <option value="LOW_TO_HIGH">Amount: Low to High (₹)</option>
-                </select>
-
-                <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
-                  <input
-                    type="number"
-                    value={minAmountFilter}
-                    onChange={(e) => setMinAmountFilter(e.target.value)}
-                    placeholder="Min ₹"
-                    className="border border-gray-300 p-1.5 rounded-lg text-xs w-20 text-gray-900 bg-white focus:outline-indigo-600"
-                  />
-                  <span className="text-gray-400 text-xs font-bold">-</span>
-                  <input
-                    type="number"
-                    value={maxAmountFilter}
-                    onChange={(e) => setMaxAmountFilter(e.target.value)}
-                    placeholder="Max ₹"
-                    className="border border-gray-300 p-1.5 rounded-lg text-xs w-20 text-gray-900 bg-white focus:outline-indigo-600"
-                  />
-                </div>
-
-                {(orderSearchQuery || orderAmountSort !== 'DEFAULT' || minAmountFilter !== '' || maxAmountFilter !== '') && (
-                  <button
-                    onClick={() => {
-                      setOrderSearchQuery('')
-                      setOrderAmountSort('DEFAULT')
-                      setMinAmountFilter('')
-                      setMaxAmountFilter('')
-                    }}
-                    className="text-xs text-red-600 hover:underline font-bold px-3 py-2 bg-red-50 rounded-xl cursor-pointer"
-                  >
-                    Clear Filters
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 mb-6 border-b pb-4">
-              {['ALL', 'PENDING VERIFICATION', 'PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((status) => {
-                const count = getAdminOrderCount(status)
-                return (
-                  <button
-                    key={status}
-                    onClick={() => setActiveAdminOrderTab(status)}
-                    className={`px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer ${
-                      activeAdminOrderTab === status
-                        ? 'bg-indigo-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {status} <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeAdminOrderTab === status ? 'bg-indigo-800 text-white' : 'bg-gray-200 text-gray-800'}`}>{count}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {loading ? (
-              <p className="text-gray-500">Loading orders...</p>
-            ) : filteredAdminOrders.length === 0 ? (
-              <div className="py-12 text-center text-gray-500">
-                <p className="text-sm font-semibold">No orders match your filter criteria.</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {filteredAdminOrders.map((o) => {
-                  const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
-                  const statusLower = (o.status || '').toLowerCase()
-                  const isPending = statusLower === 'pending verification' || statusLower === 'pending'
-                  const isCancelled = statusLower === 'cancelled'
-                  const isUpiVerifiedOrPaid = (o.payment_method || '').includes('Paid') || (o.payment_method || '').includes('UTR')
-                  const dynamicPaymentStatus = isUpiVerifiedOrPaid ? 'Paid & Verified' : (o.payment_status || 'Done')
-
-                  return (
-                    <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-indigo-300 transition space-y-5">
-                      <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
-                        <div className="flex items-center gap-3">
-                          <div>
-                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
-                            <span className="font-mono text-base font-black text-indigo-950">{o.tracking_id || 'N/A'}</span>
-                          </div>
-                          <span className="text-gray-300">•</span>
-                          <span className="text-xs text-gray-500 font-semibold">🕒 {orderDate}</span>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
-                            <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase inline-block ${
-                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
-                              isCancelled ? 'bg-red-100 text-red-900 border border-amber-300' : 'bg-green-100 text-green-900 border border-green-300'
-                            }`}>
-                              {o.status || 'Pending'}
-                            </span>
-                            {o.cancellation_reason && (
-                              <span className="text-[11px] text-red-600 font-semibold block mt-1 max-w-xs text-right leading-tight">
-                                {o.cancellation_reason}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
-                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1">
-                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
-                          <div className="font-extrabold text-gray-900 text-sm">{o.customer_name || 'Guest'}</div>
-                          <div className="text-gray-500 font-medium">{o.customer_email || 'No email available'}</div>
-                        </div>
-
-                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
-                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Payment Details</span>
-                          <span className="inline-block bg-white text-indigo-950 font-mono font-bold px-3 py-1.5 rounded-xl border border-indigo-200 text-xs shadow-2xs">
-                            {o.payment_method || 'Online'}
-                          </span>
-                        </div>
-
-                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
-                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
-                          {Array.isArray(o.items) && o.items.length > 0 ? (
-                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                              {o.items.map((item: any, idx: number) => {
-                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
-                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
-                                return (
-                                  <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
-                                    <div 
-                                      onClick={async () => {
-                                        const productId = item.id || item.product_id
-                                        if (productId) {
-                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
-                                          if (data && data.image_url) {
-                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
-                                            setActiveOrderGalleryImages(allImgs)
-                                            setActiveGalleryIndex(0)
-                                            return
-                                          }
-                                        }
-                                        setActiveOrderGalleryImages([itemImg])
-                                        setActiveGalleryIndex(0)
-                                      }}
-                                      className="relative group flex-shrink-0 cursor-pointer"
-                                      title="Click to view all product images"
-                                    >
-                                      <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white hover:border-indigo-600 transition" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
-                                      <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 italic">No items data</span>
-                          )}
-                        </div>
-
-                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
-                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
-                          <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
-                            {o.shipping_address || 'No address provided'}
-                          </div>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(o.shipping_address || '')
-                              alert('Shipping address copied to clipboard!')
-                            }}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition border border-indigo-200 cursor-pointer block w-full text-center"
-                          >
-                            📋 Copy Full Address
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-gray-600">Update Status:</span>
-                          <select
-                            value={o.status || 'Pending'}
-                            onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
-                            className="border p-2 rounded-xl text-xs font-bold bg-white text-indigo-900 focus:outline-indigo-600 shadow-sm cursor-pointer"
-                          >
-                            <option value="PENDING VERIFICATION">PENDING VERIFICATION</option>
-                            <option value="Pending">Pending</option>
-                            <option value="Processing">Processing</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Delivered">Delivered</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setActivePrintOrder({ order: o, type: 'INVOICE' })}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer"
-                          >
-                            📄 Invoice
-                          </button>
-                          <button
-                            onClick={() => setActivePrintOrder({ order: o, type: 'PACKING_SLIP' })}
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-gray-300 transition cursor-pointer"
-                          >
-                            🏷️ Packing Slip
-                          </button>
-                          <a
-                            href={`https://wa.me/${(o.customer_phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(
-                              `Hello ${o.customer_name || 'Customer'},\n\nThank you for shopping at Mahin's One-Stop One-Store!\n\nOrder Status: ${o.status || 'Pending'}\nTracking ID: ${o.tracking_id}\nPayment Status: ${dynamicPaymentStatus}\nPayment Method: ${o.payment_method || 'Online/UPI'}\n\nItemized Order Summary:\n${
-                                Array.isArray(o.items) 
-                                  ? o.items.map((i: any) => `- ${i.name}\n  Qty: ${i.quantity || 1} x Rs.${i.price || 0} = Rs.${(i.quantity || 1) * (i.price || 0)}`).join('\n\n') 
-                                  : '- Order Item'
-                              }\n\n----------------\nTotal Payable Amount: Rs.${o.total_amount || o.final_payable_amount}\n----------------\n\nTrack Your Order Here:\nhttps://mahinsonestoponestore.in/track?id=${o.tracking_id}`
-                            )}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition cursor-pointer flex items-center gap-1.5"
-                          >
-                            💬 WhatsApp Update
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ----------------- TAB: CUSTOMERS DIRECTORY ----------------- */}
-        {activeTab === 'customers' && (
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
-              <div>
-                <h2 className="text-lg font-extrabold text-gray-900">Customers Directory ({customers.length})</h2>
-                <p className="text-xs text-gray-500">View customer lifetime orders, total spend, and contact records</p>
-              </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <input
-                  type="text"
-                  value={customerSearchQuery}
-                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                  placeholder="🔍 Search name, email, phone, ID..."
-                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
-                />
-                <button
-                  type="button"
-                  onClick={handleExportCustomersCSV}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer whitespace-nowrap"
-                >
-                  📤 Export Customers
-                </button>
-              </div>
-            </div>
-
-            {filteredCustomers.length === 0 ? (
-              <p className="text-xs text-gray-400 italic py-12 text-center">No customer records matching your search.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredCustomers.map((cust) => {
-                  const cust12 = getTwelveDigitId(cust.id)
-                  return (
-                    <div key={cust.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3 hover:border-indigo-300 transition">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="font-bold text-sm text-gray-900">{cust.name || 'Guest User'}</h4>
-                          <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 block mt-0.5">
-                            ID: {cust12}
-                          </span>
-                        </div>
-                        <span className="bg-indigo-50 text-indigo-900 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-indigo-100">
-                          ₹{cust.total_spent || 0}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-1 text-xs text-gray-600">
-                        <div>✉️ {cust.email || 'No email registered'}</div>
-                        <div>📞 {cust.phone || 'No phone registered'}</div>
-                        <div>📦 {cust.total_orders_count || 0} total orders</div>
-                      </div>
-
-                      <div className="pt-2 border-t flex justify-end">
-                        <button
-                          onClick={() => setViewingCustomer(cust)}
-                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
-                        >
-                          View Full Profile & Orders →
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ----------------- TAB: BANNERS & POSTERS MANAGEMENT ----------------- */}
-        {activeTab === 'banners' && (
-          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
-            <div className="border-b pb-4">
-              <h2 className="text-xl font-black text-indigo-950">🖼️ Store Promotional Posters & Banners</h2>
-              <p className="text-xs text-gray-500 mt-1">Upload store posters or exclusive targeted banners for specific customers.</p>
-            </div>
-
-            <form onSubmit={handleCreateBanner} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
-              <h3 className="text-xs font-bold text-indigo-950 uppercase">Upload New Poster</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Title / Campaign Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Summer Robotics Sale"
-                    value={bannerTitle}
-                    onChange={(e) => setBannerTitle(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Image URL (or upload from file below)</label>
-                  <input
-                    type="url"
-                    placeholder="https://example.com/poster.jpg"
-                    value={bannerImageUrl}
-                    onChange={(e) => setBannerImageUrl(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-2 bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-bold text-gray-800 block">Upload Poster from Laptop</span>
-                    <span className="text-[10px] text-gray-500">Select an image file (PNG, JPG, WEBP) to upload directly to cloud storage.</span>
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileUpload(e, false)}
-                    className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                  />
-                </div>
-
-                {uploadingPoster && (
-                  <div className="sm:col-span-2 text-xs text-indigo-600 font-bold animate-pulse">
-                    Uploading poster to cloud storage... Please wait...
-                  </div>
-                )}
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Target Specific Customer Email (Optional)</label>
-                  <input
-                    type="email"
-                    placeholder="Leave blank for public store display, or enter customer email"
-                    value={bannerTargetEmail}
-                    onChange={(e) => setBannerTargetEmail(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
-                  />
-                </div>
-              </div>
-              <button type="submit" disabled={uploadingPoster} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer disabled:opacity-50">
-                Publish Poster 🚀
-              </button>
-            </form>
-
-            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Posters</h3>
-            {banners.length === 0 ? (
-              <p className="text-xs text-gray-400 italic py-6 text-center">No promotional posters uploaded yet.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {banners.map((b) => (
-                  <div key={b.id} className="border rounded-2xl p-4 bg-white shadow-sm space-y-3">
-                    <div className="h-40 bg-gray-100 rounded-xl overflow-hidden border">
-                      <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-gray-900">{b.title}</h4>
-                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
-                        {b.target_customer_email ? `🔒 Exclusive to: ${b.target_customer_email}` : '🌐 Public Banner (Shown to all)'}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t gap-2">
-                      <button
-                        onClick={() => openEditBannerModal(b)}
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer flex-1 text-center"
-                      >
-                        Edit ✏️
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await supabase.from('banners').update({ is_active: !b.is_active }).eq('id', b.id)
-                          fetchBanners()
-                        }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          b.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
-                        }`}
-                      >
-                        {b.is_active ? 'Active ✓' : 'Inactive ✕'}
-                      </button>
-                      <button
-                        onClick={() => deleteBanner(b.id)}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ----------------- EDIT BANNER MODAL ----------------- */}
-        {editingBanner && (
-          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-base font-black text-indigo-950">Edit Promotional Poster</h3>
-              <form onSubmit={handleUpdateBanner} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Title</label>
-                  <input
-                    type="text"
-                    value={editBannerTitle}
-                    onChange={(e) => setEditBannerTitle(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Image URL (or upload new file)</label>
-                  <input
-                    type="url"
-                    value={editBannerImageUrl}
-                    onChange={(e) => setEditBannerImageUrl(e.target.value)}
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-mono"
-                    required
-                  />
-                </div>
-                <div className="bg-gray-50 p-3 rounded-xl border flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-700">Upload New File Replacement</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleFileUpload(e, true)}
-                    className="text-xs text-gray-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer"
-                  />
-                </div>
-                {uploadingEditPoster && <p className="text-xs text-indigo-600 font-bold animate-pulse">Uploading new image...</p>}
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
-                  <input
-                    type="email"
-                    value={editBannerTargetEmail}
-                    onChange={(e) => setEditBannerTargetEmail(e.target.value)}
-                    placeholder="Leave blank for public display"
-                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingBanner(null)}
-                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={uploadingEditPoster}
-                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer disabled:opacity-50"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* ----------------- TAB: COUPONS MANAGEMENT ----------------- */}
+        {/* ----------------- TAB: COUPONS MANAGEMENT (WITH EDIT) ----------------- */}
         {activeTab === 'coupons' && (
           <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
             <div className="border-b pb-4">
@@ -2009,6 +1497,192 @@ export default function AdminPage() {
                   <button
                     type="submit"
                     className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: BANNERS MANAGEMENT ----------------- */}
+        {activeTab === 'banners' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">🖼️ Store Promotional Posters & Banners</h2>
+              <p className="text-xs text-gray-500 mt-1">Upload store posters or exclusive targeted banners for specific customers.</p>
+            </div>
+
+            <form onSubmit={handleCreateBanner} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Upload New Poster</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Title / Campaign Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Summer Robotics Sale"
+                    value={bannerTitle}
+                    onChange={(e) => setBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Image URL (or upload from file below)</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/poster.jpg"
+                    value={bannerImageUrl}
+                    onChange={(e) => setBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
+                    required
+                  />
+                </div>
+
+                <div className="sm:col-span-2 bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 block">Upload Poster from Laptop</span>
+                    <span className="text-[10px] text-gray-500">Select an image file (PNG, JPG, WEBP) to upload directly to cloud storage.</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, false)}
+                    className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
+
+                {uploadingPoster && (
+                  <div className="sm:col-span-2 text-xs text-indigo-600 font-bold animate-pulse">
+                    Uploading poster to cloud storage... Please wait...
+                  </div>
+                )}
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Target Specific Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="Leave blank for public store display, or enter customer email"
+                    value={bannerTargetEmail}
+                    onChange={(e) => setBannerTargetEmail(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+              </div>
+              <button type="submit" disabled={uploadingPoster} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer disabled:opacity-50">
+                Publish Poster 🚀
+              </button>
+            </form>
+
+            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Posters</h3>
+            {banners.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-6 text-center">No promotional posters uploaded yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {banners.map((b) => (
+                  <div key={b.id} className="border rounded-2xl p-4 bg-white shadow-sm space-y-3">
+                    <div className="h-40 bg-gray-100 rounded-xl overflow-hidden border">
+                      <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-gray-900">{b.title}</h4>
+                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
+                        {b.target_customer_email ? `🔒 Exclusive to: ${b.target_customer_email}` : '🌐 Public Banner (Shown to all)'}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t gap-2">
+                      <button
+                        onClick={() => openEditBannerModal(b)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer flex-1 text-center"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await supabase.from('banners').update({ is_active: !b.is_active }).eq('id', b.id)
+                          fetchBanners()
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          b.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {b.is_active ? 'Active ✓' : 'Inactive ✕'}
+                      </button>
+                      <button
+                        onClick={() => deleteBanner(b.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- EDIT BANNER MODAL ----------------- */}
+        {editingBanner && (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-base font-black text-indigo-950">Edit Promotional Poster</h3>
+              <form onSubmit={handleUpdateBanner} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Title</label>
+                  <input
+                    type="text"
+                    value={editBannerTitle}
+                    onChange={(e) => setEditBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Image URL (or upload new file)</label>
+                  <input
+                    type="url"
+                    value={editBannerImageUrl}
+                    onChange={(e) => setEditBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-mono"
+                    required
+                  />
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700">Upload New File Replacement</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, true)}
+                    className="text-xs text-gray-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer"
+                  />
+                </div>
+                {uploadingEditPoster && <p className="text-xs text-indigo-600 font-bold animate-pulse">Uploading new image...</p>}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editBannerTargetEmail}
+                    onChange={(e) => setEditBannerTargetEmail(e.target.value)}
+                    placeholder="Leave blank for public display"
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingBanner(null)}
+                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploadingEditPoster}
+                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer disabled:opacity-50"
                   >
                     Save Changes
                   </button>
@@ -2205,288 +1879,795 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- MODALS ----------------- */}
-        {activePrintOrder && (
-          <OrderInvoiceModal
-            order={activePrintOrder.order}
-            type={activePrintOrder.type}
-            onClose={() => setActivePrintOrder(null)}
-          />
+        {/* ----------------- TAB: UPI VERIFICATIONS ----------------- */}
+        {activeTab === 'upi_verifications' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">⚡ Direct UPI / QR Payment Verification Center</h2>
+                <p className="text-xs text-gray-500">Review, verify, or reject direct QR/UPI transfers safely</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+                <input
+                  type="text"
+                  value={upiSearchQuery}
+                  onChange={(e) => setUpiSearchQuery(e.target.value)}
+                  placeholder="🔍 Search name, tracking ID, amount, UTR..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-80 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                />
+
+                <select
+                  value={upiStatusFilter}
+                  onChange={(e) => setUpiStatusFilter(e.target.value)}
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium"
+                >
+                  <option value="ALL">All Statuses ({allUpiOrders.length})</option>
+                  <option value="PENDING">Pending Only ({upiPendingOrders.length})</option>
+                  <option value="APPROVED">Approved Only</option>
+                  <option value="REJECTED">Rejected / Cancelled</option>
+                </select>
+
+                {(upiSearchQuery || upiStatusFilter !== 'ALL') && (
+                  <button
+                    onClick={() => { setUpiSearchQuery(''); setUpiStatusFilter('ALL'); }}
+                    className="text-xs text-red-600 hover:underline font-bold px-3 py-2 bg-red-50 rounded-xl"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {filteredUpiVerifications.length === 0 ? (
+              <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-200">
+                <div className="text-3xl mb-2">🔍</div>
+                <p className="text-sm font-bold text-gray-700">No UPI payment records match your search criteria.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {filteredUpiVerifications.map((o) => {
+                  const twelveCustId = getTwelveDigitId(o.user_id)
+                  const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                  const statusLower = (o.status || '').toLowerCase()
+                  const isPending = statusLower === 'pending verification' || statusLower === 'pending'
+                  const isCancelled = statusLower === 'cancelled'
+                  const cleanUtr = extractUtrNumber(o.payment_method)
+
+                  return (
+                    <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-amber-300 transition space-y-5">
+                      <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
+                            <span className="font-mono text-base font-black text-indigo-950">{o.tracking_id}</span>
+                          </div>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-xs text-gray-500 font-semibold">🕒 {orderDate}</span>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase inline-block ${
+                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                              isCancelled ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-green-100 text-green-900 border border-green-300'
+                            }`}>
+                              {o.status}
+                            </span>
+                            {o.cancellation_reason && (
+                              <span className="text-[11px] text-red-600 font-semibold block mt-1 max-w-xs text-right leading-tight">
+                                {o.cancellation_reason}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
+                          <div className="font-extrabold text-gray-900 text-sm">{o.customer_name}</div>
+                          <div className="text-gray-500 font-medium">{o.customer_email}</div>
+                          <span className="inline-block mt-1 text-[10px] font-mono text-indigo-800 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                            ID: {twelveCustId}
+                          </span>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">UTR Number</span>
+                          <span className="inline-block bg-white text-indigo-950 font-mono font-black px-3 py-2 rounded-xl border border-indigo-200 text-xs shadow-2xs">
+                            {cleanUtr}
+                          </span>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
+                          {Array.isArray(o.items) && o.items.length > 0 ? (
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                              {o.items.map((item: any, idx: number) => {
+                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
+                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
+                                return (
+                                  <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
+                                    <div 
+                                      onClick={async () => {
+                                        const productId = item.id || item.product_id
+                                        if (productId) {
+                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
+                                          if (data && data.image_url) {
+                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
+                                            setActiveOrderGalleryImages(allImgs)
+                                            setActiveGalleryIndex(0)
+                                            return
+                                          }
+                                        }
+                                        setActiveOrderGalleryImages([itemImg])
+                                        setActiveGalleryIndex(0)
+                                      }}
+                                      className="relative group flex-shrink-0 cursor-pointer"
+                                      title="Click to view all product images"
+                                    >
+                                      <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white hover:border-indigo-600 transition" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
+                                      <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">No items listed</span>
+                          )}
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
+                          <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
+                            {o.shipping_address || 'No address provided'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(o.shipping_address || '')
+                              alert('Shipping address copied to clipboard!')
+                            }}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition border border-indigo-200 cursor-pointer block w-full text-center"
+                          >
+                            📋 Copy Full Address
+                          </button>
+                        </div>
+                      </div>
+
+                      {isPending && (
+                        <div className="flex justify-end gap-3 pt-4 border-t">
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
+                            className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-6 py-3 rounded-xl transition border border-red-200 cursor-pointer"
+                          >
+                            ✕ Reject & Cancel
+                          </button>
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
+                            className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs px-8 py-3 rounded-xl shadow-md transition cursor-pointer"
+                          >
+                            ✓ Verify & Approve Payment
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         )}
 
-        {viewingCustomer && (
-          <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl p-6 max-h-[92vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-6 border-b pb-4">
+        {/* ----------------- TAB 0: ANALYTICS & INSIGHTS ----------------- */}
+        {activeTab === 'analytics' && (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Active Gross Revenue</span>
+                <h3 className="text-2xl font-black text-indigo-950">₹{totalRevenue.toLocaleString()}</h3>
+                <span className="text-[11px] text-green-600 font-semibold mt-2 block">✓ Excludes cancelled orders</span>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Delivered Net Revenue</span>
+                <h3 className="text-2xl font-black text-green-700">₹{deliveredRevenue.toLocaleString()}</h3>
+                <span className="text-[11px] text-gray-500 font-semibold mt-2 block">{getAdminOrderCount('Delivered')} fulfilled orders</span>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Average Order Value (AOV)</span>
+                <h3 className="text-2xl font-black text-indigo-900">₹{averageOrderValue.toLocaleString()}</h3>
+                <span className="text-[11px] text-indigo-600 font-semibold mt-2 block">Per active checkout</span>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Order Volume</span>
+                <h3 className="text-2xl font-black text-gray-900">{orders.length} Orders</h3>
+                <span className="text-[11px] text-gray-500 font-semibold mt-2 block">{customers.length} total customer accounts</span>
+              </div>
+            </div>
+
+            <SalesCharts orders={orders} products={products} />
+
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+              <div className="flex justify-between items-center mb-4">
                 <div>
-                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Customer Profile Details</span>
-                  <h3 className="text-2xl font-black text-gray-900 mt-1">{viewingCustomer.name}</h3>
-                  <span className="text-xs font-mono text-indigo-800 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                    Customer ID: {getTwelveDigitId(viewingCustomer.id)}
-                  </span>
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    ⚠️ Low Stock Warning Center
+                    <span className="bg-red-100 text-red-800 text-xs px-2.5 py-0.5 rounded-full font-extrabold">
+                      {lowStockProducts.length} Items Critical
+                    </span>
+                  </h3>
+                  <p className="text-xs text-gray-500">Inventory items with 5 units or less remaining in warehouse</p>
                 </div>
                 <button
-                  onClick={() => setViewingCustomer(null)}
-                  className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer"
+                  onClick={() => { setActiveTab('products'); setStockFilter('LOW'); }}
+                  className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
                 >
-                  ✕
+                  Manage In Inventory →
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
-                <div>
-                  <span className="text-[11px] font-bold text-gray-500 uppercase block">Contact Email</span>
-                  <span className="text-sm font-bold text-gray-900">{viewingCustomer.email || 'N/A'}</span>
+              {lowStockProducts.length === 0 ? (
+                <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-xs text-green-800 font-semibold">
+                  ✓ All products are comfortably stocked (&gt; 5 units).
                 </div>
-                <div>
-                  <span className="text-[11px] font-bold text-gray-500 uppercase block">Phone Number</span>
-                  <span className="text-sm font-bold text-gray-900">{viewingCustomer.phone || 'N/A'}</span>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {lowStockProducts.map((p) => (
+                    <div key={p.id} className="bg-red-50/50 p-3.5 rounded-xl border border-red-200 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-900">{p.name || p.title}</h4>
+                        <span className="text-[11px] text-gray-500">{p.category || 'General'}</span>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${p.stock === 0 ? 'bg-red-600 text-white' : 'bg-red-200 text-red-900'}`}>
+                        {p.stock === 0 ? 'OUT OF STOCK' : `${p.stock} left`}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <span className="text-[11px] font-bold text-gray-500 uppercase block">Total Lifetime Spend</span>
-                  <span className="text-base font-extrabold text-indigo-900">₹{viewingCustomer.total_spent}</span>
-                </div>
-              </div>
+              )}
+            </div>
 
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-xs font-bold text-gray-700 uppercase">Current Active Dynamic Address (Profile)</h4>
-                  {viewingCustomer.current_profile_address && !viewingCustomer.current_profile_address.includes('No dynamic address saved') && (
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(viewingCustomer.current_profile_address)
-                        alert(`Address copied to clipboard!`)
-                      }}
-                      className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer"
-                    >
-                      📋 Copy Address
-                    </button>
-                  )}
-                </div>
-                <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 text-xs text-gray-800 leading-relaxed">
-                  {viewingCustomer.current_profile_address}
-                </div>
-              </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 mb-1">🏆 Top Performing Products</h3>
+              <p className="text-xs text-gray-500 mb-6">Ranked by total quantity sold across active customer orders</p>
 
-              <div>
-                <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">
-                  Order History Logs ({viewingCustomer.order_logs.length})
-                </h4>
-
-                {viewingCustomer.order_logs.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">No orders logged under this customer account yet.</p>
-                ) : (
-                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                    {viewingCustomer.order_logs.map((log: any) => (
-                      <div key={log.id} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-wrap justify-between items-center gap-4 hover:border-indigo-300 transition">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                              log.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-                              log.status === 'Delivered' ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800'
-                            }`}>
-                              {log.status || 'Pending'}
+              {topSellingProducts.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No order data available to generate performance leaderboard.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 border-b text-gray-600">
+                        <th className="p-3">Rank</th>
+                        <th className="p-3">Product Name</th>
+                        <th className="p-3 text-center">Units Sold</th>
+                        <th className="p-3 text-right">Total Revenue Generated</th>
+                        <th className="p-3 text-right">Current Available Stock</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topSellingProducts.slice(0, 8).map((p, idx) => (
+                        <tr key={idx} className="border-b hover:bg-gray-50">
+                          <td className="p-3 font-bold text-indigo-900">#{idx + 1}</td>
+                          <td className="p-3 font-bold text-gray-900">{p.name}</td>
+                          <td className="p-3 text-center font-extrabold text-indigo-600">{p.unitsSold} pcs</td>
+                          <td className="p-3 text-right font-black text-gray-900">₹{p.totalSales.toLocaleString()}</td>
+                          <td className="p-3 text-right">
+                            <span className={`px-2 py-0.5 rounded font-bold text-[11px] ${p.currentStock > 5 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {p.currentStock} in stock
                             </span>
-                            <span className="text-xs font-mono font-bold text-indigo-950">Tracking: {log.tracking_id}</span>
-                          </div>
-                          <p className="text-xs text-gray-600">
-                            Items: {Array.isArray(log.items) ? log.items.map((i: any) => `${i.name} (${i.quantity}x)`).join(', ') : 'No items data'}
-                          </p>
-                          <span className="text-[11px] text-gray-400 block mt-1">Date: {new Date(log.created_at).toLocaleString()}</span>
-                        </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
-                        <div className="text-right">
-                          <span className="text-sm font-black text-indigo-900 block">₹{log.total_amount || log.final_payable_amount}</span>
-                          <span className="text-[11px] text-gray-500">{log.payment_method || 'Online'}</span>
-                        </div>
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 mb-4">📦 Order Status Distribution</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-center">
+                  <span className="text-[11px] font-bold text-amber-800 uppercase block">Pending</span>
+                  <span className="text-xl font-black text-amber-900 mt-1 block">{getAdminOrderCount('Pending')}</span>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-center">
+                  <span className="text-[11px] font-bold text-blue-800 uppercase block">Processing</span>
+                  <span className="text-xl font-black text-blue-900 mt-1 block">{getAdminOrderCount('Processing')}</span>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 text-center">
+                  <span className="text-[11px] font-bold text-purple-800 uppercase block">Shipped</span>
+                  <span className="text-xl font-black text-purple-900 mt-1 block">{getAdminOrderCount('Shipped')}</span>
+                </div>
+                <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-center">
+                  <span className="text-[11px] font-bold text-green-800 uppercase block">Delivered</span>
+                  <span className="text-xl font-black text-green-900 mt-1 block">{getAdminOrderCount('Delivered')}</span>
+                </div>
+                <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-center">
+                  <span className="text-[11px] font-bold text-red-800 uppercase block">Cancelled</span>
+                  <span className="text-xl font-black text-red-900 mt-1 block">{getAdminOrderCount('Cancelled')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB 1: INVENTORY MANAGEMENT ----------------- */}
+        {activeTab === 'products' && (
+          <div className="space-y-6">
+            <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="text-sm font-black text-indigo-950 flex items-center gap-2">
+                  📁 Bulk Inventory Management (CSV / Excel)
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Import dozens of electronics/robotics components at once or export full warehouse records
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
+                <button type="button" onClick={handleDownloadSampleCSV} className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-300 transition cursor-pointer">📝 Sample Template</button>
+                <button type="button" onClick={handleExportCSV} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2 rounded-xl border border-indigo-200 transition cursor-pointer">📤 Export Inventory CSV</button>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition cursor-pointer">📥 Upload Bulk CSV</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-white p-6 rounded-2xl shadow-md h-fit">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Add Single Product</h2>
+                <form onSubmit={handleAddProduct} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
+                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Arduino Uno R3" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹)</label>
+                      <input type="number" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="599" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Stock</label>
+                      <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="50" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Category (Select existing or type new)</label>
+                    <input type="text" list="existing-categories" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Microcontrollers, Sensor" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900 focus:outline-indigo-600" />
+                    <datalist id="existing-categories">
+                      {categoriesList.map((cat: any, idx: number) => <option key={idx} value={cat} />)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
+                    <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Enter full specifications..." className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
+                    {imageInputs.map((url, index) => (
+                      <div key={index} className="flex gap-2 mb-2">
+                        <input type="url" value={url} onChange={(e) => handleImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
+                        {imageInputs.length > 1 && (
+                          <button type="button" onClick={() => handleRemoveImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100">✕</button>
+                        )}
                       </div>
                     ))}
+                    <button type="button" onClick={handleAddImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
+                  </div>
+
+                  <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg text-sm shadow">Add Product</button>
+                </form>
+              </div>
+
+              <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-md">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
+                  <h2 className="text-lg font-bold text-gray-900">Store Inventory ({filteredProducts.length})</h2>
+                  
+                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search name, ID, category..."
+                      className="border border-gray-300 p-2 rounded-lg text-xs w-full md:w-48 text-gray-900 focus:outline-indigo-600"
+                    />
+
+                    <select
+                      value={selectedCategoryFilter}
+                      onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+                      className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
+                    >
+                      <option value="ALL">All Categories</option>
+                      {categoriesList.map((cat: any, i) => (
+                        <option key={i} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={stockFilter}
+                      onChange={(e) => setStockFilter(e.target.value)}
+                      className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
+                    >
+                      <option value="ALL">All Stock Levels</option>
+                      <option value="AVAILABLE">In Stock (&gt;5)</option>
+                      <option value="LOW">Low Stock (≤5)</option>
+                      <option value="OUT">Out of Stock (0)</option>
+                    </select>
+
+                    {(searchQuery || selectedCategoryFilter !== 'ALL' || stockFilter !== 'ALL') && (
+                      <button
+                        onClick={() => { setSearchQuery(''); setSelectedCategoryFilter('ALL'); setStockFilter('ALL'); }}
+                        className="text-xs text-red-600 hover:underline font-bold px-2 py-1 bg-red-50 rounded"
+                      >
+                        Clear Filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {loading ? (
+                  <p className="text-gray-500">Loading inventory...</p>
+                ) : filteredProducts.length === 0 ? (
+                  <p className="text-gray-500">No products match your search or filter criteria.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b bg-gray-50 text-gray-600 text-xs">
+                          <th className="p-3">Product ID & Name</th>
+                          <th className="p-3">Price</th>
+                          <th className="p-3">Stock (Click to Audit Logs)</th>
+                          <th className="p-3">Timestamps</th>
+                          <th className="p-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProducts.map((p) => {
+                          const firstImage = p.image_url ? p.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
+                          const addedDate = p.created_at ? new Date(p.created_at).toLocaleString() : 'N/A'
+                          const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleString() : null
+                          const twelveDigitId = getTwelveDigitId(p.id)
+
+                          return (
+                            <tr key={p.id} className="border-b hover:bg-gray-50 align-top">
+                              <td className="p-3 flex items-center gap-3">
+                                <img src={firstImage} alt="" className="h-10 w-10 object-cover rounded border bg-white flex-shrink-0" />
+                                <div>
+                                  <button onClick={() => openCustomerPreview(p)} className="font-bold text-indigo-600 hover:underline text-left block cursor-pointer">
+                                    {p.name || p.title || 'Unnamed'}
+                                  </button>
+                                  <span className="text-[10px] text-gray-400 font-mono tracking-wider block">ID: {twelveDigitId}</span>
+                                  <span className="text-xs text-gray-500">{p.category || 'General'}</span>
+                                </div>
+                              </td>
+                              <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">₹{p.price}</td>
+                              <td className="p-3 whitespace-nowrap">
+                                <button
+                                  onClick={() => openStockAuditModal(p)}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer hover:underline ${
+                                    p.stock > 5 ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'
+                                  }`}
+                                  title="Click to view customer order & audit logs"
+                                >
+                                  {p.stock} left 📊
+                                </button>
+                              </td>
+                              <td className="p-3 text-[11px] text-gray-500 whitespace-nowrap">
+                                <div><span className="font-semibold text-gray-700">Added:</span> {addedDate}</div>
+                                {updatedDate && <div><span className="font-semibold text-indigo-700">Edited:</span> {updatedDate}</div>}
+                              </td>
+                              <td className="p-3 text-right space-x-1 whitespace-nowrap">
+                                <button onClick={() => openCustomerPreview(p)} className="text-green-600 hover:text-green-800 font-semibold text-xs bg-green-50 px-2 py-1.5 rounded cursor-pointer">View</button>
+                                <button onClick={() => openEditModal(p)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-xs bg-indigo-50 px-2 py-1.5 rounded cursor-pointer">Edit</button>
+                                <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs bg-red-50 px-2 py-1.5 rounded cursor-pointer">Delete</button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
             </div>
           </div>
         )}
+      </div>
 
-        {auditingProduct && (
-          <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-6 border-b pb-3">
-                <div>
-                  <h3 className="text-lg font-black text-indigo-900">Stock & Order Audit Logs</h3>
-                  <p className="text-xs text-gray-500">Product: <span className="font-bold text-gray-800">{auditingProduct.name}</span> (Current Stock: <span className="font-bold text-indigo-600">{auditingProduct.stock}</span>)</p>
-                </div>
-                <button onClick={() => setAuditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer">✕</button>
+      {/* ----------------- MODALS ----------------- */}
+      {activePrintOrder && (
+        <OrderInvoiceModal
+          order={activePrintOrder.order}
+          type={activePrintOrder.type}
+          onClose={() => setActivePrintOrder(null)}
+        />
+      )}
+
+      {viewingCustomer && (
+        <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl p-6 max-h-[92vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <div>
+                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Customer Profile Details</span>
+                <h3 className="text-2xl font-black text-gray-900 mt-1">{viewingCustomer.name}</h3>
+                <span className="text-xs font-mono text-indigo-800 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                  Customer ID: {getTwelveDigitId(viewingCustomer.id)}
+                </span>
               </div>
+              <button
+                onClick={() => setViewingCustomer(null)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
-              {productAuditLogs.length === 0 ? (
-                <div className="text-center py-12 text-gray-500 text-sm">
-                  No orders or logs found for this product yet.
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+              <div>
+                <span className="text-[11px] font-bold text-gray-500 uppercase block">Contact Email</span>
+                <span className="text-sm font-bold text-gray-900">{viewingCustomer.email || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-gray-500 uppercase block">Phone Number</span>
+                <span className="text-sm font-bold text-gray-900">{viewingCustomer.phone || 'N/A'}</span>
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-gray-500 uppercase block">Total Lifetime Spend</span>
+                <span className="text-base font-extrabold text-indigo-900">₹{viewingCustomer.total_spent}</span>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-xs font-bold text-gray-700 uppercase">Current Active Dynamic Address (Profile)</h4>
+                {viewingCustomer.current_profile_address && !viewingCustomer.current_profile_address.includes('No dynamic address saved') && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(viewingCustomer.current_profile_address)
+                      alert(`Address copied to clipboard!`)
+                    }}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2.5 py-1 rounded-lg transition border border-indigo-200 cursor-pointer"
+                  >
+                    📋 Copy Address
+                  </button>
+                )}
+              </div>
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 text-xs text-gray-800 leading-relaxed">
+                {viewingCustomer.current_profile_address}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">
+                Order History Logs ({viewingCustomer.order_logs.length})
+              </h4>
+
+              {viewingCustomer.order_logs.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No orders logged under this customer account yet.</p>
               ) : (
-                <div className="space-y-4">
-                  {productAuditLogs.map((log: any) => {
-                    const matchingItem = log.items.find((i: any) => (i.id || i.product_id) === auditingProduct.id || i.name === auditingProduct.name)
-                    const orderedQty = matchingItem ? matchingItem.quantity : 1
-
-                    return (
-                      <div key={log.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-wrap justify-between items-center gap-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
-                              log.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
-                              log.status === 'Delivered' ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800'
-                            }`}>
-                              {log.status || 'Pending'}
-                            </span>
-                            <span className="text-xs font-mono text-gray-500">Tracking: {log.tracking_id}</span>
-                          </div>
-                          <h4 className="text-sm font-bold text-gray-900">Customer: {log.customer_name || 'Guest'}</h4>
-                          <p className="text-xs text-gray-600 mt-0.5">Ordered Quantity: <span className="font-bold text-indigo-600">{orderedQty} units</span></p>
-                          <span className="text-[11px] text-gray-400 block mt-1">Date: {new Date(log.created_at).toLocaleString()}</span>
+                <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                  {viewingCustomer.order_logs.map((log: any) => (
+                    <div key={log.id} className="bg-white p-4 rounded-xl border border-gray-200 flex flex-wrap justify-between items-center gap-4 hover:border-indigo-300 transition">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                            log.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                            log.status === 'Delivered' ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800'
+                          }`}>
+                            {log.status || 'Pending'}
+                          </span>
+                          <span className="text-xs font-mono font-bold text-indigo-950">Tracking: {log.tracking_id}</span>
                         </div>
-
-                        <div className="text-right text-xs">
-                          {log.status === 'Delivered' && <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block">✓ Delivered Log</span>}
-                          {log.status === 'Cancelled' && (
-                            <div>
-                              <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block mb-1">✕ Cancelled Log</span>
-                              {log.cancellation_reason && <span className="text-[11px] text-gray-600 italic block whitespace-normal max-w-xs">{log.cancellation_reason}</span>}
-                            </div>
-                          )}
-                          {log.status !== 'Delivered' && log.status !== 'Cancelled' && (
-                            <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block">Active Order</span>
-                          )}
-                        </div>
+                        <p className="text-xs text-gray-600">
+                          Items: {Array.isArray(log.items) ? log.items.map((i: any) => `${i.name} (${i.quantity}x)`).join(', ') : 'No items data'}
+                        </p>
+                        <span className="text-[11px] text-gray-400 block mt-1">Date: {new Date(log.created_at).toLocaleString()}</span>
                       </div>
-                    )
-                  })}
+
+                      <div className="text-right">
+                        <span className="text-sm font-black text-indigo-900 block">₹{log.total_amount || log.final_payable_amount}</span>
+                        <span className="text-[11px] text-gray-500">{log.payment_method || 'Online'}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {activeOrderGalleryImages && (
-          <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 relative">
-              <div className="flex justify-between items-center mb-4 border-b pb-3">
-                <h3 className="text-sm font-bold text-indigo-900">Product Image Gallery ({activeGalleryIndex + 1} of {activeOrderGalleryImages.length})</h3>
-                <button onClick={() => setActiveOrderGalleryImages(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer">✕</button>
+      {auditingProduct && (
+        <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6 border-b pb-3">
+              <div>
+                <h3 className="text-lg font-black text-indigo-900">Stock & Order Audit Logs</h3>
+                <p className="text-xs text-gray-500">Product: <span className="font-bold text-gray-800">{auditingProduct.name}</span> (Current Stock: <span className="font-bold text-indigo-600">{auditingProduct.stock}</span>)</p>
               </div>
-              <div className="bg-gray-100 rounded-xl overflow-hidden border h-96 flex items-center justify-center mb-4 relative">
-                <img src={activeOrderGalleryImages[activeGalleryIndex]} alt="" className="w-full h-full object-contain p-4" />
+              <button onClick={() => setAuditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer">✕</button>
+            </div>
+
+            {productAuditLogs.length === 0 ? (
+              <div className="text-center py-12 text-gray-500 text-sm">
+                No orders or logs found for this product yet.
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 justify-center">
-                {activeOrderGalleryImages.map((imgUrl, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveGalleryIndex(i)}
-                    className={`border-2 rounded-xl overflow-hidden w-20 h-20 flex-shrink-0 transition bg-white ${activeGalleryIndex === i ? 'border-indigo-600 scale-105 shadow-md' : 'border-gray-200 opacity-60'}`}
-                  >
-                    <img src={imgUrl} alt="" className="w-full h-full object-cover" />
-                  </button>
+            ) : (
+              <div className="space-y-4">
+                {productAuditLogs.map((log: any) => {
+                  const matchingItem = log.items.find((i: any) => (i.id || i.product_id) === auditingProduct.id || i.name === auditingProduct.name)
+                  const orderedQty = matchingItem ? matchingItem.quantity : 1
+
+                  return (
+                    <div key={log.id} className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-wrap justify-between items-center gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase ${
+                            log.status === 'Cancelled' ? 'bg-red-100 text-red-800' :
+                            log.status === 'Delivered' ? 'bg-green-100 text-green-800' : 'bg-indigo-100 text-indigo-800'
+                          }`}>
+                            {log.status || 'Pending'}
+                          </span>
+                          <span className="text-xs font-mono text-gray-500">Tracking: {log.tracking_id}</span>
+                        </div>
+                        <h4 className="text-sm font-bold text-gray-900">Customer: {log.customer_name || 'Guest'}</h4>
+                        <p className="text-xs text-gray-600 mt-0.5">Ordered Quantity: <span className="font-bold text-indigo-600">{orderedQty} units</span></p>
+                        <span className="text-[11px] text-gray-400 block mt-1">Date: {new Date(log.created_at).toLocaleString()}</span>
+                      </div>
+
+                      <div className="text-right text-xs">
+                        {log.status === 'Delivered' && <span className="bg-green-50 text-green-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block">✓ Delivered Log</span>}
+                        {log.status === 'Cancelled' && (
+                          <div>
+                            <span className="bg-red-50 text-red-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block mb-1">✕ Cancelled Log</span>
+                            {log.cancellation_reason && <span className="text-[11px] text-gray-600 italic block whitespace-normal max-w-xs">{log.cancellation_reason}</span>}
+                          </div>
+                        )}
+                        {log.status !== 'Delivered' && log.status !== 'Cancelled' && (
+                          <span className="bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-lg font-bold border border-green-200 block">Active Order</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeOrderGalleryImages && (
+        <div className="fixed inset-0 bg-black/70 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 relative">
+            <div className="flex justify-between items-center mb-4 border-b pb-3">
+              <h3 className="text-sm font-bold text-indigo-900">Product Image Gallery ({activeGalleryIndex + 1} of {activeOrderGalleryImages.length})</h3>
+              <button onClick={() => setActiveOrderGalleryImages(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer">✕</button>
+            </div>
+            <div className="bg-gray-100 rounded-xl overflow-hidden border h-96 flex items-center justify-center mb-4 relative">
+              <img src={activeOrderGalleryImages[activeGalleryIndex]} alt="" className="w-full h-full object-contain p-4" />
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 justify-center">
+              {activeOrderGalleryImages.map((imgUrl, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveGalleryIndex(i)}
+                  className={`border-2 rounded-xl overflow-hidden w-20 h-20 flex-shrink-0 transition bg-white ${activeGalleryIndex === i ? 'border-indigo-600 scale-105 shadow-md' : 'border-gray-200 opacity-60'}`}
+                >
+                  <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingProduct && (
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6 border-b pb-3">
+              <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-3 py-1 rounded-full">Customer View Preview</span>
+              <button onClick={() => setViewingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer">✕</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <div className="mb-4 bg-gray-100 rounded-xl overflow-hidden border h-80 flex items-center justify-center">
+                  <img src={activePreviewImage} alt="" className="w-full h-full object-contain" />
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {viewingProduct.image_url ? viewingProduct.image_url.split(',').map((url: string, i: number) => {
+                    const cleanUrl = url.trim()
+                    return (
+                      <button key={i} onClick={() => setActivePreviewImage(cleanUrl)} className={`border-2 rounded-lg overflow-hidden w-16 h-16 flex-shrink-0 transition ${activePreviewImage === cleanUrl ? 'border-indigo-600 scale-105' : 'border-gray-200 opacity-70'}`}>
+                        <img src={cleanUrl} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    )
+                  }) : null}
+                </div>
+              </div>
+              <div className="flex flex-col justify-between">
+                <div>
+                  <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{viewingProduct.category || 'General'}</span>
+                  <h1 className="text-2xl font-black text-gray-900 mt-1 mb-2">{viewingProduct.name || viewingProduct.title}</h1>
+                  <div className="text-3xl font-extrabold text-indigo-900 mb-4">₹{viewingProduct.price}</div>
+                  <div className="mb-4">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${viewingProduct.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {viewingProduct.stock > 0 ? `In Stock (${viewingProduct.stock} available)` : 'Out of Stock'}
+                    </span>
+                  </div>
+                  <div className="border-t pt-4 mt-4">
+                    <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">Product Description</h3>
+                    <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{viewingProduct.description || 'No description provided.'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingProduct && (
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4 border-b pb-3">
+              <h2 className="text-lg font-bold text-indigo-900">Edit Product: {editingProduct.name}</h2>
+              <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
+            </div>
+            <form onSubmit={handleUpdateProduct} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
+                <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹)</label>
+                  <input type="number" step="0.01" required value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Stock</label>
+                  <input type="number" required value={editStock} onChange={(e) => setEditStock(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
+                <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
+                <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
+                {editImageInputs.map((url, index) => (
+                  <div key={index} className="flex gap-2 mb-2">
+                    <input type="url" value={url} onChange={(e) => handleEditImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
+                    {editImageInputs.length > 1 && (
+                      <button type="button" onClick={() => handleRemoveEditImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100">✕</button>
+                    )}
+                  </div>
                 ))}
+                <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
               </div>
-            </div>
+              <div className="flex gap-3 pt-4 border-t">
+                <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel/Close</button>
+                <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-lg text-sm shadow cursor-pointer">Save Changes</button>
+              </div>
+            </form>
           </div>
-        )}
-
-        {viewingProduct && (
-          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-6 border-b pb-3">
-                <span className="text-xs bg-indigo-100 text-indigo-800 font-bold px-3 py-1 rounded-full">Customer View Preview</span>
-                <button onClick={() => setViewingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer">✕</button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <div className="mb-4 bg-gray-100 rounded-xl overflow-hidden border h-80 flex items-center justify-center">
-                    <img src={activePreviewImage} alt="" className="w-full h-full object-contain" />
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {viewingProduct.image_url ? viewingProduct.image_url.split(',').map((url: string, i: number) => {
-                      const cleanUrl = url.trim()
-                      return (
-                        <button key={i} onClick={() => setActivePreviewImage(cleanUrl)} className={`border-2 rounded-lg overflow-hidden w-16 h-16 flex-shrink-0 transition ${activePreviewImage === cleanUrl ? 'border-indigo-600 scale-105' : 'border-gray-200 opacity-70'}`}>
-                          <img src={cleanUrl} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      )
-                    }) : null}
-                  </div>
-                </div>
-                <div className="flex flex-col justify-between">
-                  <div>
-                    <span className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{viewingProduct.category || 'General'}</span>
-                    <h1 className="text-2xl font-black text-gray-900 mt-1 mb-2">{viewingProduct.name || viewingProduct.title}</h1>
-                    <div className="text-3xl font-extrabold text-indigo-900 mb-4">₹{viewingProduct.price}</div>
-                    <div className="mb-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${viewingProduct.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {viewingProduct.stock > 0 ? `In Stock (${viewingProduct.stock} available)` : 'Out of Stock'}
-                      </span>
-                    </div>
-                    <div className="border-t pt-4 mt-4">
-                      <h3 className="text-xs font-bold text-gray-700 uppercase mb-2">Product Description</h3>
-                      <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{viewingProduct.description || 'No description provided.'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {editingProduct && (
-          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4 border-b pb-3">
-                <h2 className="text-lg font-bold text-indigo-900">Edit Product: {editingProduct.name}</h2>
-                <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-600 font-bold text-sm cursor-pointer">✕</button>
-              </div>
-              <form onSubmit={handleUpdateProduct} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
-                  <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹)</label>
-                    <input type="number" step="0.01" required value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Stock</label>
-                    <input type="number" required value={editStock} onChange={(e) => setEditStock(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Category</label>
-                  <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
-                  <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
-                  {editImageInputs.map((url, index) => (
-                    <div key={index} className="flex gap-2 mb-2">
-                      <input type="url" value={url} onChange={(e) => handleEditImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
-                      {editImageInputs.length > 1 && (
-                        <button type="button" onClick={() => handleRemoveEditImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100">✕</button>
-                      )}
-                    </div>
-                  ))}
-                  <button type="button" onClick={handleAddEditImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
-                </div>
-                <div className="flex gap-3 pt-4 border-t">
-                  <button type="button" onClick={() => setEditingProduct(null)} className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold p-2.5 rounded-lg text-sm transition cursor-pointer">Cancel/Close</button>
-                  <button type="submit" className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-2.5 rounded-lg text-sm shadow cursor-pointer">Save Changes</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
