@@ -30,6 +30,9 @@ export default function AdminPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
 
+  // Low Stock Automatic Login Alert Popup State
+  const [showLowStockLoginModal, setShowLowStockLoginModal] = useState(false)
+
   // Payment Settings State
   const [paymentSettings, setPaymentSettings] = useState({
     is_razorpay_enabled: true,
@@ -73,9 +76,6 @@ export default function AdminPage() {
   const [editingReview, setReviewEditing] = useState<any | null>(null)
   const [editReviewComment, setEditReviewComment] = useState('')
   const [editReviewRating, setEditReviewRating] = useState(5)
-
-  // Low Stock Email Dispatch State
-  const [sendingAlert, setSendingAlert] = useState(false)
 
   // Inventory Products State
   const [products, setProducts] = useState<any[]>([])
@@ -194,24 +194,6 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to fetch banners', err)
     }
-  }
-
-  const handleTriggerLowStockAlert = async () => {
-    setSendingAlert(true)
-    setErrorMsg('')
-    setSuccessMsg('')
-    try {
-      const res = await fetch('/api/admin/low-stock-alert', { method: 'POST' })
-      const data = await res.json()
-      if (data.success) {
-        setSuccessMsg(data.message || 'Low stock email alert dispatched successfully!')
-      } else {
-        setErrorMsg(`Failed to send alert: ${data.error}`)
-      }
-    } catch (err: any) {
-      setErrorMsg(`Network error: ${err.message}`)
-    }
-    setSendingAlert(false)
   }
 
   const handleCreateCoupon = async (e: React.FormEvent) => {
@@ -535,6 +517,7 @@ export default function AdminPage() {
     setOtpToken('')
     setSuccessMsg('')
     setErrorMsg('')
+    setShowLowStockLoginModal(false)
   }
 
   const fetchAdminData = async () => {
@@ -545,8 +528,18 @@ export default function AdminPage() {
       .from('products')
       .select('*')
       .order('created_at', { ascending: false })
-    if (prodErr) setErrorMsg(prodErr.message)
-    else setProducts(prodData || [])
+    if (prodErr) {
+      setErrorMsg(prodErr.message)
+    } else {
+      const fetchedProducts = prodData || []
+      setProducts(fetchedProducts)
+
+      // Automatically trigger popup notice upon login if products are <= 5 units
+      const lowStockItems = fetchedProducts.filter((p: any) => Number(p.stock) <= 5)
+      if (lowStockItems.length > 0) {
+        setShowLowStockLoginModal(true)
+      }
+    }
 
     try {
       const res = await fetch('/api/admin/orders')
@@ -1068,7 +1061,7 @@ export default function AdminPage() {
   const totalRevenue = activeAndDeliveredOrders.reduce((acc, o) => acc + Number(o.total_amount || o.final_payable_amount || 0), 0)
   const deliveredRevenue = orders.filter(o => o.status === 'Delivered').reduce((acc, o) => acc + Number(o.total_amount || o.final_payable_amount || 0), 0)
   const averageOrderValue = activeAndDeliveredOrders.length > 0 ? Math.round(totalRevenue / activeAndDeliveredOrders.length) : 0
-  const lowStockProducts = products.filter(p => p.stock <= 5)
+  const lowStockProducts = products.filter(p => Number(p.stock) <= 5)
 
   const productSalesMap = new Map<string, { id: string; name: string; category: string; unitsSold: number; totalSales: number; currentStock: number }>()
   for (const order of activeAndDeliveredOrders) {
@@ -2414,337 +2407,1777 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ----------------- TAB 0: ANALYTICS & INSIGHTS ----------------- */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Active Gross Revenue</span>
-                <h3 className="text-2xl font-black text-indigo-950">₹{totalRevenue.toLocaleString()}</h3>
-                <span className="text-[11px] text-green-600 font-semibold mt-2 block">✓ Excludes cancelled orders</span>
+        {/* ----------------- TAB: CUSTOMERS DIRECTORY ----------------- */}
+        {activeTab === 'customers' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Customers Directory ({customers.length})</h2>
+                <p className="text-xs text-gray-500">View customer lifetime orders, total spend, and contact records</p>
               </div>
 
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Delivered Net Revenue</span>
-                <h3 className="text-2xl font-black text-green-700">₹{deliveredRevenue.toLocaleString()}</h3>
-                <span className="text-[11px] text-gray-500 font-semibold mt-2 block">{getAdminOrderCount('Delivered')} fulfilled orders</span>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Average Order Value (AOV)</span>
-                <h3 className="text-2xl font-black text-indigo-900">₹{averageOrderValue.toLocaleString()}</h3>
-                <span className="text-[11px] text-indigo-600 font-semibold mt-2 block">Per active checkout</span>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Order Volume</span>
-                <h3 className="text-2xl font-black text-gray-900">{orders.length} Orders</h3>
-                <span className="text-[11px] text-gray-500 font-semibold mt-2 block">{customers.length} total customer accounts</span>
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <input
+                  type="text"
+                  value={customerSearchQuery}
+                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                  placeholder="🔍 Search name, email, phone, ID..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                />
+                <button
+                  type="button"
+                  onClick={handleExportCustomersCSV}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer whitespace-nowrap"
+                >
+                  📤 Export Customers
+                </button>
               </div>
             </div>
 
-            <SalesCharts orders={orders} products={products} />
+            {filteredCustomers.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-12 text-center">No customer records matching your search.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredCustomers.map((cust) => {
+                  const cust12 = getTwelveDigitId(cust.id)
+                  return (
+                    <div key={cust.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3 hover:border-indigo-300 transition">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-sm text-gray-900">{cust.name || 'Guest User'}</h4>
+                          <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 block mt-0.5">
+                            ID: {cust12}
+                          </span>
+                        </div>
+                        <span className="bg-indigo-50 text-indigo-900 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-indigo-100">
+                          ₹{cust.total_spent || 0}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1 text-xs text-gray-600">
+                        <div>✉️ {cust.email || 'No email registered'}</div>
+                        <div>📞 {cust.phone || 'No phone registered'}</div>
+                        <div>📦 {cust.total_orders_count || 0} total orders</div>
+                      </div>
 
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                      <div className="pt-2 border-t flex justify-end">
+                        <button
+                          onClick={() => setViewingCustomer(cust)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+                        >
+                          View Full Profile & Orders →
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- TAB: BANNERS & POSTERS MANAGEMENT ----------------- */}
+        {activeTab === 'banners' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">🖼️ Store Promotional Posters & Banners</h2>
+              <p className="text-xs text-gray-500 mt-1">Upload store posters or exclusive targeted banners for specific customers.</p>
+            </div>
+
+            <form onSubmit={handleCreateBanner} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Upload New Poster</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                    ⚠️ Low Stock Warning Center
-                    <span className="bg-red-100 text-red-800 text-xs px-2.5 py-0.5 rounded-full font-extrabold">
-                      {lowStockProducts.length} Items Critical
-                    </span>
-                  </h3>
-                  <p className="text-xs text-gray-500">Inventory items with 5 units or less remaining in warehouse</p>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Title / Campaign Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Summer Robotics Sale"
+                    value={bannerTitle}
+                    onChange={(e) => setBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Image URL (or upload from file below)</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/poster.jpg"
+                    value={bannerImageUrl}
+                    onChange={(e) => setBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
+                    required
+                  />
                 </div>
 
-                <div className="flex items-center gap-3">
-                  {lowStockProducts.length > 0 && (
-                    <button
-                      onClick={handleTriggerLowStockAlert}
-                      disabled={sendingAlert}
-                      className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      {sendingAlert ? 'Sending Email Alert...' : '📧 Send Email Alert Now'}
-                    </button>
-                  )}
+                <div className="sm:col-span-2 bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 block">Upload Poster from Laptop</span>
+                    <span className="text-[10px] text-gray-500">Select an image file (PNG, JPG, WEBP) to upload directly to cloud storage.</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, false)}
+                    className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
+
+                {uploadingPoster && (
+                  <div className="sm:col-span-2 text-xs text-indigo-600 font-bold animate-pulse">
+                    Uploading poster to cloud storage... Please wait...
+                  </div>
+                )}
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Target Specific Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="Leave blank for public store display, or enter customer email"
+                    value={bannerTargetEmail}
+                    onChange={(e) => setBannerTargetEmail(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+              </div>
+              <button type="submit" disabled={uploadingPoster} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer disabled:opacity-50">
+                Publish Poster 🚀
+              </button>
+            </form>
+
+            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Posters</h3>
+            {banners.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-6 text-center">No promotional posters uploaded yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {banners.map((b) => (
+                  <div key={b.id} className="border rounded-2xl p-4 bg-white shadow-sm space-y-3">
+                    <div className="h-40 bg-gray-100 rounded-xl overflow-hidden border">
+                      <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-gray-900">{b.title}</h4>
+                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
+                        {b.target_customer_email ? `🔒 Exclusive to: ${b.target_customer_email}` : '🌐 Public Banner (Shown to all)'}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t gap-2">
+                      <button
+                        onClick={() => openEditBannerModal(b)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer flex-1 text-center"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await supabase.from('banners').update({ is_active: !b.is_active }).eq('id', b.id)
+                          fetchBanners()
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          b.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {b.is_active ? 'Active ✓' : 'Inactive ✕'}
+                      </button>
+                      <button
+                        onClick={() => deleteBanner(b.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- EDIT BANNER MODAL ----------------- */}
+        {editingBanner && (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-base font-black text-indigo-950">Edit Promotional Poster</h3>
+              <form onSubmit={handleUpdateBanner} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Title</label>
+                  <input
+                    type="text"
+                    value={editBannerTitle}
+                    onChange={(e) => setEditBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Image URL (or upload new file)</label>
+                  <input
+                    type="url"
+                    value={editBannerImageUrl}
+                    onChange={(e) => setEditBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-mono"
+                    required
+                  />
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700">Upload New File Replacement</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, true)}
+                    className="text-xs text-gray-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer"
+                  />
+                </div>
+                {uploadingEditPoster && <p className="text-xs text-indigo-600 font-bold animate-pulse">Uploading new image...</p>}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editBannerTargetEmail}
+                    onChange={(e) => setEditBannerTargetEmail(e.target.value)}
+                    placeholder="Leave blank for public display"
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => { setActiveTab('products'); setStockFilter('LOW'); }}
-                    className="text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                    type="button"
+                    onClick={() => setEditingBanner(null)}
+                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
                   >
-                    Manage In Inventory →
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploadingEditPoster}
+                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer disabled:opacity-50"
+                  >
+                    Save Changes
                   </button>
                 </div>
-              </div>
-
-              {lowStockProducts.length === 0 ? (
-                <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-xs text-green-800 font-semibold">
-                  ✓ All products are comfortably stocked (&gt; 5 units).
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {lowStockProducts.map((p) => (
-                    <div key={p.id} className="bg-red-50/50 p-3.5 rounded-xl border border-red-200 flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-bold text-gray-900">{p.name || p.title}</h4>
-                        <span className="text-[11px] text-gray-500">{p.category || 'General'}</span>
-                      </div>
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${p.stock === 0 ? 'bg-red-600 text-white' : 'bg-red-200 text-red-900'}`}>
-                        {p.stock === 0 ? 'OUT OF STOCK' : `${p.stock} left`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-1">🏆 Top Performing Products</h3>
-              <p className="text-xs text-gray-500 mb-6">Ranked by total quantity sold across active customer orders</p>
-
-              {topSellingProducts.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">No order data available to generate performance leaderboard.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-gray-50 border-b text-gray-600">
-                        <th className="p-3">Rank</th>
-                        <th className="p-3">Product Name</th>
-                        <th className="p-3 text-center">Units Sold</th>
-                        <th className="p-3 text-right">Total Revenue Generated</th>
-                        <th className="p-3 text-right">Current Available Stock</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topSellingProducts.slice(0, 8).map((p, idx) => (
-                        <tr key={idx} className="border-b hover:bg-gray-50">
-                          <td className="p-3 font-bold text-indigo-900">#{idx + 1}</td>
-                          <td className="p-3 font-bold text-gray-900">{p.name}</td>
-                          <td className="p-3 text-center font-extrabold text-indigo-600">{p.unitsSold} pcs</td>
-                          <td className="p-3 text-right font-black text-gray-900">₹{p.totalSales.toLocaleString()}</td>
-                          <td className="p-3 text-right">
-                            <span className={`px-2 py-0.5 rounded font-bold text-[11px] ${p.currentStock > 5 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {p.currentStock} in stock
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4">📦 Order Status Distribution</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-center">
-                  <span className="text-[11px] font-bold text-amber-800 uppercase block">Pending</span>
-                  <span className="text-xl font-black text-amber-900 mt-1 block">{getAdminOrderCount('Pending')}</span>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-center">
-                  <span className="text-[11px] font-bold text-blue-800 uppercase block">Processing</span>
-                  <span className="text-xl font-black text-blue-900 mt-1 block">{getAdminOrderCount('Processing')}</span>
-                </div>
-                <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 text-center">
-                  <span className="text-[11px] font-bold text-purple-800 uppercase block">Shipped</span>
-                  <span className="text-xl font-black text-purple-900 mt-1 block">{getAdminOrderCount('Shipped')}</span>
-                </div>
-                <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-center">
-                  <span className="text-[11px] font-bold text-green-800 uppercase block">Delivered</span>
-                  <span className="text-xl font-black text-green-900 mt-1 block">{getAdminOrderCount('Delivered')}</span>
-                </div>
-                <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-center">
-                  <span className="text-[11px] font-bold text-red-800 uppercase block">Cancelled</span>
-                  <span className="text-xl font-black text-red-900 mt-1 block">{getAdminOrderCount('Cancelled')}</span>
-                </div>
-              </div>
+              </form>
             </div>
           </div>
         )}
 
-        {/* ----------------- TAB 1: INVENTORY MANAGEMENT ----------------- */}
-        {activeTab === 'products' && (
-          <div className="space-y-6">
-            <div className="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h3 className="text-sm font-black text-indigo-950 flex items-center gap-2">
-                  📁 Bulk Inventory Management (CSV / Excel)
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Import dozens of electronics/robotics components at once or export full warehouse records
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5">
-                <input ref={fileInputRef} type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
-                <button type="button" onClick={handleDownloadSampleCSV} className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl border border-gray-300 transition cursor-pointer">📝 Sample Template</button>
-                <button type="button" onClick={handleExportCSV} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2 rounded-xl border border-indigo-200 transition cursor-pointer">📤 Export Inventory CSV</button>
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition cursor-pointer">📥 Upload Bulk CSV</button>
-              </div>
+        {/* ----------------- TAB: COUPONS MANAGEMENT ----------------- */}
+        {activeTab === 'coupons' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">🏷️ Discount Coupons & Targeted Offers</h2>
+              <p className="text-xs text-gray-500 mt-1">Create public promo codes or assign exclusive discounts to specific customer emails.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="bg-white p-6 rounded-2xl shadow-md h-fit">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Add Single Product</h2>
-                <form onSubmit={handleAddProduct} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Name</label>
-                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Arduino Uno R3" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Price (₹)</label>
-                      <input type="number" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="599" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">Stock</label>
-                      <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="50" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Category (Select existing or type new)</label>
-                    <input type="text" list="existing-categories" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Microcontrollers, Sensor" className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900 focus:outline-indigo-600" />
-                    <datalist id="existing-categories">
-                      {categoriesList.map((cat: any, idx: number) => <option key={idx} value={cat} />)}
-                    </datalist>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Details / Description</label>
-                    <textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Enter full specifications..." className="w-full border border-gray-300 p-2.5 rounded-lg text-sm text-gray-900" />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Product Image URLs</label>
-                    {imageInputs.map((url, index) => (
-                      <div key={index} className="flex gap-2 mb-2">
-                        <input type="url" value={url} onChange={(e) => handleImageInputChange(index, e.target.value)} placeholder="https://example.com/image.jpg" className="w-full border border-gray-300 p-2 rounded-lg text-xs text-gray-900" />
-                        {imageInputs.length > 1 && (
-                          <button type="button" onClick={() => handleRemoveImageInput(index)} className="bg-red-50 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-100">✕</button>
-                        )}
-                      </div>
-                    ))}
-                    <button type="button" onClick={handleAddImageInput} className="mt-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-bold text-xs px-3 py-1.5 rounded-lg transition w-full border border-dashed border-indigo-300">+ Add Another Image URL</button>
-                  </div>
-
-                  <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg text-sm shadow">Add Product</button>
-                </form>
+            <form onSubmit={handleCreateCoupon} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Create New Coupon</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Coupon Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. LABDISCOUNT10"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs font-mono uppercase bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Discount Type</label>
+                  <select
+                    value={couponDiscountType}
+                    onChange={(e) => setCouponDiscountType(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Value ({couponDiscountType === 'percentage' ? '%' : '₹'})</label>
+                  <input
+                    type="number"
+                    placeholder={couponDiscountType === 'percentage' ? 'e.g. 10' : 'e.g. 100'}
+                    value={couponDiscountValue}
+                    onChange={(e) => setCouponDiscountValue(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Min Order Amount (₹) Optional</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 500"
+                    value={couponMinOrder}
+                    onChange={(e) => setCouponMinOrder(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Assign to Specific Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="Leave blank for public use, or enter customer email"
+                    value={couponTargetEmail}
+                    onChange={(e) => setCouponTargetEmail(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
               </div>
+              <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer">
+                Create Coupon Code 🚀
+              </button>
+            </form>
 
-              <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-md">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b pb-4">
-                  <h2 className="text-lg font-bold text-gray-900">Store Inventory ({filteredProducts.length})</h2>
-                  
-                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search name, ID, category..."
-                      className="border border-gray-300 p-2 rounded-lg text-xs w-full md:w-48 text-gray-900 focus:outline-indigo-600"
-                    />
-
-                    <select
-                      value={selectedCategoryFilter}
-                      onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                      className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
-                    >
-                      <option value="ALL">All Categories</option>
-                      {categoriesList.map((cat: any, i) => (
-                        <option key={i} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={stockFilter}
-                      onChange={(e) => setStockFilter(e.target.value)}
-                      className="border border-gray-300 p-2 rounded-lg text-xs bg-white text-gray-700 font-medium"
-                    >
-                      <option value="ALL">All Stock Levels</option>
-                      <option value="AVAILABLE">In Stock (&gt;5)</option>
-                      <option value="LOW">Low Stock (≤5)</option>
-                      <option value="OUT">Out of Stock (0)</option>
-                    </select>
-
-                    {(searchQuery || selectedCategoryFilter !== 'ALL' || stockFilter !== 'ALL') && (
+            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Coupons</h3>
+            {coupons.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-6 text-center">No coupons created yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {coupons.map((c) => (
+                  <div key={c.id} className="flex flex-wrap items-center justify-between border p-4 rounded-2xl bg-white shadow-sm gap-2">
+                    <div>
+                      <span className="font-mono font-black text-indigo-900 text-sm tracking-wider">{c.code}</span>
+                      <div className="text-xs text-gray-600 mt-0.5 font-medium">
+                        {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
+                        {c.min_order_amount > 0 ? ` (Min order: ₹${c.min_order_amount})` : ''}
+                      </div>
+                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
+                        {c.target_customer_email ? `🔒 Restricted to: ${c.target_customer_email}` : '🌐 Public Coupon (Anyone can use)'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
                       <button
-                        onClick={() => { setSearchQuery(''); setSelectedCategoryFilter('ALL'); setStockFilter('ALL'); }}
-                        className="text-xs text-red-600 hover:underline font-bold px-2 py-1 bg-red-50 rounded"
+                        onClick={() => openEditCouponModal(c)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer"
                       >
-                        Clear Filters
+                        Edit ✏️
                       </button>
-                    )}
+                      <button
+                        onClick={() => toggleCouponStatus(c.id, c.is_active)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          c.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {c.is_active ? 'Active ✓' : 'Inactive ✕'}
+                      </button>
+                      <button
+                        onClick={() => deleteCoupon(c.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- EDIT COUPON MODAL ----------------- */}
+        {editingCoupon && (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-base font-black text-indigo-950">Edit Published Coupon</h3>
+              <form onSubmit={handleUpdateCoupon} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Coupon Code</label>
+                  <input
+                    type="text"
+                    value={editCouponCode}
+                    onChange={(e) => setEditCouponCode(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs font-mono uppercase bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Discount Type</label>
+                  <select
+                    value={editCouponDiscountType}
+                    onChange={(e) => setEditCouponDiscountType(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Discount Value</label>
+                  <input
+                    type="number"
+                    value={editCouponDiscountValue}
+                    onChange={(e) => setEditCouponDiscountValue(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Min Order Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={editCouponMinOrder}
+                    onChange={(e) => setEditCouponMinOrder(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editCouponTargetEmail}
+                    onChange={(e) => setEditCouponTargetEmail(e.target.value)}
+                    placeholder="Leave blank for public use"
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
                 </div>
 
-                {loading ? (
-                  <p className="text-gray-500">Loading inventory...</p>
-                ) : filteredProducts.length === 0 ? (
-                  <p className="text-gray-500">No products match your search or filter criteria.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-sm">
-                      <thead>
-                        <tr className="border-b bg-gray-50 text-gray-600 text-xs">
-                          <th className="p-3">Product ID & Name</th>
-                          <th className="p-3">Price</th>
-                          <th className="p-3">Stock (Click to Audit Logs)</th>
-                          <th className="p-3">Timestamps</th>
-                          <th className="p-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredProducts.map((p) => {
-                          const firstImage = p.image_url ? p.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
-                          const addedDate = p.created_at ? new Date(p.created_at).toLocaleString() : 'N/A'
-                          const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleString() : null
-                          const twelveDigitId = getTwelveDigitId(p.id)
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCoupon(null)}
+                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
-                          return (
-                            <tr key={p.id} className="border-b hover:bg-gray-50 align-top">
-                              <td className="p-3 flex items-center gap-3">
-                                <img src={firstImage} alt="" className="h-10 w-10 object-cover rounded border bg-white flex-shrink-0" />
-                                <div>
-                                  <button onClick={() => openCustomerPreview(p)} className="font-bold text-indigo-600 hover:underline text-left block cursor-pointer">
-                                    {p.name || p.title || 'Unnamed'}
-                                  </button>
-                                  <span className="text-[10px] text-gray-400 font-mono tracking-wider block">ID: {twelveDigitId}</span>
-                                  <span className="text-xs text-gray-500">{p.category || 'General'}</span>
-                                </div>
-                              </td>
-                              <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">₹{p.price}</td>
-                              <td className="p-3 whitespace-nowrap">
-                                <button
-                                  onClick={() => openStockAuditModal(p)}
-                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-sm cursor-pointer hover:underline ${
-                                    p.stock > 5 ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'
-                                  }`}
-                                  title="Click to view customer order & audit logs"
-                                >
-                                  {p.stock} left 📊
-                                </button>
-                              </td>
-                              <td className="p-3 text-[11px] text-gray-500 whitespace-nowrap">
-                                <div><span className="font-semibold text-gray-700">Added:</span> {addedDate}</div>
-                                {updatedDate && <div><span className="font-semibold text-indigo-700">Edited:</span> {updatedDate}</div>}
-                              </td>
-                              <td className="p-3 text-right space-x-1 whitespace-nowrap">
-                                <button onClick={() => openCustomerPreview(p)} className="text-green-600 hover:text-green-800 font-semibold text-xs bg-green-50 px-2 py-1.5 rounded cursor-pointer">View</button>
-                                <button onClick={() => openEditModal(p)} className="text-indigo-600 hover:text-indigo-800 font-semibold text-xs bg-indigo-50 px-2 py-1.5 rounded cursor-pointer">Edit</button>
-                                <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-800 font-semibold text-xs bg-red-50 px-2 py-1.5 rounded cursor-pointer">Delete</button>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
+        {/* ----------------- TAB: REVIEWS MODERATION ----------------- */}
+        {activeTab === 'reviews' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">⭐ Customer Reviews Moderation</h2>
+              <p className="text-xs text-gray-500 mt-1">Review feedback, edit comments, or delete inappropriate reviews.</p>
+            </div>
+
+            {adminReviews.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-12 text-center">No customer reviews submitted yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {adminReviews.map((rev) => (
+                  <div key={rev.id} className="bg-gray-50 p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs font-bold text-gray-900">{rev.customer_name}</span>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded">Product: {rev.products?.name || 'Item'}</span>
+                        <span className="text-xs text-amber-500 font-bold">{'⭐'.repeat(rev.rating)}</span>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed">{rev.comment}</p>
+                      {rev.image_url && (
+                        <a href={rev.image_url} target="_blank" rel="noreferrer" className="text-[11px] text-indigo-600 font-bold hover:underline block">
+                          📷 View Attached Customer Photo
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setReviewEditing(rev)
+                          setEditReviewComment(rev.comment)
+                          setEditReviewRating(rev.rating)
+                        }}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2 rounded-xl transition border border-indigo-200 cursor-pointer"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={() => handleAdminDeleteReview(rev.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3.5 py-2 rounded-xl transition border border-red-200 cursor-pointer"
+                      >
+                        Delete ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Admin Edit Review Modal */}
+            {editingReview && (
+              <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative">
+                  <h3 className="text-base font-black text-indigo-950 mb-4">Edit Customer Review</h3>
+                  <form onSubmit={handleAdminUpdateReview} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Rating</label>
+                      <select 
+                        value={editReviewRating} 
+                        onChange={(e) => setEditReviewRating(Number(e.target.value))}
+                        className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold w-full"
+                      >
+                        <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                        <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                        <option value="3">⭐⭐⭐ (3/5)</option>
+                        <option value="2">⭐⭐ (2/5)</option>
+                        <option value="1">⭐ (1/5)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Comment</label>
+                      <textarea 
+                        rows={4}
+                        value={editReviewComment}
+                        onChange={(e) => setEditReviewComment(e.target.value)}
+                        className="w-full border border-gray-300 p-3 rounded-xl text-xs text-gray-900 bg-white"
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewEditing(null)}
+                        className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- TAB: PAYMENTS MANAGEMENT ----------------- */}
+        {activeTab === 'payments' && (
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-200 max-w-2xl mx-auto space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">💳 Payment Gateway Control Center</h2>
+              <p className="text-xs text-gray-500 mt-1">Enable or disable payment options and customize customer checkout notices.</p>
+            </div>
+
+            <form onSubmit={handleSavePaymentSettings} className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Razorpay Gateway</h4>
+                  <p className="text-xs text-gray-500">Accept Credit Cards, UPI, NetBanking online.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={paymentSettings.is_razorpay_enabled} 
+                    onChange={(e) => setPaymentSettings({ ...paymentSettings, is_razorpay_enabled: e.target.checked })}
+                    className="sr-only peer" 
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Direct UPI / QR Transfer</h4>
+                  <p className="text-xs text-gray-500">Allow manual QR scanning and UTR submission.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={paymentSettings.is_upi_enabled} 
+                    onChange={(e) => setPaymentSettings({ ...paymentSettings, is_upi_enabled: e.target.checked })}
+                    className="sr-only peer" 
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Cash on Delivery (COD)</h4>
+                    <p className="text-xs text-gray-500">Allow customers to pay upon delivery.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={paymentSettings.is_cod_enabled} 
+                      onChange={(e) => setPaymentSettings({ ...paymentSettings, is_cod_enabled: e.target.checked })}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {!paymentSettings.is_cod_enabled && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Disabled Message for Customers</label>
+                    <input 
+                      type="text"
+                      value={paymentSettings.cod_message}
+                      onChange={(e) => setPaymentSettings({ ...paymentSettings, cod_message: e.target.value })}
+                      placeholder="Payments not accepting currently"
+                      className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 focus:outline-indigo-600"
+                    />
                   </div>
                 )}
               </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3 rounded-xl text-sm shadow-md transition cursor-pointer"
+              >
+                {loading ? 'Saving Changes...' : 'Save Payment Configurations 💾'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ----------------- TAB: UPI VERIFICATIONS ----------------- */}
+        {activeTab === 'upi_verifications' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">⚡ Direct UPI / QR Payment Verification Center</h2>
+                <p className="text-xs text-gray-500">Review, verify, or reject direct QR/UPI transfers safely</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+                <input
+                  type="text"
+                  value={upiSearchQuery}
+                  onChange={(e) => setUpiSearchQuery(e.target.value)}
+                  placeholder="🔍 Search name, tracking ID, amount, UTR..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-80 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                />
+
+                <select
+                  value={upiStatusFilter}
+                  onChange={(e) => setUpiStatusFilter(e.target.value)}
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium"
+                >
+                  <option value="ALL">All Statuses ({allUpiOrders.length})</option>
+                  <option value="PENDING">Pending Only ({upiPendingOrders.length})</option>
+                  <option value="APPROVED">Approved Only</option>
+                  <option value="REJECTED">Rejected / Cancelled</option>
+                </select>
+
+                {(upiSearchQuery || upiStatusFilter !== 'ALL') && (
+                  <button
+                    onClick={() => { setUpiSearchQuery(''); setUpiStatusFilter('ALL'); }}
+                    className="text-xs text-red-600 hover:underline font-bold px-3 py-2 bg-red-50 rounded-xl"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {filteredUpiVerifications.length === 0 ? (
+              <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-200">
+                <div className="text-3xl mb-2">🔍</div>
+                <p className="text-sm font-bold text-gray-700">No UPI payment records match your search criteria.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {filteredUpiVerifications.map((o) => {
+                  const twelveCustId = getTwelveDigitId(o.user_id)
+                  const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                  const statusLower = (o.status || '').toLowerCase()
+                  const isPending = statusLower === 'pending verification' || statusLower === 'pending'
+                  const isCancelled = statusLower === 'cancelled'
+                  const cleanUtr = extractUtrNumber(o.payment_method)
+
+                  return (
+                    <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-amber-300 transition space-y-5">
+                      <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
+                            <span className="font-mono text-base font-black text-indigo-950">{o.tracking_id}</span>
+                          </div>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-xs text-gray-500 font-semibold">🕒 {orderDate}</span>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase inline-block ${
+                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                              isCancelled ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-green-100 text-green-900 border border-green-300'
+                            }`}>
+                              {o.status}
+                            </span>
+                            {o.cancellation_reason && (
+                              <span className="text-[11px] text-red-600 font-semibold block mt-1 max-w-xs text-right leading-tight">
+                                {o.cancellation_reason}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
+                          <div className="font-extrabold text-gray-900 text-sm">{o.customer_name}</div>
+                          <div className="text-gray-500 font-medium">{o.customer_email}</div>
+                          <span className="inline-block mt-1 text-[10px] font-mono text-indigo-800 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                            ID: {twelveCustId}
+                          </span>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">UTR Number</span>
+                          <span className="inline-block bg-white text-indigo-950 font-mono font-black px-3 py-2 rounded-xl border border-indigo-200 text-xs shadow-2xs">
+                            {cleanUtr}
+                          </span>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
+                          {Array.isArray(o.items) && o.items.length > 0 ? (
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                              {o.items.map((item: any, idx: number) => {
+                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
+                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
+                                return (
+                                  <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
+                                    <div 
+                                      onClick={async () => {
+                                        const productId = item.id || item.product_id
+                                        if (productId) {
+                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
+                                          if (data && data.image_url) {
+                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
+                                            setActiveOrderGalleryImages(allImgs)
+                                            setActiveGalleryIndex(0)
+                                            return
+                                          }
+                                        }
+                                        setActiveOrderGalleryImages([itemImg])
+                                        setActiveGalleryIndex(0)
+                                      }}
+                                      className="relative group flex-shrink-0 cursor-pointer"
+                                      title="Click to view all product images"
+                                    >
+                                      <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white hover:border-indigo-600 transition" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
+                                      <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">No items listed</span>
+                          )}
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
+                          <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
+                            {o.shipping_address || 'No address provided'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(o.shipping_address || '')
+                              alert('Shipping address copied to clipboard!')
+                            }}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition border border-indigo-200 cursor-pointer block w-full text-center"
+                          >
+                            📋 Copy Full Address
+                          </button>
+                        </div>
+                      </div>
+
+                      {isPending && (
+                        <div className="flex justify-end gap-3 pt-4 border-t">
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
+                            className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-6 py-3 rounded-xl transition border border-red-200 cursor-pointer"
+                          >
+                            ✕ Reject & Cancel
+                          </button>
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
+                            className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs px-8 py-3 rounded-xl shadow-md transition cursor-pointer"
+                          >
+                            ✓ Verify & Approve Payment
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- TAB: CUSTOMERS DIRECTORY ----------------- */}
+        {activeTab === 'customers' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Customers Directory ({customers.length})</h2>
+                <p className="text-xs text-gray-500">View customer lifetime orders, total spend, and contact records</p>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <input
+                  type="text"
+                  value={customerSearchQuery}
+                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                  placeholder="🔍 Search name, email, phone, ID..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                />
+                <button
+                  type="button"
+                  onClick={handleExportCustomersCSV}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer whitespace-nowrap"
+                >
+                  📤 Export Customers
+                </button>
+              </div>
+            </div>
+
+            {filteredCustomers.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-12 text-center">No customer records matching your search.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredCustomers.map((cust) => {
+                  const cust12 = getTwelveDigitId(cust.id)
+                  return (
+                    <div key={cust.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3 hover:border-indigo-300 transition">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-sm text-gray-900">{cust.name || 'Guest User'}</h4>
+                          <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 block mt-0.5">
+                            ID: {cust12}
+                          </span>
+                        </div>
+                        <span className="bg-indigo-50 text-indigo-900 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-indigo-100">
+                          ₹{cust.total_spent || 0}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1 text-xs text-gray-600">
+                        <div>✉️ {cust.email || 'No email registered'}</div>
+                        <div>📞 {cust.phone || 'No phone registered'}</div>
+                        <div>📦 {cust.total_orders_count || 0} total orders</div>
+                      </div>
+
+                      <div className="pt-2 border-t flex justify-end">
+                        <button
+                          onClick={() => setViewingCustomer(cust)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+                        >
+                          View Full Profile & Orders →
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- TAB: BANNERS & POSTERS MANAGEMENT ----------------- */}
+        {activeTab === 'banners' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">🖼️ Store Promotional Posters & Banners</h2>
+              <p className="text-xs text-gray-500 mt-1">Upload store posters or exclusive targeted banners for specific customers.</p>
+            </div>
+
+            <form onSubmit={handleCreateBanner} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Upload New Poster</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Title / Campaign Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Summer Robotics Sale"
+                    value={bannerTitle}
+                    onChange={(e) => setBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Poster Image URL (or upload from file below)</label>
+                  <input
+                    type="url"
+                    placeholder="https://example.com/poster.jpg"
+                    value={bannerImageUrl}
+                    onChange={(e) => setBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900"
+                    required
+                  />
+                </div>
+
+                <div className="sm:col-span-2 bg-white p-4 rounded-xl border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-gray-800 block">Upload Poster from Laptop</span>
+                    <span className="text-[10px] text-gray-500">Select an image file (PNG, JPG, WEBP) to upload directly to cloud storage.</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, false)}
+                    className="text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                  />
+                </div>
+
+                {uploadingPoster && (
+                  <div className="sm:col-span-2 text-xs text-indigo-600 font-bold animate-pulse">
+                    Uploading poster to cloud storage... Please wait...
+                  </div>
+                )}
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Target Specific Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="Leave blank for public store display, or enter customer email"
+                    value={bannerTargetEmail}
+                    onChange={(e) => setBannerTargetEmail(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+              </div>
+              <button type="submit" disabled={uploadingPoster} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer disabled:opacity-50">
+                Publish Poster 🚀
+              </button>
+            </form>
+
+            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Posters</h3>
+            {banners.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-6 text-center">No promotional posters uploaded yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {banners.map((b) => (
+                  <div key={b.id} className="border rounded-2xl p-4 bg-white shadow-sm space-y-3">
+                    <div className="h-40 bg-gray-100 rounded-xl overflow-hidden border">
+                      <img src={b.image_url} alt={b.title} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-gray-900">{b.title}</h4>
+                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
+                        {b.target_customer_email ? `🔒 Exclusive to: ${b.target_customer_email}` : '🌐 Public Banner (Shown to all)'}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t gap-2">
+                      <button
+                        onClick={() => openEditBannerModal(b)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3 py-1.5 rounded-lg transition cursor-pointer flex-1 text-center"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await supabase.from('banners').update({ is_active: !b.is_active }).eq('id', b.id)
+                          fetchBanners()
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          b.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {b.is_active ? 'Active ✓' : 'Inactive ✕'}
+                      </button>
+                      <button
+                        onClick={() => deleteBanner(b.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- EDIT BANNER MODAL ----------------- */}
+        {editingBanner && (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-base font-black text-indigo-950">Edit Promotional Poster</h3>
+              <form onSubmit={handleUpdateBanner} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Title</label>
+                  <input
+                    type="text"
+                    value={editBannerTitle}
+                    onChange={(e) => setEditBannerTitle(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Poster Image URL (or upload new file)</label>
+                  <input
+                    type="url"
+                    value={editBannerImageUrl}
+                    onChange={(e) => setEditBannerImageUrl(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-mono"
+                    required
+                  />
+                </div>
+                <div className="bg-gray-50 p-3 rounded-xl border flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700">Upload New File Replacement</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileUpload(e, true)}
+                    className="text-xs text-gray-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 cursor-pointer"
+                  />
+                </div>
+                {uploadingEditPoster && <p className="text-xs text-indigo-600 font-bold animate-pulse">Uploading new image...</p>}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editBannerTargetEmail}
+                    onChange={(e) => setEditBannerTargetEmail(e.target.value)}
+                    placeholder="Leave blank for public display"
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingBanner(null)}
+                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={uploadingEditPoster}
+                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer disabled:opacity-50"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
+
+        {/* ----------------- TAB: COUPONS MANAGEMENT ----------------- */}
+        {activeTab === 'coupons' && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">🏷️ Discount Coupons & Targeted Offers</h2>
+              <p className="text-xs text-gray-500 mt-1">Create public promo codes or assign exclusive discounts to specific customer emails.</p>
+            </div>
+
+            <form onSubmit={handleCreateCoupon} className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 space-y-4">
+              <h3 className="text-xs font-bold text-indigo-950 uppercase">Create New Coupon</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Coupon Code</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. LABDISCOUNT10"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs font-mono uppercase bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Discount Type</label>
+                  <select
+                    value={couponDiscountType}
+                    onChange={(e) => setCouponDiscountType(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Value ({couponDiscountType === 'percentage' ? '%' : '₹'})</label>
+                  <input
+                    type="number"
+                    placeholder={couponDiscountType === 'percentage' ? 'e.g. 10' : 'e.g. 100'}
+                    value={couponDiscountValue}
+                    onChange={(e) => setCouponDiscountValue(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Min Order Amount (₹) Optional</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 500"
+                    value={couponMinOrder}
+                    onChange={(e) => setCouponMinOrder(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Assign to Specific Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    placeholder="Leave blank for public use, or enter customer email"
+                    value={couponTargetEmail}
+                    onChange={(e) => setCouponTargetEmail(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition cursor-pointer">
+                Create Coupon Code 🚀
+              </button>
+            </form>
+
+            <h3 className="text-xs font-bold text-gray-800 uppercase mt-8 mb-4">Active & Existing Coupons</h3>
+            {coupons.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-6 text-center">No coupons created yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {coupons.map((c) => (
+                  <div key={c.id} className="flex flex-wrap items-center justify-between border p-4 rounded-2xl bg-white shadow-sm gap-2">
+                    <div>
+                      <span className="font-mono font-black text-indigo-900 text-sm tracking-wider">{c.code}</span>
+                      <div className="text-xs text-gray-600 mt-0.5 font-medium">
+                        {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
+                        {c.min_order_amount > 0 ? ` (Min order: ₹${c.min_order_amount})` : ''}
+                      </div>
+                      <div className="text-[11px] text-indigo-600 font-bold mt-1">
+                        {c.target_customer_email ? `🔒 Restricted to: ${c.target_customer_email}` : '🌐 Public Coupon (Anyone can use)'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => openEditCouponModal(c)}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={() => toggleCouponStatus(c.id, c.is_active)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          c.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
+                        }`}
+                      >
+                        {c.is_active ? 'Active ✓' : 'Inactive ✕'}
+                      </button>
+                      <button
+                        onClick={() => deleteCoupon(c.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- EDIT COUPON MODAL ----------------- */}
+        {editingCoupon && (
+          <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-base font-black text-indigo-950">Edit Published Coupon</h3>
+              <form onSubmit={handleUpdateCoupon} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Coupon Code</label>
+                  <input
+                    type="text"
+                    value={editCouponCode}
+                    onChange={(e) => setEditCouponCode(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs font-mono uppercase bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Discount Type</label>
+                  <select
+                    value={editCouponDiscountType}
+                    onChange={(e) => setEditCouponDiscountType(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount (₹)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Discount Value</label>
+                  <input
+                    type="number"
+                    value={editCouponDiscountValue}
+                    onChange={(e) => setEditCouponDiscountValue(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Min Order Amount (₹)</label>
+                  <input
+                    type="number"
+                    value={editCouponMinOrder}
+                    onChange={(e) => setEditCouponMinOrder(e.target.value)}
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Target Customer Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={editCouponTargetEmail}
+                    onChange={(e) => setEditCouponTargetEmail(e.target.value)}
+                    placeholder="Leave blank for public use"
+                    className="w-full border p-2.5 rounded-xl text-xs bg-white text-gray-900 font-medium"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingCoupon(null)}
+                    className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: REVIEWS MODERATION ----------------- */}
+        {activeTab === 'reviews' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">⭐ Customer Reviews Moderation</h2>
+              <p className="text-xs text-gray-500 mt-1">Review feedback, edit comments, or delete inappropriate reviews.</p>
+            </div>
+
+            {adminReviews.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-12 text-center">No customer reviews submitted yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {adminReviews.map((rev) => (
+                  <div key={rev.id} className="bg-gray-50 p-5 rounded-2xl border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1.5 flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs font-bold text-gray-900">{rev.customer_name}</span>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2 py-0.5 rounded">Product: {rev.products?.name || 'Item'}</span>
+                        <span className="text-xs text-amber-500 font-bold">{'⭐'.repeat(rev.rating)}</span>
+                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed">{rev.comment}</p>
+                      {rev.image_url && (
+                        <a href={rev.image_url} target="_blank" rel="noreferrer" className="text-[11px] text-indigo-600 font-bold hover:underline block">
+                          📷 View Attached Customer Photo
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setReviewEditing(rev)
+                          setEditReviewComment(rev.comment)
+                          setEditReviewRating(rev.rating)
+                        }}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs px-3.5 py-2 rounded-xl transition border border-indigo-200 cursor-pointer"
+                      >
+                        Edit ✏️
+                      </button>
+                      <button
+                        onClick={() => handleAdminDeleteReview(rev.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-3.5 py-2 rounded-xl transition border border-red-200 cursor-pointer"
+                      >
+                        Delete ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Admin Edit Review Modal */}
+            {editingReview && (
+              <div className="fixed inset-0 bg-black/60 flex justify-center items-center p-4 z-50">
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative">
+                  <h3 className="text-base font-black text-indigo-950 mb-4">Edit Customer Review</h3>
+                  <form onSubmit={handleAdminUpdateReview} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Rating</label>
+                      <select 
+                        value={editReviewRating} 
+                        onChange={(e) => setEditReviewRating(Number(e.target.value))}
+                        className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 font-bold w-full"
+                      >
+                        <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                        <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                        <option value="3">⭐⭐⭐ (3/5)</option>
+                        <option value="2">⭐⭐ (2/5)</option>
+                        <option value="1">⭐ (1/5)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Comment</label>
+                      <textarea 
+                        rows={4}
+                        value={editReviewComment}
+                        onChange={(e) => setEditReviewComment(e.target.value)}
+                        className="w-full border border-gray-300 p-3 rounded-xl text-xs text-gray-900 bg-white"
+                      />
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewEditing(null)}
+                        className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow cursor-pointer"
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- TAB: PAYMENTS MANAGEMENT ----------------- */}
+        {activeTab === 'payments' && (
+          <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-200 max-w-2xl mx-auto space-y-6">
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-black text-indigo-950">💳 Payment Gateway Control Center</h2>
+              <p className="text-xs text-gray-500 mt-1">Enable or disable payment options and customize customer checkout notices.</p>
+            </div>
+
+            <form onSubmit={handleSavePaymentSettings} className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Razorpay Gateway</h4>
+                  <p className="text-xs text-gray-500">Accept Credit Cards, UPI, NetBanking online.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={paymentSettings.is_razorpay_enabled} 
+                    onChange={(e) => setPaymentSettings({ ...paymentSettings, is_razorpay_enabled: e.target.checked })}
+                    className="sr-only peer" 
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-900">Direct UPI / QR Transfer</h4>
+                  <p className="text-xs text-gray-500">Allow manual QR scanning and UTR submission.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={paymentSettings.is_upi_enabled} 
+                    onChange={(e) => setPaymentSettings({ ...paymentSettings, is_upi_enabled: e.target.checked })}
+                    className="sr-only peer" 
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900">Cash on Delivery (COD)</h4>
+                    <p className="text-xs text-gray-500">Allow customers to pay upon delivery.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={paymentSettings.is_cod_enabled} 
+                      onChange={(e) => setPaymentSettings({ ...paymentSettings, is_cod_enabled: e.target.checked })}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {!paymentSettings.is_cod_enabled && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Disabled Message for Customers</label>
+                    <input 
+                      type="text"
+                      value={paymentSettings.cod_message}
+                      onChange={(e) => setPaymentSettings({ ...paymentSettings, cod_message: e.target.value })}
+                      placeholder="Payments not accepting currently"
+                      className="w-full border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-900 focus:outline-indigo-600"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3 rounded-xl text-sm shadow-md transition cursor-pointer"
+              >
+                {loading ? 'Saving Changes...' : 'Save Payment Configurations 💾'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* ----------------- TAB: UPI VERIFICATIONS ----------------- */}
+        {activeTab === 'upi_verifications' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">⚡ Direct UPI / QR Payment Verification Center</h2>
+                <p className="text-xs text-gray-500">Review, verify, or reject direct QR/UPI transfers safely</p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
+                <input
+                  type="text"
+                  value={upiSearchQuery}
+                  onChange={(e) => setUpiSearchQuery(e.target.value)}
+                  placeholder="🔍 Search name, tracking ID, amount, UTR..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-80 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                />
+
+                <select
+                  value={upiStatusFilter}
+                  onChange={(e) => setUpiStatusFilter(e.target.value)}
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs bg-white text-gray-700 font-medium"
+                >
+                  <option value="ALL">All Statuses ({allUpiOrders.length})</option>
+                  <option value="PENDING">Pending Only ({upiPendingOrders.length})</option>
+                  <option value="APPROVED">Approved Only</option>
+                  <option value="REJECTED">Rejected / Cancelled</option>
+                </select>
+
+                {(upiSearchQuery || upiStatusFilter !== 'ALL') && (
+                  <button
+                    onClick={() => { setUpiSearchQuery(''); setUpiStatusFilter('ALL'); }}
+                    className="text-xs text-red-600 hover:underline font-bold px-3 py-2 bg-red-50 rounded-xl"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {filteredUpiVerifications.length === 0 ? (
+              <div className="py-16 text-center bg-gray-50 rounded-2xl border border-gray-200">
+                <div className="text-3xl mb-2">🔍</div>
+                <p className="text-sm font-bold text-gray-700">No UPI payment records match your search criteria.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {filteredUpiVerifications.map((o) => {
+                  const twelveCustId = getTwelveDigitId(o.user_id)
+                  const orderDate = o.created_at ? new Date(o.created_at).toLocaleString() : 'N/A'
+                  const statusLower = (o.status || '').toLowerCase()
+                  const isPending = statusLower === 'pending verification' || statusLower === 'pending'
+                  const isCancelled = statusLower === 'cancelled'
+                  const cleanUtr = extractUtrNumber(o.payment_method)
+
+                  return (
+                    <div key={o.id} className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm hover:border-amber-300 transition space-y-5">
+                      <div className="flex flex-wrap justify-between items-center border-b pb-4 gap-4">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Tracking ID</span>
+                            <span className="font-mono text-base font-black text-indigo-950">{o.tracking_id}</span>
+                          </div>
+                          <span className="text-gray-300">•</span>
+                          <span className="text-xs text-gray-500 font-semibold">🕒 {orderDate}</span>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Total Amount</span>
+                            <span className="text-xl font-black text-indigo-950">₹{o.total_amount || o.final_payable_amount}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`px-3.5 py-1.5 rounded-full font-black text-[11px] uppercase inline-block ${
+                              isPending ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                              isCancelled ? 'bg-red-100 text-red-900 border border-red-300' : 'bg-green-100 text-green-900 border border-green-300'
+                            }`}>
+                              {o.status}
+                            </span>
+                            {o.cancellation_reason && (
+                              <span className="text-[11px] text-red-600 font-semibold block mt-1 max-w-xs text-right leading-tight">
+                                {o.cancellation_reason}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Customer Details</span>
+                          <div className="font-extrabold text-gray-900 text-sm">{o.customer_name}</div>
+                          <div className="text-gray-500 font-medium">{o.customer_email}</div>
+                          <span className="inline-block mt-1 text-[10px] font-mono text-indigo-800 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+                            ID: {twelveCustId}
+                          </span>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-1.5">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">UTR Number</span>
+                          <span className="inline-block bg-white text-indigo-950 font-mono font-black px-3 py-2 rounded-xl border border-indigo-200 text-xs shadow-2xs">
+                            {cleanUtr}
+                          </span>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Items Ordered</span>
+                          {Array.isArray(o.items) && o.items.length > 0 ? (
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                              {o.items.map((item: any, idx: number) => {
+                                const itemImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/40'
+                                const twelveDigitId = getTwelveDigitId(item.id || item.product_id || '')
+                                return (
+                                  <div key={idx} className="flex items-center gap-2.5 bg-white p-2 rounded-xl border border-gray-200 shadow-2xs">
+                                    <div 
+                                      onClick={async () => {
+                                        const productId = item.id || item.product_id
+                                        if (productId) {
+                                          const { data } = await supabase.from('products').select('image_url').eq('id', productId).single()
+                                          if (data && data.image_url) {
+                                            const allImgs = data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean)
+                                            setActiveOrderGalleryImages(allImgs)
+                                            setActiveGalleryIndex(0)
+                                            return
+                                          }
+                                        }
+                                        setActiveOrderGalleryImages([itemImg])
+                                        setActiveGalleryIndex(0)
+                                      }}
+                                      className="relative group flex-shrink-0 cursor-pointer"
+                                      title="Click to view all product images"
+                                    >
+                                      <img src={itemImg} alt="" className="w-9 h-9 object-cover rounded-lg border bg-white hover:border-indigo-600 transition" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="font-bold text-gray-900 truncate text-xs">{item.name}</div>
+                                      <div className="text-[10px] text-indigo-600 font-bold">Qty: {item.quantity} • ID: {twelveDigitId}</div>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">No items listed</span>
+                          )}
+                        </div>
+
+                        <div className="bg-gray-50/70 p-4 rounded-2xl border border-gray-100 space-y-2">
+                          <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider block">Shipping Address</span>
+                          <div className="bg-white p-3 rounded-xl border border-gray-200 leading-relaxed max-h-32 overflow-y-auto text-[11px] text-gray-800 shadow-2xs">
+                            {o.shipping_address || 'No address provided'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(o.shipping_address || '')
+                              alert('Shipping address copied to clipboard!')
+                            }}
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-xl transition border border-indigo-200 cursor-pointer block w-full text-center"
+                          >
+                            📋 Copy Full Address
+                          </button>
+                        </div>
+                      </div>
+
+                      {isPending && (
+                        <div className="flex justify-end gap-3 pt-4 border-t">
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Cancelled')}
+                            className="bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs px-6 py-3 rounded-xl transition border border-red-200 cursor-pointer"
+                          >
+                            ✕ Reject & Cancel
+                          </button>
+                          <button
+                            onClick={() => handleUpdateOrderStatus(o.id, 'Processing')}
+                            className="bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs px-8 py-3 rounded-xl shadow-md transition cursor-pointer"
+                          >
+                            ✓ Verify & Approve Payment
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ----------------- TAB: CUSTOMERS DIRECTORY ----------------- */}
+        {activeTab === 'customers' && (
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200 space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">Customers Directory ({customers.length})</h2>
+                <p className="text-xs text-gray-500">View customer lifetime orders, total spend, and contact records</p>
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto">
+                <input
+                  type="text"
+                  value={customerSearchQuery}
+                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                  placeholder="🔍 Search name, email, phone, ID..."
+                  className="border border-gray-300 p-2.5 rounded-xl text-xs w-full sm:w-64 text-gray-900 focus:outline-indigo-600 bg-gray-50/50"
+                />
+                <button
+                  type="button"
+                  onClick={handleExportCustomersCSV}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-indigo-200 transition cursor-pointer whitespace-nowrap"
+                >
+                  📤 Export Customers
+                </button>
+              </div>
+            </div>
+
+            {filteredCustomers.length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-12 text-center">No customer records matching your search.</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredCustomers.map((cust) => {
+                  const cust12 = getTwelveDigitId(cust.id)
+                  return (
+                    <div key={cust.id} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3 hover:border-indigo-300 transition">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h4 className="font-bold text-sm text-gray-900">{cust.name || 'Guest User'}</h4>
+                          <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 block mt-0.5">
+                            ID: {cust12}
+                          </span>
+                        </div>
+                        <span className="bg-indigo-50 text-indigo-900 text-xs font-extrabold px-2.5 py-1 rounded-xl border border-indigo-100">
+                          ₹{cust.total_spent || 0}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-1 text-xs text-gray-600">
+                        <div>✉️ {cust.email || 'No email registered'}</div>
+                        <div>📞 {cust.phone || 'No phone registered'}</div>
+                        <div>📦 {cust.total_orders_count || 0} total orders</div>
+                      </div>
+
+                      <div className="pt-2 border-t flex justify-end">
+                        <button
+                          onClick={() => setViewingCustomer(cust)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer"
+                        >
+                          View Full Profile & Orders →
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* ----------------- AUTOMATIC LOW STOCK LOGIN MODAL POPUP ----------------- */}
+      {showLowStockLoginModal && lowStockProducts.length > 0 && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs flex justify-center items-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 relative border-t-8 border-red-600 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-red-600 block">Immediate Attention Required</span>
+                <h3 className="text-xl font-black text-gray-900 mt-0.5">⚠️ Low Stock Inventory Alert</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  You have <span className="font-bold text-red-600">{lowStockProducts.length} items</span> that have dropped to 5 units or less in the warehouse.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowLowStockLoginModal(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-lg bg-gray-100 px-3 py-1 rounded-full cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              {lowStockProducts.map((p) => (
+                <div key={p.id} className="p-3 bg-red-50/60 rounded-2xl border border-red-200 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-xs text-gray-900">{p.name || p.title}</h4>
+                    <span className="text-[10px] text-gray-500">{p.category || 'General'}</span>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-xl text-xs font-black ${p.stock === 0 ? 'bg-red-600 text-white' : 'bg-red-200 text-red-900'}`}>
+                    {p.stock === 0 ? 'OUT OF STOCK' : `${p.stock} left`}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 pt-2 border-t">
+              <button
+                onClick={() => setShowLowStockLoginModal(false)}
+                className="w-1/2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
+              >
+                Dismiss Notice
+              </button>
+              <button
+                onClick={() => {
+                  setShowLowStockLoginModal(false)
+                  setActiveTab('products')
+                  setStockFilter('LOW')
+                }}
+                className="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition cursor-pointer"
+              >
+                Restock in Inventory →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ----------------- MODALS ----------------- */}
       {activePrintOrder && (
