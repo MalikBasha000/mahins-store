@@ -105,25 +105,33 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">
-      {/* Responsive Header */}
-      <header className="bg-white px-4 sm:px-8 lg:px-12 py-3.5 sm:py-5 shadow-xs sticky top-0 z-50 w-full border-b border-gray-100">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 sm:gap-6">
+      {/* Fully Responsive Fluid Header */}
+      <header className="bg-white px-3 sm:px-8 lg:px-12 py-3 sm:py-5 shadow-xs sticky top-0 z-50 w-full border-b border-gray-100">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
           {/* Brand Logo / Home link */}
-          <Link href="/" className="hover:opacity-90 transition cursor-pointer shrink-0">
-            <h1 className="text-lg sm:text-2xl font-black text-indigo-900 tracking-tight whitespace-nowrap">
+          <Link href="/" className="hover:opacity-90 transition cursor-pointer min-w-0 shrink">
+            <h1 className="text-sm sm:text-xl md:text-2xl font-black text-indigo-900 tracking-tight truncate">
               Mahin's One-Stop One-Store
             </h1>
           </Link>
 
-          {/* Navigation Controls */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Desktop Quick Links (Track & Wishlist are also easily accessible via bottom nav on mobile) */}
-            <Link href="/track" className="hidden md:flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200 whitespace-nowrap">
+          {/* Action Navigation Controls */}
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Desktop Only: Order Tracking (mobile accesses via bottom navigation) */}
+            <Link
+              href="/track"
+              className="hidden md:flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200"
+            >
               📦 Track Order
             </Link>
 
-            <Link href="/wishlist" className="relative flex items-center gap-1.5 rounded-xl bg-pink-50 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200 whitespace-nowrap">
-              ★ <span className="hidden sm:inline">Wishlist</span>
+            {/* Wishlist Pill */}
+            <Link
+              href="/wishlist"
+              className="relative flex items-center gap-1 rounded-xl bg-pink-50 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200"
+            >
+              <span>★</span>
+              <span className="hidden sm:inline">Wishlist</span>
               {wishlist.length > 0 && (
                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-[10px] text-white">
                   {wishlist.length}
@@ -131,10 +139,15 @@ export default function HomePage() {
               )}
             </Link>
 
-            <Link href="/cart" className="relative flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3 py-1.5 sm:px-4 sm:py-2 text-indigo-600 text-xs sm:text-sm font-semibold hover:bg-indigo-100 transition border border-indigo-100 whitespace-nowrap">
-              🛒 <span className="hidden sm:inline">Cart</span>
+            {/* Desktop Only: Cart Pill (mobile accesses via persistent bottom bar) */}
+            <Link
+              href="/cart"
+              className="hidden sm:flex relative items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-indigo-600 text-xs sm:text-sm font-semibold hover:bg-indigo-100 transition border border-indigo-100"
+            >
+              <span>🛒</span>
+              <span>Cart</span>
               {totalItems > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-red-500 text-[10px] sm:text-xs text-white font-bold">
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white font-bold">
                   {totalItems}
                 </span>
               )}
@@ -142,28 +155,25 @@ export default function HomePage() {
 
             {/* Auth Controls */}
             {user ? (
-              <div className="flex items-center gap-2 sm:gap-3 border-l pl-2 sm:pl-4 border-gray-200 shrink-0">
-                <span className="text-xs text-gray-600 font-medium hidden xl:inline truncate max-w-[120px]">
-                  Hi, {user.user_metadata?.full_name || 'Customer'}
-                </span>
-                
-                <Link href="/orders" className="hidden sm:inline-block rounded-xl bg-green-50 px-3 py-2 text-xs font-bold text-green-700 transition hover:bg-green-100 whitespace-nowrap">
-                  📦 Orders
-                </Link>
-
-                <Link href="/profile" className="rounded-xl bg-indigo-50 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-gray-200">
+                <Link
+                  href="/profile"
+                  className="rounded-xl bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+                >
                   Profile
                 </Link>
-                
-                <button onClick={handleSignOut} className="rounded-xl bg-gray-100 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-gray-700 transition hover:bg-gray-200 whitespace-nowrap cursor-pointer">
+                <button
+                  onClick={handleSignOut}
+                  className="rounded-xl bg-gray-100 px-2.5 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-200 cursor-pointer hidden sm:inline-block"
+                >
                   Sign Out
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 sm:gap-3 border-l pl-2 sm:pl-4 border-gray-200 shrink-0 text-xs font-bold text-indigo-600">
-                <Link href="/login" className="hover:underline whitespace-nowrap">Sign In</Link>
-                <span className="text-gray-300">|</span>
-                <Link href="/signup" className="hover:underline whitespace-nowrap hidden sm:inline">Create Account</Link>
+              <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-gray-200 text-xs font-bold text-indigo-600">
+                <Link href="/login" className="hover:underline py-1">
+                  Sign In
+                </Link>
               </div>
             )}
           </div>
