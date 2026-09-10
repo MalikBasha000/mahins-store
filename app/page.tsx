@@ -117,7 +117,7 @@ export default function HomePage() {
 
           {/* Action Navigation Controls */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Desktop Only: Order Tracking (mobile accesses via bottom navigation) */}
+            {/* Desktop Only: Order Tracking */}
             <Link
               href="/track"
               className="hidden md:flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200"
@@ -139,7 +139,7 @@ export default function HomePage() {
               )}
             </Link>
 
-            {/* Desktop Only: Cart Pill (mobile accesses via persistent bottom bar) */}
+            {/* Desktop Only: Cart Pill */}
             <Link
               href="/cart"
               className="hidden sm:flex relative items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-indigo-600 text-xs sm:text-sm font-semibold hover:bg-indigo-100 transition border border-indigo-100"
@@ -180,7 +180,8 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 w-full">
+      {/* Main Content Area with pb-28 for mobile bottom navigation clearance */}
+      <main className="mx-auto max-w-7xl px-4 sm:px-8 pt-6 sm:pt-8 pb-28 sm:pb-12 space-y-6 sm:space-y-8 w-full">
         {/* Promotional Banners & Posters */}
         {banners.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 w-full">
