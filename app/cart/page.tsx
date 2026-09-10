@@ -7,6 +7,31 @@ import Link from 'next/link'
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart()
 
+  const handleWhatsAppCheckout = () => {
+    // Replace with your store WhatsApp number with country code (e.g., 91 for India)
+    const STORE_PHONE = '919000000000'
+
+    const itemsSummary = cart
+      .map(
+        (item, idx) =>
+          `${idx + 1}. *${item.name}*\n   Qty: ${item.quantity} × ₹${item.price} = ₹${(Number(item.quantity) || 1) * (Number(item.price) || 0)}`
+      )
+      .join('\n\n')
+
+    const message = 
+`🛍️ *NEW ORDER REQUEST via WhatsApp*
+*Store:* Mahin's One-Stop One-Store
+-----------------------------------
+${itemsSummary}
+-----------------------------------
+💰 *Total Payable Amount: ₹${totalPrice}*
+
+Hi, I would like to order the items listed above. Please confirm availability and share payment/delivery instructions!`
+
+    const encoded = encodeURIComponent(message)
+    window.open(`https://wa.me/${STORE_PHONE}?text=${encoded}`, '_blank')
+  }
+
   if (cart.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
@@ -92,17 +117,28 @@ export default function CartPage() {
             Clear Cart
           </button>
 
-          <div className="flex items-center justify-between w-full md:w-auto gap-8">
-            <div className="text-right">
+          <div className="flex flex-col sm:flex-row items-center justify-between w-full md:w-auto gap-4 sm:gap-6">
+            <div className="text-right w-full sm:w-auto">
               <span className="text-xs text-gray-500 block">Total Amount:</span>
               <span className="text-2xl font-black text-indigo-900">₹{totalPrice}</span>
             </div>
-            <Link
-              href="/checkout"
-              className="rounded-xl bg-green-600 px-8 py-3 font-bold text-white hover:bg-green-700 transition shadow text-sm text-center"
-            >
-              Proceed to Checkout
-            </Link>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleWhatsAppCheckout}
+                className="w-full sm:w-auto rounded-xl bg-green-600 hover:bg-green-700 px-6 py-3 font-bold text-white transition shadow text-sm flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>💬</span> Order via WhatsApp
+              </button>
+
+              <Link
+                href="/checkout"
+                className="w-full sm:w-auto rounded-xl bg-indigo-600 px-8 py-3 font-bold text-white hover:bg-indigo-700 transition shadow text-sm text-center"
+              >
+                Proceed to Checkout
+              </Link>
+            </div>
           </div>
         </div>
       </div>
