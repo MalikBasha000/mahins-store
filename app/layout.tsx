@@ -1,5 +1,5 @@
 // app/layout.tsx
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import Script from "next/script"
 import "./globals.css"
@@ -14,17 +14,25 @@ export const metadata: Metadata = {
   description: "Your go-to store for electronics, robotics, and gifts",
 }
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} pb-16 sm:pb-0`}>
+    <html lang="en" suppressHydrationWarning className="w-full overflow-x-hidden">
+      <body className={`${inter.className} w-full min-h-screen overflow-x-hidden bg-white text-gray-900 pb-16 sm:pb-0 antialiased`}>
         <CartProvider>
           <WishlistProvider>
-            {children}
+            <div className="w-full max-w-full flex flex-col min-h-screen">
+              {children}
+            </div>
             <MobileBottomNav />
           </WishlistProvider>
         </CartProvider>
