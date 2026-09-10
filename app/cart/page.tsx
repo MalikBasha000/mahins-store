@@ -8,8 +8,8 @@ export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart()
 
   const handleWhatsAppCheckout = () => {
-    // Replace with your store WhatsApp number with country code (e.g., 91 for India)
-    const STORE_PHONE = '919000000000'
+    // Updated to your personal contact number
+    const STORE_PHONE = '919989945139'
 
     const itemsSummary = cart
       .map(
