@@ -8,7 +8,6 @@ export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart, totalPrice } = useCart()
 
   const handleWhatsAppCheckout = () => {
-    // Updated to your personal contact number
     const STORE_PHONE = '919989945139'
 
     const itemsSummary = cart
@@ -70,33 +69,40 @@ Hi, I would like to order the items listed above. Please confirm availability an
             const lineTotal = numericPrice * numericQty
 
             return (
-              <div key={item.id} className="flex flex-wrap items-center justify-between gap-4 border-b pb-4">
-                <div className="flex items-center gap-4">
-                  <img src={firstImage} alt={item.name} className="h-20 w-20 object-cover rounded-xl border bg-gray-100" />
+              <div key={item.id} className="grid grid-cols-1 sm:grid-cols-12 items-center gap-4 border-b pb-4">
+                {/* Product Image & Details */}
+                <div className="flex items-center gap-4 sm:col-span-6">
+                  <img src={firstImage} alt={item.name} className="h-20 w-20 object-cover rounded-xl border bg-gray-100 shrink-0" />
                   <div>
-                    <h3 className="font-bold text-gray-900 text-base">{item.name}</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <h3 className="font-bold text-gray-900 text-base leading-tight">{item.name}</h3>
+                    <p className="text-xs text-gray-500 mt-1">
                       ₹{numericPrice} per unit &nbsp;•&nbsp; <span className="font-semibold text-indigo-600">₹{numericPrice} × {numericQty} = ₹{lineTotal}</span>
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-600">Qty:</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
-                      className="w-16 rounded-lg border border-gray-300 p-1.5 text-center text-sm font-bold text-gray-900 focus:outline-indigo-600"
-                    />
-                  </div>
+                {/* Quantity Input */}
+                <div className="flex items-center justify-start sm:justify-center gap-2 sm:col-span-2">
+                  <span className="text-xs font-semibold text-gray-600">Qty:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
+                    className="w-16 rounded-lg border border-gray-300 p-1.5 text-center text-sm font-bold text-gray-900 focus:outline-indigo-600"
+                  />
+                </div>
 
-                  <span className="text-lg font-black text-indigo-900 min-w-[80px] text-right">
+                {/* Line Total */}
+                <div className="text-left sm:text-right sm:col-span-2">
+                  <span className="text-xs text-gray-400 block sm:hidden">Total:</span>
+                  <span className="text-lg font-black text-indigo-900">
                     ₹{lineTotal}
                   </span>
+                </div>
 
+                {/* Remove Button */}
+                <div className="text-right sm:col-span-2">
                   <button
                     onClick={() => removeFromCart(item.id)}
                     className="text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition cursor-pointer"
