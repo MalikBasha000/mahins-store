@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="w-full overflow-x-hidden">
-      <body className={`${inter.className} w-full min-h-screen overflow-x-hidden bg-white text-gray-900 pb-16 sm:pb-0 antialiased`}>
+      <body className={`${inter.className} w-full min-h-screen overflow-x-hidden bg-white text-gray-900 pb-24 sm:pb-0 antialiased`}>
         <CartProvider>
           <WishlistProvider>
             <div className="w-full max-w-full flex flex-col min-h-screen">
