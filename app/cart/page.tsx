@@ -34,7 +34,7 @@ Hi, I would like to order the items listed above. Please confirm availability an
   if (cart.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F4EADE] px-4 py-8">
-        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white p-6 sm:p-8 text-center shadow-xs border border-[#8A7968]/20">
+        <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-[#EFE3D3] p-6 sm:p-8 text-center shadow-xs border border-[#8A7968]/30">
           <div className="text-4xl mb-3">🛒</div>
           <h2 className="text-lg sm:text-xl font-bold text-[#2B2B2B] mb-2">Your Cart is Empty</h2>
           <p className="text-[#8A7968] text-xs sm:text-sm mb-6">Looks like you haven't added anything to your cart yet.</p>
@@ -51,7 +51,7 @@ Hi, I would like to order the items listed above. Please confirm availability an
 
   return (
     <div className="min-h-screen bg-[#F4EADE] px-3 sm:px-6 lg:px-8 py-4 sm:py-8 w-full overflow-x-hidden text-[#2B2B2B]">
-      <div className="mx-auto max-w-4xl rounded-2xl sm:rounded-3xl bg-white p-4 sm:p-8 shadow-xs border border-[#8A7968]/20 w-full">
+      <div className="mx-auto max-w-4xl rounded-2xl sm:rounded-3xl bg-[#EFE3D3] p-4 sm:p-8 shadow-xs border border-[#8A7968]/30 w-full">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#8A7968]/20 pb-4 mb-5 gap-2">
           <Link href="/" className="hover:opacity-90 transition min-w-0">
@@ -77,9 +77,9 @@ Hi, I would like to order the items listed above. Please confirm availability an
             const lineTotal = numericPrice * numericQty
 
             return (
-              <div key={item.id} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-[#8A7968]/20 bg-white shadow-2xs flex flex-col gap-3">
+              <div key={item.id} className="p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-[#8A7968]/30 bg-[#EADBC8]/40 shadow-2xs flex flex-col gap-3">
                 <div className="flex items-start gap-3">
-                  <img src={firstImage} alt={item.name} className="h-16 w-16 sm:h-20 sm:w-20 object-contain p-1 rounded-xl border border-[#8A7968]/20 bg-[#F4EADE]/40 shrink-0" />
+                  <img src={firstImage} alt={item.name} className="h-16 w-16 sm:h-20 sm:w-20 object-contain p-1 rounded-xl border border-[#8A7968]/30 bg-[#F4EADE] shrink-0" />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-[#2B2B2B] text-xs sm:text-base leading-snug line-clamp-2">{item.name}</h3>
                     <p className="text-[11px] sm:text-xs text-[#8A7968] mt-1">
@@ -88,7 +88,7 @@ Hi, I would like to order the items listed above. Please confirm availability an
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-[#8A7968]/10">
+                <div className="flex items-center justify-between pt-2 border-t border-[#8A7968]/20">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-[#8A7968]">Qty:</span>
                     <input
@@ -96,7 +96,7 @@ Hi, I would like to order the items listed above. Please confirm availability an
                       min="1"
                       value={item.quantity}
                       onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
-                      className="w-14 sm:w-16 rounded-lg border border-[#8A7968]/40 p-1 text-center text-xs sm:text-sm font-bold text-[#2B2B2B] focus:outline-[#B76E79]"
+                      className="w-14 sm:w-16 rounded-lg border border-[#8A7968]/40 bg-[#F4EADE] p-1 text-center text-xs sm:text-sm font-bold text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
                     />
                   </div>
 
@@ -106,7 +106,7 @@ Hi, I would like to order the items listed above. Please confirm availability an
                     </span>
                     <button
                       onClick={() => removeFromCart(item.id)}
-                      className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition cursor-pointer"
+                      className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition cursor-pointer border border-red-200"
                     >
                       Remove
                     </button>
@@ -118,10 +118,10 @@ Hi, I would like to order the items listed above. Please confirm availability an
         </div>
 
         {/* Footer Summary */}
-        <div className="bg-[#F4EADE]/50 p-4 sm:p-6 rounded-2xl border border-[#8A7968]/20 flex flex-col md:flex-row justify-between items-center gap-4 w-full">
+        <div className="bg-[#EADBC8]/50 p-4 sm:p-6 rounded-2xl border border-[#8A7968]/30 flex flex-col md:flex-row justify-between items-center gap-4 w-full">
           <button
             onClick={clearCart}
-            className="rounded-xl bg-white border border-[#8A7968]/30 hover:bg-gray-100 px-5 py-2.5 text-xs sm:text-sm font-semibold text-[#2B2B2B] transition w-full md:w-auto cursor-pointer"
+            className="rounded-xl bg-[#EADBC8] border border-[#8A7968]/40 hover:bg-[#8A7968]/30 px-5 py-2.5 text-xs sm:text-sm font-semibold text-[#2B2B2B] transition w-full md:w-auto cursor-pointer"
           >
             Clear Cart
           </button>
