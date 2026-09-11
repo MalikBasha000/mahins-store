@@ -26,6 +26,7 @@ export default function ProductDetails() {
   const [submittingReview, setSubmittingReview] = useState(false)
   const [hasUserReviewed, setHasUserReviewed] = useState(false)
   const [hasPurchasedProduct, setHasPurchasedProduct] = useState(false)
+  const [reviewMessage, setReviewMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const { addToCart } = useCart()
   const supabase = createClient()
@@ -144,13 +145,15 @@ export default function ProductDetails() {
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setReviewMessage(null)
+
     if (!user) {
-      alert('Please sign in to leave a review.')
+      setReviewMessage({ type: 'error', text: 'Please sign in to leave a review.' })
       router.push('/login')
       return
     }
     if (!hasPurchasedProduct) {
-      alert('Only customers who have purchased this product can leave a review.')
+      setReviewMessage({ type: 'error', text: 'Only customers who have purchased this product can leave a review.' })
       return
     }
     if (!userComment.trim()) return
@@ -202,12 +205,12 @@ export default function ProductDetails() {
         const revRes = await fetch(`/api/reviews?product_id=${product.id}`)
         const revData = await revRes.json()
         if (revData.success) setReviews(revData.reviews)
-        alert('Review posted successfully!')
+        setReviewMessage({ type: 'success', text: 'Review posted successfully!' })
       } else {
-        alert(data.error || 'Failed to post review.')
+        setReviewMessage({ type: 'error', text: data.error || 'Failed to post review.' })
       }
     } catch (err: any) {
-      alert(`Error: ${err.message}`)
+      setReviewMessage({ type: 'error', text: `Error: ${err.message}` })
     }
     setSubmittingReview(false)
   }
@@ -240,7 +243,7 @@ export default function ProductDetails() {
                   <button
                     key={idx}
                     onClick={() => setActiveImage(img)}
-                    className={`h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden border-2 shrink-0 transition bg-[#F4EADE] ${
+                    className={`h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden border-2 shrink-0 transition bg-[#F4EADE] cursor-pointer ${
                       activeImage === img ? 'border-[#B76E79] scale-105 shadow-xs' : 'border-[#8A7968]/30 opacity-60'
                     }`}
                   >
@@ -321,6 +324,19 @@ export default function ProductDetails() {
               ⭐ {averageRating} {reviews.length > 0 && `(${reviews.length} reviews)`}
             </div>
           </div>
+
+          {/* Feedback alerts */}
+          {reviewMessage && (
+            <div
+              className={`mb-4 p-3.5 rounded-xl text-xs font-semibold border ${
+                reviewMessage.type === 'success'
+                  ? 'bg-green-100 text-green-800 border-green-300'
+                  : 'bg-red-100 text-red-700 border-red-300'
+              }`}
+            >
+              {reviewMessage.text}
+            </div>
+          )}
 
           {/* Review Submission Form with Verification */}
           {!user ? (
