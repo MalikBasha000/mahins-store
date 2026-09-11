@@ -3,6 +3,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { createClient } from '../../lib/supabase/client'
+import Link from 'next/link'
 
 export interface CartItem {
   id: string
@@ -27,6 +28,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([])
+  const [toastMessage, setToastMessage] = useState<{ title: string; desc: string } | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -76,16 +78,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('mahins_cart', JSON.stringify(cart))
   }, [cart])
 
+  // Automatically dismiss the toast notification after 3.5 seconds
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3500)
+      return () => clearTimeout(timer)
+    }
+  }, [toastMessage])
+
   const addToCart = (product: any, quantityToAdd: number = 1) => {
     const itemPrice = parseFloat(product.price ?? product.base_price ?? 0)
     const maxStock = product.stock ?? 999
+    const qty = Number(quantityToAdd) || 1
 
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex((item) => item.id === product.id)
       if (existingIndex > -1) {
         const updated = [...prevCart]
         const currentQty = Number(updated[existingIndex].quantity) || 1
-        const newQty = Math.min(maxStock, currentQty + quantityToAdd)
+        const newQty = Math.min(maxStock, currentQty + qty)
         updated[existingIndex] = {
           ...updated[existingIndex],
           price: itemPrice, // Update to dynamic price
@@ -98,13 +109,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           id: product.id, 
           name: product.name, 
           price: itemPrice, 
-          quantity: Math.min(maxStock, quantityToAdd),
+          quantity: Math.min(maxStock, qty),
           image_url: product.image_url || '',
           stock: maxStock
         }]
       }
     })
-    alert(`${quantityToAdd} ${product.name}(s) added to cart!`)
+
+    // Display custom professional toast notification
+    setToastMessage({
+      title: 'Added to Cart',
+      desc: `${qty}× ${product.name}`,
+    })
   }
 
   const updateQuantity = (id: string, newQuantity: number | string) => {
@@ -139,6 +155,41 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   return (
     <CartContext.Provider value={{ cart, addToCart, updateQuantity, removeFromCart, clearCart, totalItems, totalPrice }}>
       {children}
+
+      {/* Professional Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-4 right-4 z-[999999] max-w-sm w-[calc(100%-2rem)] transition-all duration-300 transform translate-y-0">
+          <div className="bg-[#EFE3D3] border border-[#8A7968]/30 shadow-2xl rounded-2xl p-3.5 flex items-center gap-3 text-[#2B2B2B]">
+            <div className="w-9 h-9 rounded-xl bg-[#B76E79] text-white flex items-center justify-center shrink-0 font-bold shadow-xs text-sm">
+              ✓
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-black uppercase tracking-wider text-[#B76E79] leading-none">
+                {toastMessage.title}
+              </h4>
+              <p className="text-xs font-bold text-[#2B2B2B] truncate mt-1">
+                {toastMessage.desc}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Link
+                href="/cart"
+                onClick={() => setToastMessage(null)}
+                className="text-[11px] font-extrabold bg-[#B76E79] hover:bg-[#9E5B65] text-white px-3 py-1.5 rounded-lg transition shadow-xs whitespace-nowrap btn-press"
+              >
+                View Cart
+              </Link>
+              <button
+                type="button"
+                onClick={() => setToastMessage(null)}
+                className="text-[#8A7968] hover:text-[#2B2B2B] text-sm font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </CartContext.Provider>
   )
 }
