@@ -118,10 +118,20 @@ export default function ProductDetails() {
     }
   }
 
-  const handleAddToCart = () => {
+  const getValidQty = () => {
     const finalQty = quantity === '' ? 1 : Number(quantity)
-    const qty = finalQty < 1 ? 1 : finalQty
+    return finalQty < 1 ? 1 : finalQty
+  }
+
+  const handleAddToCart = () => {
+    const qty = getValidQty()
     addToCart({ ...product, price: product.price, image_url: activeImage, stock: maxStock }, qty)
+  }
+
+  const handleBuyNow = () => {
+    const qty = getValidQty()
+    addToCart({ ...product, price: product.price, image_url: activeImage, stock: maxStock }, qty)
+    router.push('/checkout')
   }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -282,13 +292,24 @@ export default function ProductDetails() {
               </div>
             </div>
 
-            <button 
-              onClick={handleAddToCart}
-              disabled={product.stock <= 0}
-              className="w-full rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-3 font-bold text-sm text-white transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
-            >
-              Add to Cart
-            </button>
+            {/* Side-by-Side Dual Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full mt-2">
+              <button 
+                onClick={handleAddToCart}
+                disabled={product.stock <= 0}
+                className="flex-1 rounded-xl bg-[#EADBC8] hover:bg-[#8A7968]/20 border border-[#8A7968]/40 py-3 font-bold text-xs sm:text-sm text-[#2B2B2B] transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
+              >
+                Add to Cart 🛒
+              </button>
+
+              <button 
+                onClick={handleBuyNow}
+                disabled={product.stock <= 0}
+                className="flex-1 rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-3 font-bold text-xs sm:text-sm text-white transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
+              >
+                Buy Now ⚡
+              </button>
+            </div>
           </div>
         </div>
 
