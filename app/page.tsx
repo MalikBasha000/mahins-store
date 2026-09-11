@@ -100,17 +100,17 @@ export default function HomePage() {
   })
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-gray-500">Loading Mahin's One-Stop One-Store...</div>
+    return <div className="flex min-h-screen items-center justify-center text-[#8A7968] font-semibold">Loading Mahin's One-Stop One-Store...</div>
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#F4EADE] text-[#2B2B2B] w-full overflow-x-hidden">
       {/* Fully Responsive Fluid Header */}
-      <header className="bg-white px-3 sm:px-8 lg:px-12 py-3 sm:py-5 shadow-xs sticky top-0 z-50 w-full border-b border-gray-100">
+      <header className="bg-white/95 backdrop-blur-md px-3 sm:px-8 lg:px-12 py-3 sm:py-5 shadow-xs sticky top-0 z-50 w-full border-b border-[#8A7968]/20">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
           {/* Brand Logo / Home link */}
           <Link href="/" className="hover:opacity-90 transition cursor-pointer min-w-0 shrink">
-            <h1 className="text-sm sm:text-xl md:text-2xl font-black text-indigo-900 tracking-tight truncate">
+            <h1 className="text-sm sm:text-xl md:text-2xl font-black text-[#2B2B2B] tracking-tight truncate">
               Mahin's One-Stop One-Store
             </h1>
           </Link>
@@ -120,7 +120,7 @@ export default function HomePage() {
             {/* Desktop Only: Order Tracking */}
             <Link
               href="/track"
-              className="hidden md:flex items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition border border-indigo-200"
+              className="hidden md:flex items-center gap-1.5 rounded-xl bg-[#F4EADE] px-3.5 py-2 text-xs font-bold text-[#2B2B2B] hover:bg-[#8A7968]/20 transition border border-[#8A7968]/30"
             >
               📦 Track Order
             </Link>
@@ -128,12 +128,12 @@ export default function HomePage() {
             {/* Wishlist Pill */}
             <Link
               href="/wishlist"
-              className="relative flex items-center gap-1 rounded-xl bg-pink-50 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-pink-700 hover:bg-pink-100 transition border border-pink-200"
+              className="relative flex items-center gap-1 rounded-xl bg-[#B76E79]/10 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-[#B76E79] hover:bg-[#B76E79]/20 transition border border-[#B76E79]/30"
             >
               <span>★</span>
               <span className="hidden sm:inline">Wishlist</span>
               {wishlist.length > 0 && (
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-[10px] text-white">
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#B76E79] text-[10px] text-white">
                   {wishlist.length}
                 </span>
               )}
@@ -142,12 +142,12 @@ export default function HomePage() {
             {/* Desktop Only: Cart Pill */}
             <Link
               href="/cart"
-              className="hidden sm:flex relative items-center gap-1.5 rounded-xl bg-indigo-50 px-3.5 py-2 text-indigo-600 text-xs sm:text-sm font-semibold hover:bg-indigo-100 transition border border-indigo-100"
+              className="hidden sm:flex relative items-center gap-1.5 rounded-xl bg-[#F4EADE] px-3.5 py-2 text-[#2B2B2B] text-xs sm:text-sm font-semibold hover:bg-[#8A7968]/20 transition border border-[#8A7968]/30"
             >
               <span>🛒</span>
               <span>Cart</span>
               {totalItems > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white font-bold">
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#B76E79] text-xs text-white font-bold">
                   {totalItems}
                 </span>
               )}
@@ -155,22 +155,22 @@ export default function HomePage() {
 
             {/* Auth Controls */}
             {user ? (
-              <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-gray-200">
+              <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-[#8A7968]/30">
                 <Link
                   href="/profile"
-                  className="rounded-xl bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-100"
+                  className="rounded-xl bg-[#F4EADE] px-2.5 py-1.5 text-xs font-bold text-[#2B2B2B] transition hover:bg-[#8A7968]/20 border border-[#8A7968]/30"
                 >
                   Profile
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className="rounded-xl bg-gray-100 px-2.5 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-200 cursor-pointer hidden sm:inline-block"
+                  className="rounded-xl bg-gray-100 px-2.5 py-1.5 text-xs font-bold text-[#2B2B2B] transition hover:bg-gray-200 cursor-pointer hidden sm:inline-block"
                 >
                   Sign Out
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-gray-200 text-xs font-bold text-indigo-600">
+              <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-[#8A7968]/30 text-xs font-bold text-[#B76E79]">
                 <Link href="/login" className="hover:underline py-1">
                   Sign In
                 </Link>
@@ -180,7 +180,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Main Content Area with pb-28 for mobile bottom navigation clearance */}
+      {/* Main Content Area */}
       <main className="mx-auto max-w-7xl px-4 sm:px-8 pt-6 sm:pt-8 pb-28 sm:pb-12 space-y-6 sm:space-y-8 w-full">
         {/* Promotional Banners & Posters */}
         {banners.length > 0 && (
@@ -189,17 +189,17 @@ export default function HomePage() {
               <div 
                 key={b.id} 
                 onClick={() => setSelectedPoster(b)}
-                className="rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm border bg-white relative group cursor-pointer transition transform hover:scale-[1.01]"
+                className="rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm border border-[#8A7968]/25 bg-white relative group cursor-pointer transition transform hover:scale-[1.01]"
                 title="Click to view full poster"
               >
-                <div className="w-full bg-gray-900 flex items-center justify-center">
+                <div className="w-full bg-[#2B2B2B] flex items-center justify-center">
                   <img 
                     src={b.image_url} 
                     alt={b.title} 
                     className="w-full h-auto object-contain max-h-[320px] sm:max-h-[400px]" 
                   />
                 </div>
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 sm:p-4 flex items-center justify-between">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#2B2B2B]/90 via-[#2B2B2B]/40 to-transparent p-3 sm:p-4 flex items-center justify-between">
                   <h3 className="text-white font-black text-xs sm:text-base tracking-wide truncate">{b.title}</h3>
                   <span className="text-[10px] font-bold bg-white/20 text-white px-2.5 py-1 rounded-full backdrop-blur-xs whitespace-nowrap">Zoom 🔍</span>
                 </div>
@@ -210,18 +210,18 @@ export default function HomePage() {
 
         {/* Poster Lightbox Popup Modal */}
         {selectedPoster && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex justify-center items-center p-4 z-50 animate-fade-in" onClick={() => setSelectedPoster(null)}>
-            <div className="relative max-w-4xl w-full bg-white rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl p-4 flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-[#2B2B2B]/80 backdrop-blur-xs flex justify-center items-center p-4 z-50 animate-fade-in" onClick={() => setSelectedPoster(null)}>
+            <div className="relative max-w-4xl w-full bg-[#F4EADE] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl p-4 flex flex-col items-center border border-[#8A7968]/40" onClick={(e) => e.stopPropagation()}>
               <div className="w-full flex justify-between items-center mb-3 px-2">
-                <h3 className="text-sm sm:text-base font-black text-indigo-950 truncate">{selectedPoster.title}</h3>
+                <h3 className="text-sm sm:text-base font-black text-[#2B2B2B] truncate">{selectedPoster.title}</h3>
                 <button 
                   onClick={() => setSelectedPoster(null)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-xs sm:text-sm px-3 py-1 rounded-full cursor-pointer transition shrink-0 ml-2"
+                  className="bg-white hover:bg-gray-100 text-[#2B2B2B] font-extrabold text-xs sm:text-sm px-3 py-1 rounded-full cursor-pointer transition shrink-0 ml-2 border border-[#8A7968]/30"
                 >
                   ✕ Close
                 </button>
               </div>
-              <div className="w-full max-h-[75vh] flex items-center justify-center bg-gray-950 rounded-xl sm:rounded-2xl overflow-hidden">
+              <div className="w-full max-h-[75vh] flex items-center justify-center bg-[#2B2B2B] rounded-xl sm:rounded-2xl overflow-hidden">
                 <img 
                   src={selectedPoster.image_url} 
                   alt={selectedPoster.title} 
@@ -241,16 +241,16 @@ export default function HomePage() {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search components, sensors..."
-                className="w-full border border-gray-300 bg-white px-3.5 py-2.5 rounded-xl text-sm font-semibold text-gray-900 placeholder:text-gray-400 placeholder:font-normal shadow-2xs focus:border-indigo-600 focus:outline-hidden pr-8"
+                className="w-full border border-[#8A7968]/40 bg-white px-3.5 py-2.5 rounded-xl text-sm font-semibold text-[#2B2B2B] placeholder:text-[#8A7968] placeholder:font-normal shadow-2xs focus:border-[#B76E79] focus:outline-hidden pr-8"
               />
               {searchInput && (
-                <button type="button" onClick={handleClearSearch} className="absolute right-2.5 top-2.5 text-xs font-bold text-gray-400 hover:text-gray-700">
+                <button type="button" onClick={handleClearSearch} className="absolute right-2.5 top-2.5 text-xs font-bold text-[#8A7968] hover:text-[#2B2B2B]">
                   ✕
                 </button>
               )}
             </div>
             
-            <button type="submit" className="px-4 sm:px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition whitespace-nowrap cursor-pointer btn-press shrink-0">
+            <button type="submit" className="px-4 sm:px-5 py-2.5 bg-[#B76E79] hover:bg-[#9E5B65] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition whitespace-nowrap cursor-pointer btn-press shrink-0">
               Search
             </button>
           </form>
@@ -263,8 +263,8 @@ export default function HomePage() {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-bold whitespace-nowrap transition cursor-pointer capitalize shrink-0 ${
                   selectedCategory === cat 
-                    ? 'bg-indigo-600 text-white shadow-xs' 
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                    ? 'bg-[#B76E79] text-white shadow-xs' 
+                    : 'bg-white text-[#2B2B2B] border border-[#8A7968]/30 hover:bg-[#F4EADE]'
                 }`}
               >
                 {cat}
@@ -274,10 +274,10 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center justify-between">
-          <h2 className="text-lg sm:text-2xl font-bold text-gray-800 capitalize">
+          <h2 className="text-lg sm:text-2xl font-bold text-[#2B2B2B] capitalize">
             {selectedCategory === 'All' ? 'Featured Products' : selectedCategory} ({filteredProducts.length})
             {submittedQuery && (
-              <span className="text-xs sm:text-sm font-normal text-gray-500 ml-2">
+              <span className="text-xs sm:text-sm font-normal text-[#8A7968] ml-2">
                 matching "{submittedQuery}"
               </span>
             )}
@@ -291,11 +291,11 @@ export default function HomePage() {
         )}
 
         {filteredProducts.length === 0 && !dbError ? (
-          <div className="py-12 sm:py-16 text-center bg-white rounded-2xl border border-gray-200 shadow-xs px-4">
-            <p className="text-gray-600 font-bold mb-2 text-sm sm:text-base">
+          <div className="py-12 sm:py-16 text-center bg-white rounded-2xl border border-[#8A7968]/20 shadow-xs px-4">
+            <p className="text-[#2B2B2B] font-bold mb-2 text-sm sm:text-base">
               No products found matching "{submittedQuery || selectedCategory}"
             </p>
-            <button onClick={() => { handleClearSearch(); setSelectedCategory('All'); }} className="text-xs font-bold text-indigo-600 hover:underline">
+            <button onClick={() => { handleClearSearch(); setSelectedCategory('All'); }} className="text-xs font-bold text-[#B76E79] hover:underline">
               Clear filters and search
             </button>
           </div>
@@ -306,40 +306,40 @@ export default function HomePage() {
               const inWish = isInWishlist(product.id)
 
               return (
-                <div key={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white border border-gray-200 shadow-2xs transition hover:shadow-md relative">
+                <div key={product.id} className="flex flex-col overflow-hidden rounded-2xl bg-white border border-[#8A7968]/25 shadow-2xs transition hover:shadow-md relative">
                   <button
                     onClick={() => inWish ? removeFromWishlist(product.id) : addToWishlist(product)}
                     className={`absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm shadow-xs transition cursor-pointer ${
-                      inWish ? 'bg-amber-500 text-white font-black' : 'bg-white/90 text-gray-700 hover:bg-white'
+                      inWish ? 'bg-[#B76E79] text-white font-black' : 'bg-white/90 text-[#2B2B2B] hover:bg-white'
                     }`}
                     title={inWish ? "Remove from Wishlist" : "Save to Wishlist"}
                   >
                     {inWish ? '★' : '☆'}
                   </button>
 
-                  <div className="h-44 sm:h-48 w-full bg-gray-50 flex items-center justify-center overflow-hidden">
+                  <div className="h-44 sm:h-48 w-full bg-[#F4EADE]/40 flex items-center justify-center overflow-hidden border-b border-[#8A7968]/15">
                     {firstImage ? (
                       <img src={firstImage} alt={product.name} className="h-full w-full object-contain p-3" />
                     ) : (
-                      <span className="text-gray-400 text-xs">Image Coming Soon</span>
+                      <span className="text-[#8A7968] text-xs">Image Coming Soon</span>
                     )}
                   </div>
                   
                   <div className="flex flex-1 flex-col p-4 sm:p-5">
-                    <span className="mb-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-indigo-500">
+                    <span className="mb-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[#8A7968]">
                       {product.category || 'Uncategorized'}
                     </span>
-                    <h3 className="mb-1.5 text-base sm:text-lg font-bold text-gray-900 leading-tight line-clamp-1">
+                    <h3 className="mb-1.5 text-base sm:text-lg font-bold text-[#2B2B2B] leading-tight line-clamp-1">
                       {product.name}
                     </h3>
-                    <p className="mb-4 flex-1 text-xs sm:text-sm text-gray-600 line-clamp-2">
+                    <p className="mb-4 flex-1 text-xs sm:text-sm text-[#8A7968] line-clamp-2">
                       {product.description || 'No description available.'}
                     </p>
                     <div className="mt-auto flex items-center justify-between gap-2">
-                      <span className="text-lg sm:text-xl font-extrabold text-gray-900">
+                      <span className="text-lg sm:text-xl font-extrabold text-[#2B2B2B]">
                         ₹{product.price}
                       </span>
-                      <Link href={`/product/${product.id}`} className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white transition hover:bg-indigo-700 btn-press">
+                      <Link href={`/product/${product.id}`} className="rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] px-3.5 py-2 text-xs sm:text-sm font-semibold text-white transition btn-press">
                         View
                       </Link>
                     </div>
