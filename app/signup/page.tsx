@@ -117,7 +117,7 @@ export default function SignupPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F4EADE] p-4 sm:p-6 text-[#2B2B2B]">
-      <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white p-6 sm:p-8 shadow-xs border border-[#8A7968]/20">
+      <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-[#EFE3D3] p-6 sm:p-8 shadow-xs border border-[#8A7968]/30">
         {/* Store Branding Header */}
         <div className="text-center mb-6 pb-4 border-b border-[#8A7968]/20">
           <Link href="/">
@@ -155,7 +155,7 @@ export default function SignupPage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="John Doe"
-                className="w-full rounded-xl border border-[#8A7968]/30 bg-white p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/60 focus:border-[#B76E79] focus:outline-hidden"
+                className="w-full rounded-xl border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
 
@@ -167,7 +167,7 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-xl border border-[#8A7968]/30 bg-white p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/60 focus:border-[#B76E79] focus:outline-hidden"
+                className="w-full rounded-xl border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
 
@@ -180,7 +180,7 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-[#8A7968]/30 bg-white p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/60 focus:border-[#B76E79] focus:outline-hidden pr-12"
+                  className="w-full rounded-xl border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden pr-12"
                 />
                 <button
                   type="button"
@@ -202,7 +202,7 @@ export default function SignupPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-[#8A7968]/30 bg-white p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/60 focus:border-[#B76E79] focus:outline-hidden pr-12"
+                  className="w-full rounded-xl border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden pr-12"
                 />
                 <button
                   type="button"
@@ -225,7 +225,7 @@ export default function SignupPage() {
           </form>
         ) : (
           <form onSubmit={handleVerifyAndRegister} className="space-y-4">
-            <div className="bg-[#F4EADE]/60 border border-[#8A7968]/30 p-4 rounded-xl text-center mb-2">
+            <div className="bg-[#EADBC8]/70 border border-[#8A7968]/30 p-4 rounded-xl text-center mb-2">
               <p className="text-xs text-[#2B2B2B] font-medium">
                 A verification code was sent to <span className="font-bold text-[#B76E79]">{email}</span>
               </p>
@@ -239,7 +239,7 @@ export default function SignupPage() {
                 value={enteredOtp}
                 onChange={(e) => setEnteredOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full rounded-xl border border-[#B76E79]/40 bg-[#F4EADE]/30 p-3 text-center text-lg font-bold tracking-widest text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
+                className="w-full rounded-xl border border-[#B76E79]/50 bg-[#F4EADE] p-3 text-center text-lg font-bold tracking-widest text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
 
