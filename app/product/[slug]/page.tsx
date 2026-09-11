@@ -28,6 +28,9 @@ export default function ProductDetails() {
   const [hasPurchasedProduct, setHasPurchasedProduct] = useState(false)
   const [reviewMessage, setReviewMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  // Review Photo Lightbox Modal State
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null)
+
   const { addToCart } = useCart()
   const supabase = createClient()
 
@@ -436,8 +439,21 @@ export default function ProductDetails() {
                   </div>
                   <p className="text-xs text-[#2B2B2B] leading-relaxed">{rev.comment}</p>
                   {rev.image_url && (
-                    <div className="mt-2 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] shadow-2xs">
-                      <img src={rev.image_url} alt="Customer purchase" className="w-full h-full object-cover" />
+                    <div className="mt-2 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] shadow-2xs group relative">
+                      <img
+                        src={rev.image_url}
+                        alt="Customer purchase"
+                        onClick={() => setLightboxImage(rev.image_url)}
+                        className="w-full h-full object-cover cursor-pointer transition-transform duration-200 group-hover:scale-105"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setLightboxImage(rev.image_url)}
+                        className="absolute inset-0 bg-[#2B2B2B]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold cursor-pointer"
+                        title="Click to zoom in"
+                      >
+                        🔍 Zoom
+                      </button>
                     </div>
                   )}
                 </div>
@@ -446,6 +462,40 @@ export default function ProductDetails() {
           )}
         </div>
       </div>
+
+      {/* Review Image Lightbox Modal */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 z-[9999] bg-[#2B2B2B]/85 backdrop-blur-xs flex items-center justify-center p-4 transition-all duration-200"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div 
+            className="relative max-w-3xl max-h-[90vh] w-full bg-[#EFE3D3] rounded-3xl border border-[#8A7968]/40 p-3 sm:p-4 shadow-2xl flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex justify-between items-center mb-2 px-1">
+              <span className="text-xs font-bold text-[#8A7968] tracking-wider uppercase">
+                Customer Photo Preview
+              </span>
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="bg-[#EADBC8] hover:bg-[#8A7968]/30 text-[#2B2B2B] font-extrabold text-xs px-3 py-1 rounded-full cursor-pointer transition border border-[#8A7968]/30"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="w-full flex items-center justify-center overflow-hidden rounded-2xl bg-[#2B2B2B]/90 max-h-[75vh]">
+              <img
+                src={lightboxImage}
+                alt="Enlarged customer review"
+                className="max-h-[75vh] w-auto max-w-full object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
