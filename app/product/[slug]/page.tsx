@@ -90,8 +90,8 @@ export default function ProductDetails() {
     }
   }, [user, reviews])
 
-  if (loading) return <div className="p-10 text-center text-xs sm:text-sm text-[#8A7968]">Loading product details...</div>
-  if (!product) return <div className="p-10 text-center text-xs sm:text-sm text-[#8A7968]">Product not found.</div>
+  if (loading) return <div className="p-10 text-center text-xs sm:text-sm text-[#8A7968] font-bold">Loading product details...</div>
+  if (!product) return <div className="p-10 text-center text-xs sm:text-sm text-[#8A7968] font-bold">Product not found.</div>
 
   const images = product.image_url ? product.image_url.split(',').map((s: string) => s.trim()) : []
   const maxStock = product.stock ?? 999
@@ -208,7 +208,7 @@ export default function ProductDetails() {
 
   return (
     <div className="min-h-screen bg-[#F4EADE] px-3 sm:px-6 lg:px-8 py-4 sm:py-8 w-full overflow-x-hidden text-[#2B2B2B]">
-      <div className="mx-auto max-w-4xl rounded-2xl sm:rounded-3xl bg-white p-4 sm:p-8 shadow-xs border border-[#8A7968]/20 w-full">
+      <div className="mx-auto max-w-4xl rounded-2xl sm:rounded-3xl bg-[#EFE3D3] p-4 sm:p-8 shadow-xs border border-[#8A7968]/30 w-full">
         <Link href="/" className="inline-flex items-center text-xs sm:text-sm font-semibold text-[#B76E79] hover:underline mb-2">
           ← Back to Store
         </Link>
@@ -216,7 +216,7 @@ export default function ProductDetails() {
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 w-full">
           {/* Product Media Gallery */}
           <div className="w-full flex flex-col items-center">
-            <div className="h-64 sm:h-80 w-full max-w-sm sm:max-w-none bg-[#F4EADE]/40 rounded-2xl overflow-hidden border border-[#8A7968]/20 flex items-center justify-center mb-3">
+            <div className="h-64 sm:h-80 w-full max-w-sm sm:max-w-none bg-[#EADBC8]/50 rounded-2xl overflow-hidden border border-[#8A7968]/30 flex items-center justify-center mb-3">
               {activeImage ? (
                 <img src={activeImage} alt={product.name} className="h-full w-full object-contain p-3" />
               ) : (
@@ -230,7 +230,7 @@ export default function ProductDetails() {
                   <button
                     key={idx}
                     onClick={() => setActiveImage(img)}
-                    className={`h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden border-2 shrink-0 transition bg-white ${
+                    className={`h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden border-2 shrink-0 transition bg-[#F4EADE] ${
                       activeImage === img ? 'border-[#B76E79] scale-105 shadow-xs' : 'border-[#8A7968]/30 opacity-60'
                     }`}
                   >
@@ -262,7 +262,7 @@ export default function ProductDetails() {
               </div>
               
               <div className="mb-4">
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${product.stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${product.stock > 0 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
                   {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of Stock'}
                 </span>
               </div>
@@ -277,7 +277,7 @@ export default function ProductDetails() {
                   value={quantity}
                   onChange={handleQuantityChange}
                   onBlur={handleQuantityBlur}
-                  className="w-16 sm:w-20 rounded-xl border border-[#8A7968]/40 px-3 py-2 text-center text-xs sm:text-sm font-bold text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
+                  className="w-16 sm:w-20 rounded-xl border border-[#8A7968]/40 bg-[#F4EADE] px-3 py-2 text-center text-xs sm:text-sm font-bold text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
                 />
               </div>
             </div>
@@ -303,19 +303,19 @@ export default function ProductDetails() {
 
           {/* Review Submission Form with Verification */}
           {!user ? (
-            <div className="bg-[#F4EADE]/50 p-4 sm:p-5 rounded-2xl border border-[#8A7968]/20 text-center text-xs font-bold text-[#2B2B2B] mb-6">
+            <div className="bg-[#EADBC8]/50 p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 text-center text-xs font-bold text-[#2B2B2B] mb-6">
               Please <Link href="/login" className="underline text-[#B76E79]">sign in</Link> and purchase this item to leave a review.
             </div>
           ) : !hasPurchasedProduct ? (
-            <div className="bg-[#F4EADE]/50 p-4 sm:p-5 rounded-2xl border border-[#8A7968]/20 text-center text-xs font-bold text-[#8A7968] mb-6">
+            <div className="bg-[#EADBC8]/50 p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 text-center text-xs font-bold text-[#8A7968] mb-6">
               🔒 Only customers who have purchased this item can leave a review.
             </div>
           ) : hasUserReviewed ? (
-            <div className="bg-[#F4EADE] p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 text-center text-xs font-bold text-[#2B2B2B] mb-6">
+            <div className="bg-[#EADBC8] p-4 sm:p-5 rounded-2xl border border-[#8A7968]/40 text-center text-xs font-bold text-[#2B2B2B] mb-6">
               ✓ Thank you! You have already submitted a review for this product. Reviews cannot be edited once posted.
             </div>
           ) : (
-            <div className="bg-[#F4EADE]/30 p-4 sm:p-6 rounded-2xl border border-[#8A7968]/20 mb-6">
+            <div className="bg-[#EADBC8]/40 p-4 sm:p-6 rounded-2xl border border-[#8A7968]/30 mb-6">
               <h4 className="text-xs font-bold text-[#8A7968] uppercase mb-3">Leave a Verified Purchase Review</h4>
               <form onSubmit={handleReviewSubmit} className="space-y-4">
                 <div>
@@ -323,7 +323,7 @@ export default function ProductDetails() {
                   <select 
                     value={userRating} 
                     onChange={(e) => setUserRating(Number(e.target.value))}
-                    className="w-full sm:w-auto border border-[#8A7968]/30 p-2 rounded-xl text-xs bg-white text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden"
+                    className="w-full sm:w-auto border border-[#8A7968]/40 p-2 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden"
                   >
                     <option value="5">⭐⭐⭐⭐⭐ (5/5 - Excellent)</option>
                     <option value="4">⭐⭐⭐⭐ (4/5 - Good)</option>
@@ -341,7 +341,7 @@ export default function ProductDetails() {
                     value={userComment}
                     onChange={(e) => setUserComment(e.target.value)}
                     placeholder="Write your experience with this component..."
-                    className="w-full border border-[#8A7968]/30 p-3 rounded-xl text-xs text-[#2B2B2B] bg-white focus:border-[#B76E79] focus:outline-hidden"
+                    className="w-full border border-[#8A7968]/40 p-3 rounded-xl text-xs text-[#2B2B2B] bg-[#F4EADE] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden"
                   />
                 </div>
 
@@ -350,7 +350,7 @@ export default function ProductDetails() {
                     Attach Photo of Purchased Item <span className="text-[#8A7968]">(Optional)</span>
                   </label>
                   <div className="flex flex-wrap items-center gap-3">
-                    <label className="cursor-pointer bg-white border border-[#8A7968]/30 hover:bg-[#F4EADE]/40 text-[#2B2B2B] font-bold text-xs px-4 py-2 rounded-xl transition shadow-2xs">
+                    <label className="cursor-pointer bg-[#F4EADE] border border-[#8A7968]/40 hover:bg-[#EADBC8] text-[#2B2B2B] font-bold text-xs px-4 py-2 rounded-xl transition shadow-2xs">
                       + Browse File
                       <input 
                         type="file" 
@@ -366,7 +366,7 @@ export default function ProductDetails() {
                     )}
                   </div>
                   {filePreview && (
-                    <div className="mt-3 w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-white p-1 shadow-2xs">
+                    <div className="mt-3 w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] p-1 shadow-2xs">
                       <img src={filePreview} alt="Preview" className="w-full h-full object-cover rounded-lg" />
                     </div>
                   )}
@@ -389,17 +389,17 @@ export default function ProductDetails() {
           ) : (
             <div className="space-y-3">
               {reviews.map((rev) => (
-                <div key={rev.id} className="bg-white p-3.5 sm:p-5 rounded-2xl border border-[#8A7968]/20 shadow-2xs space-y-2 sm:space-y-3">
+                <div key={rev.id} className="bg-[#EADBC8]/40 p-3.5 sm:p-5 rounded-2xl border border-[#8A7968]/30 shadow-2xs space-y-2 sm:space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold text-[#2B2B2B]">{rev.customer_name}</span>
                     <span className="text-[10px] sm:text-[11px] text-[#8A7968]">{new Date(rev.created_at).toLocaleDateString()}</span>
                   </div>
-                  <div className="text-amber-500 text-xs font-bold">
+                  <div className="text-amber-600 text-xs font-bold">
                     {'⭐'.repeat(rev.rating)}
                   </div>
                   <p className="text-xs text-[#2B2B2B] leading-relaxed">{rev.comment}</p>
                   {rev.image_url && (
-                    <div className="mt-2 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-[#8A7968]/20 bg-[#F4EADE]/40 shadow-2xs">
+                    <div className="mt-2 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] shadow-2xs">
                       <img src={rev.image_url} alt="Customer purchase" className="w-full h-full object-cover" />
                     </div>
                   )}
