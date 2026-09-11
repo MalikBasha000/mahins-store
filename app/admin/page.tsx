@@ -169,6 +169,27 @@ export default function AdminPage() {
     }
   }
 
+  const handleToggleReviewApproval = async (reviewId: string, currentApprovalStatus: boolean) => {
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reviewId,
+          is_approved: !currentApprovalStatus,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        fetchAdminReviews()
+      } else {
+        alert(data.error || 'Failed to update review approval status.')
+      }
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    }
+  }
+
   const fetchCoupons = async () => {
     try {
       const { data } = await supabase
@@ -2531,7 +2552,7 @@ export default function AdminPage() {
           <div className="bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl shadow-xs border border-[#8A7968]/30 space-y-6">
             <div className="border-b border-[#8A7968]/20 pb-4">
               <h2 className="text-xl font-black text-[#2B2B2B]">⭐ Customer Reviews Moderation</h2>
-              <p className="text-xs text-[#8A7968] mt-1">Review feedback, edit comments, or delete inappropriate reviews.</p>
+              <p className="text-xs text-[#8A7968] mt-1">Review feedback, verify authenticity, approve for public display, or remove spam.</p>
             </div>
 
             {adminReviews.length === 0 ? (
@@ -2541,10 +2562,19 @@ export default function AdminPage() {
                 {adminReviews.map((rev) => (
                   <div key={rev.id} className="bg-[#F4EADE] p-4 sm:p-5 rounded-3xl border border-[#8A7968]/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-2xs">
                     <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-2.5 flex-wrap">
                         <span className="text-xs font-bold text-[#2B2B2B]">{rev.customer_name}</span>
                         <span className="text-[10px] bg-[#EADBC8] text-[#B76E79] border border-[#8A7968]/30 font-bold px-2 py-0.5 rounded-lg">Product: {rev.products?.name || 'Item'}</span>
                         <span className="text-xs text-amber-600 font-bold">{'⭐'.repeat(rev.rating)}</span>
+                        
+                        {/* Approval Status Badge */}
+                        <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                          rev.is_approved
+                            ? 'bg-green-100 text-green-800 border-green-200'
+                            : 'bg-amber-100 text-amber-900 border-amber-300'
+                        }`}>
+                          {rev.is_approved ? '✓ Publicly Approved' : '⏳ Pending Review'}
+                        </span>
                       </div>
                       <p className="text-xs text-[#2B2B2B] leading-relaxed">{rev.comment}</p>
                       {rev.image_url && (
@@ -2555,6 +2585,19 @@ export default function AdminPage() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* 1-Click Approve / Hide Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleReviewApproval(rev.id, Boolean(rev.is_approved))}
+                        className={`text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer border shadow-2xs ${
+                          rev.is_approved
+                            ? 'bg-[#EADBC8] hover:bg-[#8A7968]/30 text-[#8A7968] border-[#8A7968]/30'
+                            : 'bg-green-700 hover:bg-green-800 text-white border-green-700 btn-press'
+                        }`}
+                      >
+                        {rev.is_approved ? 'Hide from Store ✕' : 'Approve Review ✓'}
+                      </button>
+
                       <button
                         onClick={() => {
                           setReviewEditing(rev)

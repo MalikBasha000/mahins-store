@@ -18,6 +18,7 @@ export async function GET(req: Request) {
 
     const supabase = getSupabaseAdmin()
 
+    // Admin fetch: returns all reviews (approved and pending)
     if (adminFetch === 'true') {
       const { data, error } = await supabase
         .from('product_reviews')
@@ -32,10 +33,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: 'Product ID is required' }, { status: 400 })
     }
 
+    // Public storefront fetch: only returns approved reviews
     const { data, error } = await supabase
       .from('product_reviews')
       .select('*')
       .eq('product_id', productId)
+      .eq('is_approved', true)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -69,13 +72,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'You have already submitted a review for this product.' }, { status: 400 })
     }
 
+    // New reviews default to is_approved: false pending admin approval
     const { error } = await supabase.from('product_reviews').insert([
-      { product_id, user_id, customer_name, rating, comment, image_url: image_url || null }
+      { 
+        product_id, 
+        user_id, 
+        customer_name, 
+        rating, 
+        comment, 
+        image_url: image_url || null,
+        is_approved: false
+      }
     ])
 
     if (error) throw error
 
-    return NextResponse.json({ success: true, message: 'Review added successfully' })
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Review submitted! It will appear publicly after approval.' 
+    })
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
+  }
+}
+
+// Admin toggle approval route (1-click Approve / Unapprove)
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json()
+    const { reviewId, is_approved } = body
+
+    if (!reviewId || typeof is_approved !== 'boolean') {
+      return NextResponse.json({ success: false, error: 'Review ID and is_approved status are required' }, { status: 400 })
+    }
+
+    const supabase = getSupabaseAdmin()
+    const { error } = await supabase
+      .from('product_reviews')
+      .update({ is_approved })
+      .eq('id', reviewId)
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true, message: `Review ${is_approved ? 'approved' : 'hidden'} successfully` })
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
