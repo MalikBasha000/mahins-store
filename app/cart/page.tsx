@@ -95,7 +95,8 @@ Hi, I would like to order the items listed above. Please confirm availability an
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-[#8A7968]/20">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#8A7968]/20">
+                  {/* Quantity Control */}
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-[#8A7968]">Qty:</span>
                     <input
@@ -107,10 +108,13 @@ Hi, I would like to order the items listed above. Please confirm availability an
                     />
                   </div>
 
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <span className="text-sm sm:text-base font-black text-[#2B2B2B]">
-                      ₹{lineTotal}
-                    </span>
+                  {/* Explicit Calculation: Unit Price x Qty = Line Total */}
+                  <div className="flex items-center gap-3 sm:gap-4 ml-auto">
+                    <div className="text-right">
+                      <span className="text-xs sm:text-sm font-bold text-[#2B2B2B]">
+                        ₹{numericPrice} × {numericQty} = <span className="text-sm sm:text-base font-black text-[#2B2B2B]">₹{lineTotal}</span>
+                      </span>
+                    </div>
                     <button
                       onClick={() => removeFromCart(item.id)}
                       className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition cursor-pointer border border-red-200"
@@ -124,7 +128,7 @@ Hi, I would like to order the items listed above. Please confirm availability an
           })}
         </div>
 
-        {/* Footer Summary with Calculation Breakdown */}
+        {/* Footer Summary */}
         <div className="bg-[#EADBC8]/60 p-4 sm:p-6 rounded-2xl border border-[#8A7968]/30 flex flex-col gap-4 w-full">
           {/* Detailed Price Calculation Breakdown */}
           <div className="space-y-2 border-b border-[#8A7968]/20 pb-4 text-xs sm:text-sm">
@@ -152,7 +156,6 @@ Hi, I would like to order the items listed above. Please confirm availability an
             </button>
 
             <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
-              {/* WhatsApp Checkout with Official Vector Logo */}
               <button
                 type="button"
                 onClick={handleWhatsAppCheckout}
