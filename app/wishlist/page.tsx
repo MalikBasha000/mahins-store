@@ -27,7 +27,7 @@ export default function WishlistPage() {
   return (
     <div className="min-h-screen bg-[#F4EADE] pb-24 sm:pb-16 w-full overflow-x-hidden text-[#2B2B2B]">
       {/* Header */}
-      <header className="bg-white border-b border-[#8A7968]/20 px-4 sm:px-6 py-3.5 sm:py-4 mb-6 sm:mb-8 shadow-xs w-full">
+      <header className="bg-[#EFE3D3] border-b border-[#8A7968]/30 px-4 sm:px-6 py-3.5 sm:py-4 mb-6 sm:mb-8 shadow-xs w-full">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
           <Link href="/" className="hover:opacity-90 transition min-w-0">
             <h1 className="text-base sm:text-xl font-black text-[#2B2B2B] tracking-tight truncate">
@@ -42,7 +42,7 @@ export default function WishlistPage() {
 
       <div className="max-w-4xl mx-auto px-3 sm:px-6 w-full">
         {wishlist.length === 0 ? (
-          <div className="bg-white rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center border border-[#8A7968]/20 shadow-xs">
+          <div className="bg-[#EFE3D3] rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center border border-[#8A7968]/30 shadow-xs">
             <div className="text-4xl mb-3">📑</div>
             <h2 className="text-base sm:text-lg font-bold text-[#2B2B2B] mb-1">Your wishlist is empty</h2>
             <p className="text-xs text-[#8A7968] mb-6">Save items you love by clicking the star icon on any product.</p>
@@ -65,7 +65,7 @@ export default function WishlistPage() {
               </button>
             </div>
 
-            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/20 divide-y divide-[#8A7968]/15 overflow-hidden">
+            <div className="bg-[#EFE3D3] rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/30 divide-y divide-[#8A7968]/20 overflow-hidden">
               {wishlist.map((item) => {
                 const firstImg = item.image_url ? item.image_url.split(',')[0].trim() : 'https://via.placeholder.com/100'
 
@@ -76,7 +76,7 @@ export default function WishlistPage() {
                       <img
                         src={firstImg}
                         alt={item.name}
-                        className="w-16 h-16 object-contain p-1 rounded-xl border border-[#8A7968]/20 bg-[#F4EADE]/40 shrink-0"
+                        className="w-16 h-16 object-contain p-1 rounded-xl border border-[#8A7968]/30 bg-[#F4EADE] shrink-0"
                       />
                       <div className="min-w-0 flex-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-[#8A7968] block mb-0.5">
@@ -90,7 +90,7 @@ export default function WishlistPage() {
                     </div>
 
                     {/* Right side: Action buttons */}
-                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#8A7968]/10">
+                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#8A7968]/20">
                       <button
                         onClick={() => {
                           addToCart(item, 1)
@@ -102,7 +102,7 @@ export default function WishlistPage() {
                       </button>
                       <button
                         onClick={() => removeFromWishlist(item.id)}
-                        className="px-3.5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl transition whitespace-nowrap cursor-pointer"
+                        className="px-3.5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs rounded-xl transition whitespace-nowrap cursor-pointer"
                       >
                         Remove
                       </button>
