@@ -147,11 +147,16 @@ export default function ProfilePage() {
   const [state, setState] = useState<string>('')
   const [pincode, setPincode] = useState<string>('')
 
+  // Coupons state
+  const [assignedCoupons, setAssignedCoupons] = useState<any[]>([])
+  const [copiedCoupon, setCopiedCoupon] = useState<string | null>(null)
+
   useEffect(() => {
     const getProfileData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        setEmail(user.email || '')
+        const userEmail = user.email || ''
+        setEmail(userEmail)
         setFullName(user.user_metadata?.full_name || '')
 
         const { data } = await supabase
@@ -171,6 +176,26 @@ export default function ProfilePage() {
           setDistrict(data.district || '')
           setState(data.state || '')
           setPincode(data.pincode || '')
+        }
+
+        // Fetch coupons available or targeted for this customer
+        try {
+          const { data: couponsData } = await supabase
+            .from('coupons')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false })
+
+          if (couponsData) {
+            const normalizedEmail = userEmail.trim().toLowerCase()
+            const eligible = couponsData.filter((c: any) => {
+              if (!c.target_customer_email) return true
+              return c.target_customer_email.trim().toLowerCase() === normalizedEmail
+            })
+            setAssignedCoupons(eligible)
+          }
+        } catch (couponErr) {
+          console.error('Error fetching customer coupons:', couponErr)
         }
       }
       setLoading(false)
@@ -229,6 +254,12 @@ export default function ProfilePage() {
     }
   }
 
+  const handleCopyCoupon = (code: string) => {
+    navigator.clipboard.writeText(code)
+    setCopiedCoupon(code)
+    setTimeout(() => setCopiedCoupon(null), 2500)
+  }
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
@@ -265,15 +296,118 @@ export default function ProfilePage() {
               Mahin's One-Stop One-Store
             </h1>
           </Link>
-          <Link href="/" className="text-xs font-bold text-[#B76E79] hover:underline shrink-0 whitespace-nowrap">
-            ← Back to Store
-          </Link>
+          <div className="flex items-center gap-3 shrink-0">
+            <Link href="/orders" className="text-xs font-bold text-[#2B2B2B] hover:text-[#B76E79]">
+              My Orders
+            </Link>
+            <span className="text-[#8A7968]/40">•</span>
+            <Link href="/" className="text-xs font-bold text-[#B76E79] hover:underline whitespace-nowrap">
+              ← Back to Store
+            </Link>
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-2xl px-3 sm:px-6 w-full" ref={alertRef}>
+      <div className="mx-auto max-w-2xl px-3 sm:px-6 w-full space-y-6" ref={alertRef}>
+        {/* Account Info Summary Card */}
+        <div className="bg-[#EFE3D3] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/30 w-full flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 text-center sm:text-left">
+            <div className="h-12 w-12 rounded-full overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] flex items-center justify-center shrink-0">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl text-[#8A7968]">👤</span>
+              )}
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#8A7968] block">Logged In Account</span>
+              <div className="text-sm sm:text-base font-black text-[#2B2B2B]">{fullName || 'Valued Customer'}</div>
+              <div className="text-xs text-[#8A7968] font-mono">{email}</div>
+            </div>
+          </div>
+          <Link
+            href="/orders"
+            className="bg-[#EADBC8] hover:bg-[#8A7968]/20 border border-[#8A7968]/30 text-[#2B2B2B] text-xs font-bold px-4 py-2 rounded-xl transition shadow-2xs whitespace-nowrap"
+          >
+            Track & View Orders 📦
+          </Link>
+        </div>
+
+        {/* Exclusive Promo Codes Section */}
+        <div className="bg-[#EFE3D3] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/30 w-full">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-[#2B2B2B] flex items-center gap-1.5">
+                🏷️ Exclusive Promo Codes & Discounts
+              </h3>
+              <p className="text-[11px] text-[#8A7968] mt-0.5">Special discounts linked to your account and checkout</p>
+            </div>
+            <span className="text-[10px] font-extrabold bg-[#B76E79]/15 text-[#B76E79] border border-[#B76E79]/30 px-2.5 py-0.5 rounded-full">
+              {assignedCoupons.length} Active
+            </span>
+          </div>
+
+          {assignedCoupons.length === 0 ? (
+            <div className="bg-[#F4EADE] p-4 rounded-xl border border-[#8A7968]/20 text-center text-xs text-[#8A7968] italic">
+              No special promo codes currently assigned. Stay tuned for promotional offers!
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {assignedCoupons.map((c) => {
+                const isTargeted = Boolean(c.target_customer_email)
+                const isCopied = copiedCoupon === c.code
+
+                return (
+                  <div
+                    key={c.id}
+                    className="bg-[#F4EADE] p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-[#8A7968]/30 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-black text-xs sm:text-sm text-[#B76E79] tracking-wider">
+                          {c.code}
+                        </span>
+                        {isTargeted ? (
+                          <span className="bg-[#B76E79] text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase">
+                            Exclusive for you 🔒
+                          </span>
+                        ) : (
+                          <span className="bg-[#EADBC8] text-[#2B2B2B] text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border border-[#8A7968]/30">
+                            Store Promo
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[#2B2B2B] font-semibold mt-0.5">
+                        {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} FLAT OFF`}
+                        {c.min_order_amount > 0 && (
+                          <span className="text-[#8A7968] font-normal ml-1">
+                            (Min order: ₹{c.min_order_amount})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCoupon(c.code)}
+                      className={`text-xs font-bold px-3.5 py-1.5 rounded-xl border transition cursor-pointer shrink-0 ${
+                        isCopied
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-[#EADBC8] hover:bg-[#8A7968]/30 text-[#2B2B2B] border-[#8A7968]/40'
+                      }`}
+                    >
+                      {isCopied ? '✓ Copied' : 'Copy Code 📋'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Profile & Default Address Form */}
         <div className="bg-[#EFE3D3] p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/30 w-full">
-          <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-5 sm:mb-6">Customer Profile & Address</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-5 sm:mb-6">Delivery Address & Contact Details</h2>
           
           {message && <div className="mb-5 p-3.5 sm:p-4 bg-green-100 text-green-800 rounded-xl text-xs sm:text-sm font-medium border border-green-300">{message}</div>}
           {errorMsg && <div className="mb-5 p-3.5 sm:p-4 bg-red-100 text-red-700 rounded-xl text-xs sm:text-sm font-medium border border-red-300">{errorMsg}</div>}
