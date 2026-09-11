@@ -156,6 +156,15 @@ export default function HomePage() {
             {/* Auth Controls */}
             {user ? (
               <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-[#8A7968]/30">
+                {/* Your Orders Button */}
+                <Link
+                  href="/orders"
+                  className="rounded-xl bg-[#F4EADE] px-2.5 py-1.5 text-xs font-bold text-[#2B2B2B] transition hover:bg-[#EADBC8] border border-[#8A7968]/30 flex items-center gap-1"
+                >
+                  <span>📋</span>
+                  <span>Orders</span>
+                </Link>
+
                 <Link
                   href="/profile"
                   className="rounded-xl bg-[#F4EADE] px-2.5 py-1.5 text-xs font-bold text-[#2B2B2B] transition hover:bg-[#EADBC8] border border-[#8A7968]/30"
