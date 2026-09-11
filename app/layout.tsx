@@ -26,8 +26,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="w-full overflow-x-hidden">
-      <body className={`${inter.className} w-full min-h-screen overflow-x-hidden bg-white text-gray-900 pb-24 sm:pb-0 antialiased`}>
+    <html lang="en" suppressHydrationWarning className="w-full overflow-x-hidden bg-[#F4EADE]">
+      <body className={`${inter.className} w-full min-h-screen overflow-x-hidden bg-[#F4EADE] text-[#2B2B2B] pb-24 sm:pb-0 antialiased selection:bg-[#B76E79] selection:text-white`}>
         <CartProvider>
           <WishlistProvider>
             <div className="w-full max-w-full flex flex-col min-h-screen">
