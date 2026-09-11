@@ -116,51 +116,63 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+    <div className="flex min-h-screen items-center justify-center bg-[#F4EADE] p-4 sm:p-6 text-[#2B2B2B]">
+      <div className="w-full max-w-md rounded-2xl sm:rounded-3xl bg-white p-6 sm:p-8 shadow-xs border border-[#8A7968]/20">
         {/* Store Branding Header */}
-        <div className="text-center mb-6 pb-4 border-b">
-          <h1 className="text-2xl font-black text-indigo-900">Mahin's One-Stop One-Store</h1>
+        <div className="text-center mb-6 pb-4 border-b border-[#8A7968]/20">
+          <Link href="/">
+            <h1 className="text-xl sm:text-2xl font-black text-[#2B2B2B] tracking-tight">
+              Mahin's One-Stop One-Store
+            </h1>
+          </Link>
         </div>
 
-        <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+        <h2 className="text-lg sm:text-xl font-bold text-[#2B2B2B] text-center mb-1">
           {step === 'form' ? 'Create an Account' : 'Verify Your Email'}
         </h2>
-        <p className="text-xs text-gray-500 text-center mb-6">
+        <p className="text-xs text-[#8A7968] text-center mb-6">
           {step === 'form' ? 'Sign up to sync your guest orders and track purchases' : 'Enter the 6-digit code sent to your email'}
         </p>
 
-        {errorMsg && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-xs font-semibold">{errorMsg}</div>}
-        {successMsg && <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-lg text-xs font-semibold">{successMsg}</div>}
+        {errorMsg && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-xl text-xs font-semibold border border-red-200">
+            {errorMsg}
+          </div>
+        )}
+        {successMsg && (
+          <div className="mb-4 p-3 bg-green-100 text-green-800 rounded-xl text-xs font-semibold border border-green-200">
+            {successMsg}
+          </div>
+        )}
 
         {step === 'form' ? (
           <form onSubmit={handleSendOtp} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Full Name</label>
+              <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Full Name</label>
               <input
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="John Doe"
-                className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-xl border border-[#8A7968]/30 bg-white p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/60 focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
+              <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Email Address</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-xl border border-[#8A7968]/30 bg-white p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/60 focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Password</label>
+              <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -168,12 +180,12 @@ export default function SignupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none pr-12"
+                  className="w-full rounded-xl border border-[#8A7968]/30 bg-white p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/60 focus:border-[#B76E79] focus:outline-hidden pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-gray-500 hover:text-indigo-600 focus:outline-none text-base cursor-pointer"
+                  className="absolute right-3 top-2.5 text-[#8A7968] hover:text-[#2B2B2B] focus:outline-hidden text-base cursor-pointer"
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? "👁️‍🗨️" : "👁️"}
@@ -182,7 +194,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Confirm Password</label>
+              <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Confirm Password</label>
               <div className="relative">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
@@ -190,12 +202,12 @@ export default function SignupPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-gray-300 p-2.5 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none pr-12"
+                  className="w-full rounded-xl border border-[#8A7968]/30 bg-white p-2.5 text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/60 focus:border-[#B76E79] focus:outline-hidden pr-12"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-2.5 text-gray-500 hover:text-indigo-600 focus:outline-none text-base cursor-pointer"
+                  className="absolute right-3 top-2.5 text-[#8A7968] hover:text-[#2B2B2B] focus:outline-hidden text-base cursor-pointer"
                   title={showConfirmPassword ? "Hide password" : "Show password"}
                 >
                   {showConfirmPassword ? "👁️‍🗨️" : "👁️"}
@@ -206,33 +218,35 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-indigo-600 py-3 font-bold text-white hover:bg-indigo-700 transition disabled:opacity-50 text-sm shadow cursor-pointer"
+              className="w-full rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-3 font-bold text-white transition disabled:opacity-50 text-xs sm:text-sm shadow-xs cursor-pointer btn-press"
             >
               {loading ? 'Sending OTP...' : 'Continue to Verification →'}
             </button>
           </form>
         ) : (
           <form onSubmit={handleVerifyAndRegister} className="space-y-4">
-            <div className="bg-indigo-50 p-4 rounded-xl text-center mb-2">
-              <p className="text-xs text-indigo-900 font-medium">A verification code was sent to <span className="font-bold">{email}</span></p>
+            <div className="bg-[#F4EADE]/60 border border-[#8A7968]/30 p-4 rounded-xl text-center mb-2">
+              <p className="text-xs text-[#2B2B2B] font-medium">
+                A verification code was sent to <span className="font-bold text-[#B76E79]">{email}</span>
+              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Enter 6-Digit OTP Token</label>
+              <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Enter 6-Digit OTP Token</label>
               <input
                 type="text"
                 required
                 value={enteredOtp}
                 onChange={(e) => setEnteredOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full rounded-lg border border-indigo-300 bg-indigo-50/50 p-3 text-center text-lg font-bold tracking-widest text-indigo-900 focus:border-indigo-500 focus:outline-none"
+                className="w-full rounded-xl border border-[#B76E79]/40 bg-[#F4EADE]/30 p-3 text-center text-lg font-bold tracking-widest text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-green-600 py-3 font-bold text-white hover:bg-green-700 transition disabled:opacity-50 text-sm shadow cursor-pointer"
+              className="w-full rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-3 font-bold text-white transition disabled:opacity-50 text-xs sm:text-sm shadow-xs cursor-pointer btn-press"
             >
               {loading ? 'Verifying & Linking Orders...' : 'Verify Email & Create Account ✓'}
             </button>
@@ -240,16 +254,16 @@ export default function SignupPage() {
             <button
               type="button"
               onClick={() => { setStep('form'); setEnteredOtp(''); }}
-              className="w-full text-xs text-gray-500 hover:underline mt-2 text-center block cursor-pointer"
+              className="w-full text-xs text-[#8A7968] hover:underline mt-2 text-center block cursor-pointer"
             >
               ← Edit Account Details
             </button>
           </form>
         )}
 
-        <div className="mt-6 text-center text-xs text-gray-600">
+        <div className="mt-6 text-center text-xs text-[#8A7968] border-t border-[#8A7968]/20 pt-4">
           Already have an account?{' '}
-          <Link href="/login" className="font-semibold text-indigo-600 hover:underline">
+          <Link href="/login" className="font-bold text-[#B76E79] hover:underline">
             Sign In
           </Link>
         </div>
