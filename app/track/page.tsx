@@ -179,7 +179,7 @@ function TrackContent() {
                 return (
                   <div className="relative flex items-center justify-between max-w-xl mx-auto px-2 sm:px-4 py-2">
                     <div className="absolute left-6 right-6 sm:left-12 sm:right-12 top-4 h-1 bg-[#8A7968]/30 z-0">
-                      <div className="h-full bg-[#B76E79] transition-all duration-500" style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }} />
+                      <div className="h-full bg-green-600 transition-all duration-500" style={{ width: `${(activeIndex / (steps.length - 1)) * 100}%` }} />
                     </div>
 
                     {steps.map((step, idx) => {
@@ -187,7 +187,7 @@ function TrackContent() {
                       return (
                         <div key={step.key} className="relative z-10 flex flex-col items-center">
                           <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-bold text-[11px] sm:text-xs shadow-xs transition-all ${
-                            isComplete ? 'bg-[#B76E79] text-white ring-4 ring-[#B76E79]/20' : 'bg-[#EADBC8] text-[#8A7968]'
+                            isComplete ? 'bg-green-600 text-white ring-4 ring-green-600/20' : 'bg-[#EADBC8] text-[#8A7968]'
                           }`}>
                             {isComplete ? '✓' : idx + 1}
                           </div>
