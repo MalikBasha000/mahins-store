@@ -176,7 +176,7 @@ export default function ProfilePage() {
       setLoading(false)
     }
     getProfileData()
-  }, [])
+  }, [supabase])
 
   useEffect(() => {
     if ((message || errorMsg) && alertRef.current) {
@@ -253,12 +253,12 @@ export default function ProfilePage() {
     setSaving(false)
   }
 
-  if (loading) return <div className="p-8 text-center text-xs sm:text-sm text-[#8A7968]">Loading profile...</div>
+  if (loading) return <div className="p-8 text-center text-xs sm:text-sm text-[#8A7968] font-bold">Loading profile...</div>
 
   return (
-    <div className="min-h-screen bg-[#F4EADE] pb-20 sm:pb-12 w-full overflow-x-hidden text-[#2B2B2B]">
+    <div className="min-h-screen bg-[#F4EADE] pb-24 sm:pb-16 w-full overflow-x-hidden text-[#2B2B2B]">
       {/* Header */}
-      <header className="bg-white border-b border-[#8A7968]/20 px-4 sm:px-8 py-3.5 sm:py-5 shadow-xs mb-6 sm:mb-8 w-full">
+      <header className="bg-[#EFE3D3] border-b border-[#8A7968]/30 px-4 sm:px-8 py-3.5 sm:py-5 shadow-xs mb-6 sm:mb-8 w-full">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-2">
           <Link href="/" className="hover:opacity-90 transition min-w-0">
             <h1 className="text-base sm:text-2xl font-black text-[#2B2B2B] tracking-tight truncate">
@@ -272,7 +272,7 @@ export default function ProfilePage() {
       </header>
 
       <div className="mx-auto max-w-2xl px-3 sm:px-6 w-full" ref={alertRef}>
-        <div className="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/20 w-full">
+        <div className="bg-[#EFE3D3] p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/30 w-full">
           <h2 className="text-xl sm:text-2xl font-bold text-[#2B2B2B] mb-5 sm:mb-6">Customer Profile & Address</h2>
           
           {message && <div className="mb-5 p-3.5 sm:p-4 bg-green-100 text-green-800 rounded-xl text-xs sm:text-sm font-medium border border-green-300">{message}</div>}
@@ -281,7 +281,7 @@ export default function ProfilePage() {
           <form onSubmit={handleSaveProfile} className="space-y-4">
             {/* Avatar Row */}
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 border-b border-[#8A7968]/20 pb-5 mb-5 text-center sm:text-left">
-              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full overflow-hidden border-2 border-[#B76E79] bg-[#F4EADE]/40 flex items-center justify-center shadow-inner shrink-0">
+              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full overflow-hidden border-2 border-[#B76E79] bg-[#F4EADE] flex items-center justify-center shadow-inner shrink-0">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -294,7 +294,7 @@ export default function ProfilePage() {
                   type="file" 
                   onChange={handleFileUpload} 
                   disabled={uploading} 
-                  className="w-full text-xs sm:text-sm text-[#8A7968] file:mr-3 file:py-1.5 file:px-3 sm:file:py-2 sm:file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#B76E79]/10 file:text-[#B76E79] hover:file:bg-[#B76E79]/20 cursor-pointer" 
+                  className="w-full text-xs sm:text-sm text-[#8A7968] file:mr-3 file:py-1.5 file:px-3 sm:file:py-2 sm:file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#B76E79]/15 file:text-[#B76E79] hover:file:bg-[#B76E79]/25 cursor-pointer" 
                 />
                 {uploading && <span className="text-xs text-[#B76E79] mt-1 block font-semibold">Uploading image...</span>}
               </div>
@@ -308,7 +308,7 @@ export default function ProfilePage() {
                 value={fullName} 
                 onChange={(e) => setFullName(e.target.value)} 
                 placeholder="Full Name" 
-                className="w-full border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden min-w-0" 
+                className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden min-w-0" 
               />
             </div>
             
@@ -318,7 +318,7 @@ export default function ProfilePage() {
                 <select 
                   value={countryCode} 
                   onChange={(e) => setCountryCode(e.target.value)} 
-                  className="w-32 sm:w-48 border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] bg-white focus:border-[#B76E79] focus:outline-hidden font-medium shrink-0"
+                  className="w-32 sm:w-48 border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden font-medium shrink-0"
                 >
                   {ALL_COUNTRIES.map(c => (
                     <option key={c.code + c.name} value={c.code}>
@@ -332,7 +332,7 @@ export default function ProfilePage() {
                   value={phone} 
                   onChange={(e) => setPhone(e.target.value)} 
                   placeholder="10-digit phone number" 
-                  className="flex-1 border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden min-w-0" 
+                  className="flex-1 border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden min-w-0" 
                 />
               </div>
               <p className="text-[11px] text-[#8A7968] mt-1">Tip: Click the dropdown and type letters to jump to any country.</p>
@@ -346,7 +346,7 @@ export default function ProfilePage() {
                   value={houseNo} 
                   onChange={(e) => setHouseNo(e.target.value)} 
                   placeholder="House No" 
-                  className="w-full border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden min-w-0" 
+                  className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden min-w-0" 
                 />
               </div>
               <div>
@@ -356,7 +356,7 @@ export default function ProfilePage() {
                   value={plotNo} 
                   onChange={(e) => setPlotNo(e.target.value)} 
                   placeholder="Plot No" 
-                  className="w-full border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden min-w-0" 
+                  className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden min-w-0" 
                 />
               </div>
             </div>
@@ -369,7 +369,7 @@ export default function ProfilePage() {
                 value={street} 
                 onChange={(e) => setStreet(e.target.value)} 
                 placeholder="Street / Line" 
-                className="w-full border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden min-w-0" 
+                className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden min-w-0" 
               />
             </div>
 
@@ -382,7 +382,7 @@ export default function ProfilePage() {
                 value={pincode} 
                 onChange={handlePincodeChange} 
                 placeholder="Enter 6-digit Pincode" 
-                className="w-full border border-[#8A7968]/40 bg-[#F4EADE]/40 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden min-w-0" 
+                className="w-full border border-[#8A7968]/50 bg-[#EADBC8]/70 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden min-w-0" 
               />
             </div>
             
@@ -395,7 +395,7 @@ export default function ProfilePage() {
                   value={city} 
                   onChange={(e) => setCity(e.target.value)} 
                   placeholder="City" 
-                  className="w-full border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden min-w-0" 
+                  className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden min-w-0" 
                 />
               </div>
               <div>
@@ -406,7 +406,7 @@ export default function ProfilePage() {
                   value={district} 
                   onChange={(e) => setDistrict(e.target.value)} 
                   placeholder="District" 
-                  className="w-full border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden min-w-0" 
+                  className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden min-w-0" 
                 />
               </div>
             </div>
@@ -417,7 +417,7 @@ export default function ProfilePage() {
                 required 
                 value={state} 
                 onChange={(e) => setState(e.target.value)} 
-                className="w-full border border-[#8A7968]/30 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] bg-white focus:border-[#B76E79] focus:outline-hidden min-w-0"
+                className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden min-w-0"
               >
                 <option value="">Select State</option>
                 {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
