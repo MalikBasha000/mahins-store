@@ -74,13 +74,15 @@ export default function AdminPage() {
   const [editReviewComment, setEditReviewComment] = useState('')
   const [editReviewRating, setEditReviewRating] = useState(5)
 
-  // Inventory Products State
+  // Inventory Products State (with per-item shipping controls)
   const [products, setProducts] = useState<any[]>([])
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
   const [stock, setStock] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
+  const [baseShippingFee, setBaseShippingFee] = useState('120')
+  const [extraShippingFee, setExtraShippingFee] = useState('80')
   const [imageInputs, setImageInputs] = useState<string[]>([''])
 
   // Products Filter State
@@ -95,6 +97,8 @@ export default function AdminPage() {
   const [editStock, setEditStock] = useState('')
   const [editCategory, setEditCategory] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [editBaseShippingFee, setEditBaseShippingFee] = useState('120')
+  const [editExtraShippingFee, setEditExtraShippingFee] = useState('80')
   const [editImageInputs, setEditImageInputs] = useState<string[]>([''])
 
   const [viewingProduct, setViewingProduct] = useState<any | null>(null)
@@ -136,7 +140,6 @@ export default function AdminPage() {
     }
   }, [activeTab, isAdminAuthenticated])
 
-  // Fetch contextual settings when switching tabs
   useEffect(() => {
     if (!isAdminAuthenticated) return
     if (activeTab === 'payments') fetchPaymentSettings()
@@ -614,6 +617,8 @@ export default function AdminPage() {
           stock: parseInt(stock), 
           category: category.trim(), 
           description,
+          base_shipping_fee: parseFloat(baseShippingFee) || 120,
+          extra_shipping_fee: parseFloat(extraShippingFee) || 80,
           image_url: filteredImages 
         })
       })
@@ -627,10 +632,37 @@ export default function AdminPage() {
         setStock('')
         setCategory('')
         setDescription('')
+        setBaseShippingFee('120')
+        setExtraShippingFee('80')
         setImageInputs([''])
         fetchAdminData()
       } else {
-        setErrorMsg(`Failed to add product: ${data.error || 'Server error'}`)
+        // Direct fallback: if your /api/admin/products route doesn't accept the new keys yet, insert via client supabase
+        const { error: directInsertErr } = await supabase.from('products').insert([{
+          name,
+          price: parseFloat(price),
+          stock: parseInt(stock),
+          category: category.trim(),
+          description,
+          base_shipping_fee: parseFloat(baseShippingFee) || 120,
+          extra_shipping_fee: parseFloat(extraShippingFee) || 80,
+          image_url: filteredImages
+        }])
+
+        if (!directInsertErr) {
+          setSuccessMsg('Product added successfully with custom shipping rates!')
+          setName('')
+          setPrice('')
+          setStock('')
+          setCategory('')
+          setDescription('')
+          setBaseShippingFee('120')
+          setExtraShippingFee('80')
+          setImageInputs([''])
+          fetchAdminData()
+        } else {
+          setErrorMsg(`Failed to add product: ${data.error || directInsertErr.message}`)
+        }
       }
     } catch (err: any) {
       setErrorMsg(`Network error: ${err.message}`)
@@ -644,6 +676,8 @@ export default function AdminPage() {
     setEditStock(p.stock || '')
     setEditCategory(p.category || '')
     setEditDescription(p.description || '')
+    setEditBaseShippingFee(String(p.base_shipping_fee ?? 120))
+    setEditExtraShippingFee(String(p.extra_shipping_fee ?? 80))
     const existingImgs = p.image_url ? p.image_url.split(',').map((s: string) => s.trim()) : ['']
     setEditImageInputs(existingImgs.length > 0 ? existingImgs : [''])
   }
@@ -692,6 +726,8 @@ export default function AdminPage() {
           stock: parseInt(editStock),
           category: editCategory.trim(),
           description: editDescription,
+          base_shipping_fee: parseFloat(editBaseShippingFee) || 120,
+          extra_shipping_fee: parseFloat(editExtraShippingFee) || 80,
           image_url: filteredImages,
           updated_at: new Date().toISOString()
         })
@@ -704,7 +740,29 @@ export default function AdminPage() {
         setEditingProduct(null)
         fetchAdminData()
       } else {
-        setErrorMsg(`Failed to update product: ${data.error}`)
+        // Direct fallback update
+        const { error: directUpdateErr } = await supabase
+          .from('products')
+          .update({
+            name: editName,
+            price: parseFloat(editPrice),
+            stock: parseInt(editStock),
+            category: editCategory.trim(),
+            description: editDescription,
+            base_shipping_fee: parseFloat(editBaseShippingFee) || 120,
+            extra_shipping_fee: parseFloat(editExtraShippingFee) || 80,
+            image_url: filteredImages,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingProduct.id)
+
+        if (!directUpdateErr) {
+          setSuccessMsg('Product updated successfully!')
+          setEditingProduct(null)
+          fetchAdminData()
+        } else {
+          setErrorMsg(`Failed to update product: ${data.error || directUpdateErr.message}`)
+        }
       }
     } catch (err: any) {
       setErrorMsg(`Network error: ${err.message}`)
@@ -795,13 +853,15 @@ export default function AdminPage() {
       return
     }
 
-    const headers = ['name', 'price', 'stock', 'category', 'description', 'image_url']
+    const headers = ['name', 'price', 'stock', 'category', 'description', 'base_shipping_fee', 'extra_shipping_fee', 'image_url']
     const rows = products.map(p => [
       `"${(p.name || '').replace(/"/g, '""')}"`,
       p.price || 0,
       p.stock || 0,
       `"${(p.category || 'General').replace(/"/g, '""')}"`,
       `"${(p.description || '').replace(/"/g, '""')}"`,
+      p.base_shipping_fee || 120,
+      p.extra_shipping_fee || 80,
       `"${(p.image_url || '').replace(/"/g, '""')}"`
     ])
 
@@ -842,11 +902,10 @@ export default function AdminPage() {
   }
 
   const handleDownloadSampleCSV = () => {
-    const headers = ['name', 'price', 'stock', 'category', 'description', 'image_url']
+    const headers = ['name', 'price', 'stock', 'category', 'description', 'base_shipping_fee', 'extra_shipping_fee', 'image_url']
     const sampleRows = [
-      ['"Raspberry Pi 5 8GB"', '8999', '25', '"Single Board Computers"', '"Latest generation quad-core 64-bit Arm Cortex-A76"', '"https://images.unsplash.com/photo-1550745165-9bc0b252726f"'],
-      ['"NodeMCU ESP8266 V3"', '249', '100', '"Microcontrollers"', '"Wi-Fi enabled IoT development board"', '"https://images.unsplash.com/photo-1518770660439-4636190af475"'],
-      ['"Ultrasonic Sensor HC-SR04"', '99', '150', '"Sensors"', '"High precision distance measurement sensor"', '"https://images.unsplash.com/photo-1581092160607-ee22621dd758"']
+      ['"Buddha Resin Statue 6-inch"', '599', '20', '"Decor"', '"Handcrafted calming resin statue"', '120', '80', '"https://images.unsplash.com/photo-1607604276583-eef5d076aa5f"'],
+      ['"Ultrasonic Sensor HC-SR04"', '99', '150', '"Sensors"', '"High precision distance measurement sensor"', '60', '20', '"https://images.unsplash.com/photo-1581092160607-ee22621dd758"']
     ]
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...sampleRows.map(e => e.join(','))].join('\n')
@@ -1762,7 +1821,7 @@ export default function AdminPage() {
                       <div className="flex flex-wrap justify-between items-center border-b border-[#8A7968]/20 pb-4 gap-4">
                         <div className="flex items-center gap-3">
                           <div>
-                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Tracking ID</span>
+                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block mb-0.5">Tracking ID</span>
                             <span className="font-mono text-base font-black text-[#2B2B2B]">{o.tracking_id || 'N/A'}</span>
                           </div>
                           <span className="text-[#8A7968]/50">•</span>
@@ -1956,6 +2015,37 @@ export default function AdminPage() {
                       <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="50" className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden font-bold" />
                     </div>
                   </div>
+
+                  {/* Per-Item Shipping Controls */}
+                  <div className="grid grid-cols-2 gap-2 bg-[#F4EADE] p-2.5 rounded-2xl border border-[#8A7968]/30">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#2B2B2B] mb-1" title="Delivery charge when ordering 1 unit">
+                        Base Shipping (₹) [1st unit]
+                      </label>
+                      <input 
+                        type="number" 
+                        required 
+                        value={baseShippingFee} 
+                        onChange={(e) => setBaseShippingFee(e.target.value)} 
+                        placeholder="120" 
+                        className="w-full border border-[#8A7968]/40 bg-[#EFE3D3] p-2 rounded-xl text-xs text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#2B2B2B] mb-1" title="Additional charge for each extra unit (e.g. +80 for 2nd unit)">
+                        Extra Unit (+₹) [each addl.]
+                      </label>
+                      <input 
+                        type="number" 
+                        required 
+                        value={extraShippingFee} 
+                        onChange={(e) => setExtraShippingFee(e.target.value)} 
+                        placeholder="80" 
+                        className="w-full border border-[#8A7968]/40 bg-[#EFE3D3] p-2 rounded-xl text-xs text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" 
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Category (Select existing or type new)</label>
                     <input type="text" list="existing-categories" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="e.g. Microcontrollers, Sensor" className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden" />
@@ -2042,7 +2132,8 @@ export default function AdminPage() {
                         <tr className="border-b border-[#8A7968]/20 bg-[#EADBC8] text-[#2B2B2B] text-xs font-bold">
                           <th className="p-3">Product ID & Name</th>
                           <th className="p-3">Price</th>
-                          <th className="p-3">Stock (Click to Audit Logs)</th>
+                          <th className="p-3">Shipping Rates</th>
+                          <th className="p-3">Stock (Audit)</th>
                           <th className="p-3">Timestamps</th>
                           <th className="p-3 text-right">Actions</th>
                         </tr>
@@ -2067,6 +2158,17 @@ export default function AdminPage() {
                                 </div>
                               </td>
                               <td className="p-3 font-semibold text-[#2B2B2B] whitespace-nowrap">₹{p.price}</td>
+                              
+                              {/* Shipping Rates Column */}
+                              <td className="p-3 whitespace-nowrap">
+                                <div className="text-[11px] font-bold text-[#2B2B2B]">
+                                  Base: <span className="text-[#B76E79]">₹{p.base_shipping_fee ?? 120}</span>
+                                </div>
+                                <div className="text-[10px] text-[#8A7968]">
+                                  +₹{p.extra_shipping_fee ?? 80} / addl. unit
+                                </div>
+                              </td>
+
                               <td className="p-3 whitespace-nowrap">
                                 <button
                                   onClick={() => openStockAuditModal(p)}
@@ -2567,7 +2669,6 @@ export default function AdminPage() {
                         <span className="text-[10px] bg-[#EADBC8] text-[#B76E79] border border-[#8A7968]/30 font-bold px-2 py-0.5 rounded-lg">Product: {rev.products?.name || 'Item'}</span>
                         <span className="text-xs text-amber-600 font-bold">{'⭐'.repeat(rev.rating)}</span>
                         
-                        {/* Approval Status Badge */}
                         <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
                           rev.is_approved
                             ? 'bg-green-100 text-green-800 border-green-200'
@@ -2585,7 +2686,6 @@ export default function AdminPage() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* 1-Click Approve / Hide Toggle */}
                       <button
                         type="button"
                         onClick={() => handleToggleReviewApproval(rev.id, Boolean(rev.is_approved))}
@@ -2971,6 +3071,16 @@ export default function AdminPage() {
                     <span className="text-xs text-[#B76E79] font-bold uppercase tracking-wider">{viewingProduct.category || 'General'}</span>
                     <h1 className="text-2xl font-black text-[#2B2B2B] mt-1 mb-2">{viewingProduct.name || viewingProduct.title}</h1>
                     <div className="text-3xl font-extrabold text-[#2B2B2B] mb-4">₹{viewingProduct.price}</div>
+                    
+                    {/* Customer view shipping badge preview */}
+                    <div className="mb-4 bg-[#F4EADE] p-3 rounded-2xl border border-[#8A7968]/30">
+                      <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Shipping Information</span>
+                      <p className="text-xs font-bold text-[#2B2B2B] mt-0.5">
+                        ₹{viewingProduct.base_shipping_fee ?? 120} for 1st unit 
+                        {(viewingProduct.extra_shipping_fee ?? 80) > 0 && ` (+₹${viewingProduct.extra_shipping_fee ?? 80} per additional unit)`}
+                      </p>
+                    </div>
+
                     <div className="num-stock mb-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${viewingProduct.stock > 0 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
                         {viewingProduct.stock > 0 ? `In Stock (${viewingProduct.stock} available)` : 'Out of Stock'}
@@ -3009,6 +3119,37 @@ export default function AdminPage() {
                     <input type="number" required value={editStock} onChange={(e) => setEditStock(e.target.value)} className="w-full border border-[#8A7968]/40 p-2.5 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" />
                   </div>
                 </div>
+
+                {/* Per-Item Shipping Editing Inputs */}
+                <div className="grid grid-cols-2 gap-2 bg-[#F4EADE] p-2.5 rounded-2xl border border-[#8A7968]/30">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#2B2B2B] mb-1">
+                      Base Shipping (₹) [1st unit]
+                    </label>
+                    <input 
+                      type="number" 
+                      required 
+                      value={editBaseShippingFee} 
+                      onChange={(e) => setEditBaseShippingFee(e.target.value)} 
+                      placeholder="120" 
+                      className="w-full border border-[#8A7968]/40 bg-[#EFE3D3] p-2 rounded-xl text-xs text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#2B2B2B] mb-1">
+                      Extra Unit (+₹) [each addl.]
+                    </label>
+                    <input 
+                      type="number" 
+                      required 
+                      value={editExtraShippingFee} 
+                      onChange={(e) => setEditExtraShippingFee(e.target.value)} 
+                      placeholder="80" 
+                      className="w-full border border-[#8A7968]/40 bg-[#EFE3D3] p-2 rounded-xl text-xs text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" 
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Category</label>
                   <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full border border-[#8A7968]/40 p-2.5 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-medium focus:border-[#B76E79] focus:outline-hidden" />

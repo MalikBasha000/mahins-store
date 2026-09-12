@@ -36,7 +36,7 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState('')
 
   // Shipping Calculation States
-  const [shippingFee, setShippingFee] = useState(120)
+  const [shippingFee, setShippingFee] = useState(0)
   const [processingFee, setProcessingFee] = useState(0)
   const [estimatedDelivery, setEstimatedDelivery] = useState('3 - 5 Business Days')
   const [courierName, setCourierName] = useState('Shiprocket Surface Standard')
@@ -67,8 +67,10 @@ export default function CheckoutPage() {
 
   const totalCartItemsCount = cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)
 
-  const fetchShippingRates = async (targetPincode: string, itemsCount: number) => {
-    if (!targetPincode || targetPincode.trim().length !== 6) return
+  const fetchShippingRates = async (targetPincode: string, currentCartItems = cart) => {
+    if (!targetPincode || targetPincode.trim().length !== 6 || currentCartItems.length === 0) {
+      return
+    }
     setShippingLoading(true)
     try {
       const res = await fetch('/api/shipping/calculate', {
@@ -76,19 +78,21 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deliveryPincode: targetPincode.trim(),
-          itemCount: itemsCount,
+          items: currentCartItems.map(item => ({
+            id: item.id,
+            quantity: Number(item.quantity) || 1
+          }))
         }),
       })
       const data = await res.json()
       if (data.success) {
-        setShippingFee(Number(data.shippingFee) || (itemsCount <= 5 ? 120 : 240))
+        setShippingFee(Number(data.shippingFee) || 0)
         setProcessingFee(Number(data.processingFee) || 0)
         setEstimatedDelivery(data.estimatedDelivery || '3 - 5 Business Days')
         setCourierName(data.courierName || 'Shiprocket Surface Standard')
       }
     } catch (err) {
       console.error('Failed to fetch shipping rate:', err)
-      setShippingFee(itemsCount <= 5 ? 120 : 240)
     } finally {
       setShippingLoading(false)
     }
@@ -137,7 +141,7 @@ export default function CheckoutPage() {
             if (data.state) setStateName(data.state)
             if (data.pincode) {
               setPincode(data.pincode)
-              fetchShippingRates(data.pincode, totalCartItemsCount)
+              fetchShippingRates(data.pincode, cart)
             }
           }
         } else {
@@ -153,14 +157,12 @@ export default function CheckoutPage() {
     fetchCheckoutConfig()
   }, [supabase])
 
-  // Recalculate shipping rate when item count updates
+  // Recalculate shipping whenever cart items or quantities change
   useEffect(() => {
-    const rate = totalCartItemsCount <= 5 ? 120 : 240
-    setShippingFee(rate)
-    if (pincode && pincode.trim().length === 6) {
-      fetchShippingRates(pincode, totalCartItemsCount)
+    if (pincode && pincode.trim().length === 6 && cart.length > 0) {
+      fetchShippingRates(pincode, cart)
     }
-  }, [totalCartItemsCount])
+  }, [cart])
 
   // Determine active payment method availability
   useEffect(() => {
@@ -221,7 +223,7 @@ export default function CheckoutPage() {
     const pin = e.target.value
     setPincode(pin)
     if (pin.length === 6 && /^\d+$/.test(pin)) {
-      fetchShippingRates(pin, totalCartItemsCount)
+      fetchShippingRates(pin, cart)
       try {
         const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`)
         const data = await res.json()
@@ -940,7 +942,7 @@ export default function CheckoutPage() {
                   <div className="flex flex-col">
                     <span>Shipping Charges</span>
                     <span className="text-[10px] text-[#8A7968]">
-                      {totalCartItemsCount <= 5 ? '(1-5 items: ₹120)' : '(>5 items: ₹240)'}
+                      Calculated per product rules
                     </span>
                   </div>
                   <span className="font-bold text-[#2B2B2B]">
