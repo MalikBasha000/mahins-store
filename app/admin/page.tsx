@@ -74,8 +74,9 @@ export default function AdminPage() {
   const [editReviewComment, setEditReviewComment] = useState('')
   const [editReviewRating, setEditReviewRating] = useState(5)
 
-  // Inventory Products State
+  // Inventory Products State & Bundles/Kits State
   const [products, setProducts] = useState<any[]>([])
+  const [bundleMap, setBundleMap] = useState<Record<string, any[]>>({})
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
   const [stock, setStock] = useState('')
@@ -84,6 +85,10 @@ export default function AdminPage() {
   const [baseShippingFee, setBaseShippingFee] = useState('120')
   const [extraShippingFee, setExtraShippingFee] = useState('80')
   const [imageInputs, setImageInputs] = useState<string[]>([''])
+
+  // Kit creation form states
+  const [isBundle, setIsBundle] = useState(false)
+  const [kitComponents, setKitComponents] = useState<{ component_id: string; quantity: number }[]>([])
 
   // Products Filter State
   const [searchQuery, setSearchQuery] = useState('')
@@ -100,6 +105,8 @@ export default function AdminPage() {
   const [editBaseShippingFee, setEditBaseShippingFee] = useState('120')
   const [editExtraShippingFee, setEditExtraShippingFee] = useState('80')
   const [editImageInputs, setEditImageInputs] = useState<string[]>([''])
+  const [editIsBundle, setEditIsBundle] = useState(false)
+  const [editKitComponents, setEditKitComponents] = useState<{ component_id: string; quantity: number }[]>([])
 
   const [viewingProduct, setViewingProduct] = useState<any | null>(null)
   const [activePreviewImage, setActivePreviewImage] = useState('')
@@ -551,6 +558,23 @@ export default function AdminPage() {
     if (prodErr) setErrorMsg(prodErr.message)
     else setProducts(prodData || [])
 
+    // Fetch bundle recipes mapping
+    try {
+      const { data: bundleData } = await supabase
+        .from('bundle_items')
+        .select('*')
+      if (bundleData) {
+        const mapping: Record<string, any[]> = {}
+        bundleData.forEach((item: any) => {
+          if (!mapping[item.bundle_id]) mapping[item.bundle_id] = []
+          mapping[item.bundle_id].push(item)
+        })
+        setBundleMap(mapping)
+      }
+    } catch (err) {
+      console.error('Error fetching bundle recipes:', err)
+    }
+
     try {
       const res = await fetch('/api/admin/orders')
       const data = await res.json()
@@ -600,71 +624,111 @@ export default function AdminPage() {
     setEditImageInputs(editImageInputs.filter((_, i) => i !== index))
   }
 
+  const calculateBundleStock = (bundleId: string, customComponents?: { component_id: string; quantity: number }[]) => {
+    const components = customComponents || bundleMap[bundleId] || []
+    if (components.length === 0) return 0
+    let minStock = Infinity
+    for (const comp of components) {
+      const rawProduct = products.find(p => p.id === comp.component_id)
+      const stockAvailable = rawProduct ? (rawProduct.stock || 0) : 0
+      const qtyRequired = Math.max(1, comp.quantity || 1)
+      const possibleKits = Math.floor(stockAvailable / qtyRequired)
+      if (possibleKits < minStock) {
+        minStock = possibleKits
+      }
+    }
+    return minStock === Infinity ? 0 : minStock
+  }
+
+  const handleAddKitComponent = (isEditingMode = false) => {
+    const defaultProduct = products.find(p => !p.is_bundle)
+    if (!defaultProduct) {
+      alert('Please add at least one standalone inventory product first.')
+      return
+    }
+    if (isEditingMode) {
+      setEditKitComponents([...editKitComponents, { component_id: defaultProduct.id, quantity: 1 }])
+    } else {
+      setKitComponents([...kitComponents, { component_id: defaultProduct.id, quantity: 1 }])
+    }
+  }
+
+  const handleUpdateKitComponent = (index: number, field: 'component_id' | 'quantity', value: any, isEditingMode = false) => {
+    if (isEditingMode) {
+      const updated = [...editKitComponents]
+      updated[index] = { ...updated[index], [field]: value }
+      setEditKitComponents(updated)
+    } else {
+      const updated = [...kitComponents]
+      updated[index] = { ...updated[index], [field]: value }
+      setKitComponents(updated)
+    }
+  }
+
+  const handleRemoveKitComponent = (index: number, isEditingMode = false) => {
+    if (isEditingMode) {
+      setEditKitComponents(editKitComponents.filter((_, i) => i !== index))
+    } else {
+      setKitComponents(kitComponents.filter((_, i) => i !== index))
+    }
+  }
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
     setSuccessMsg('')
 
+    if (isBundle && kitComponents.length === 0) {
+      alert('Please add at least one component to your kit recipe.')
+      return
+    }
+
     const filteredImages = imageInputs.filter(url => url.trim() !== '').join(',')
+    const calculatedStock = isBundle ? calculateBundleStock('', kitComponents) : (parseInt(stock) || 0)
 
     try {
-      const res = await fetch('/api/admin/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data: newProd, error: insertErr } = await supabase
+        .from('products')
+        .insert([{
           name, 
           price: parseFloat(price), 
-          stock: parseInt(stock), 
-          category: category.trim(), 
+          stock: calculatedStock, 
+          category: isBundle ? (category.trim() || 'Kits & Bundles') : category.trim(), 
           description,
           base_shipping_fee: parseFloat(baseShippingFee) || 120,
           extra_shipping_fee: parseFloat(extraShippingFee) || 80,
+          is_bundle: isBundle,
           image_url: filteredImages 
-        })
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setSuccessMsg('Product added successfully via secure admin API!')
-        setName('')
-        setPrice('')
-        setStock('')
-        setCategory('')
-        setDescription('')
-        setBaseShippingFee('120')
-        setExtraShippingFee('80')
-        setImageInputs([''])
-        fetchAdminData()
-      } else {
-        const { error: directInsertErr } = await supabase.from('products').insert([{
-          name,
-          price: parseFloat(price),
-          stock: parseInt(stock),
-          category: category.trim(),
-          description,
-          base_shipping_fee: parseFloat(baseShippingFee) || 120,
-          extra_shipping_fee: parseFloat(extraShippingFee) || 80,
-          image_url: filteredImages
         }])
+        .select()
+        .single()
 
-        if (!directInsertErr) {
-          setSuccessMsg('Product added successfully with custom shipping rates!')
-          setName('')
-          setPrice('')
-          setStock('')
-          setCategory('')
-          setDescription('')
-          setBaseShippingFee('120')
-          setExtraShippingFee('80')
-          setImageInputs([''])
-          fetchAdminData()
-        } else {
-          setErrorMsg(`Failed to add product: ${data.error || directInsertErr.message}`)
-        }
+      if (insertErr) throw insertErr
+
+      if (isBundle && newProd && kitComponents.length > 0) {
+        const recipePayload = kitComponents.map(c => ({
+          bundle_id: newProd.id,
+          component_id: c.component_id,
+          quantity: Math.max(1, Number(c.quantity) || 1)
+        }))
+        const { error: bundleErr } = await supabase.from('bundle_items').insert(recipePayload)
+        if (bundleErr) console.error('Error inserting bundle items:', bundleErr)
       }
+
+      setSuccessMsg(isBundle ? '🎉 Lab Kit created successfully with live inventory linking!' : 'Product added successfully!')
+      setName('')
+      setPrice('')
+      setStock('')
+      setCategory('')
+      setDescription('')
+      setIsBundle(false)
+      setKitComponents([])
+      setBaseShippingFee('120')
+      setExtraShippingFee('80')
+      setImageInputs([''])
+      fetchAdminData()
     } catch (err: any) {
-      setErrorMsg(`Network error: ${err.message}`)
+      setErrorMsg(`Failed to create item: ${err.message}`)
     }
   }
 
@@ -677,6 +741,11 @@ export default function AdminPage() {
     setEditDescription(p.description || '')
     setEditBaseShippingFee(String(p.base_shipping_fee ?? 120))
     setEditExtraShippingFee(String(p.extra_shipping_fee ?? 80))
+    setEditIsBundle(Boolean(p.is_bundle))
+    
+    const existingRecipe = bundleMap[p.id] || []
+    setEditKitComponents(existingRecipe.map(item => ({ component_id: item.component_id, quantity: item.quantity })))
+
     const existingImgs = p.image_url ? p.image_url.split(',').map((s: string) => s.trim()) : ['']
     setEditImageInputs(existingImgs.length > 0 ? existingImgs : [''])
   }
@@ -713,57 +782,44 @@ export default function AdminPage() {
     setSuccessMsg('')
 
     const filteredImages = editImageInputs.filter(url => url.trim() !== '').join(',')
+    const calculatedStock = editIsBundle ? calculateBundleStock(editingProduct.id, editKitComponents) : (parseInt(editStock) || 0)
 
     try {
-      const res = await fetch('/api/admin/products', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editingProduct.id,
+      const { error: directUpdateErr } = await supabase
+        .from('products')
+        .update({
           name: editName,
           price: parseFloat(editPrice),
-          stock: parseInt(editStock),
+          stock: calculatedStock,
           category: editCategory.trim(),
           description: editDescription,
           base_shipping_fee: parseFloat(editBaseShippingFee) || 120,
           extra_shipping_fee: parseFloat(editExtraShippingFee) || 80,
+          is_bundle: editIsBundle,
           image_url: filteredImages,
           updated_at: new Date().toISOString()
         })
-      })
+        .eq('id', editingProduct.id)
 
-      const data = await res.json()
+      if (directUpdateErr) throw directUpdateErr
 
-      if (data.success) {
-        setSuccessMsg('Product updated successfully!')
-        setEditingProduct(null)
-        fetchAdminData()
-      } else {
-        const { error: directUpdateErr } = await supabase
-          .from('products')
-          .update({
-            name: editName,
-            price: parseFloat(editPrice),
-            stock: parseInt(editStock),
-            category: editCategory.trim(),
-            description: editDescription,
-            base_shipping_fee: parseFloat(editBaseShippingFee) || 120,
-            extra_shipping_fee: parseFloat(editExtraShippingFee) || 80,
-            image_url: filteredImages,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editingProduct.id)
-
-        if (!directUpdateErr) {
-          setSuccessMsg('Product updated successfully!')
-          setEditingProduct(null)
-          fetchAdminData()
-        } else {
-          setErrorMsg(`Failed to update product: ${data.error || directUpdateErr.message}`)
+      if (editIsBundle) {
+        await supabase.from('bundle_items').delete().eq('bundle_id', editingProduct.id)
+        if (editKitComponents.length > 0) {
+          const newRecipe = editKitComponents.map(c => ({
+            bundle_id: editingProduct.id,
+            component_id: c.component_id,
+            quantity: Math.max(1, Number(c.quantity) || 1)
+          }))
+          await supabase.from('bundle_items').insert(newRecipe)
         }
       }
+
+      setSuccessMsg('Product / Kit updated successfully!')
+      setEditingProduct(null)
+      fetchAdminData()
     } catch (err: any) {
-      setErrorMsg(`Network error: ${err.message}`)
+      setErrorMsg(`Failed to update: ${err.message}`)
     }
   }
 
@@ -771,19 +827,12 @@ export default function AdminPage() {
     if (!confirm('Are you sure you want to delete this product?')) return
 
     try {
-      const res = await fetch(`/api/admin/products?id=${id}`, {
-        method: 'DELETE'
-      })
-      const data = await res.json()
-
-      if (data.success) {
-        setSuccessMsg('Product deleted successfully!')
-        fetchAdminData()
-      } else {
-        setErrorMsg(`Failed to delete product: ${data.error}`)
-      }
+      const { error } = await supabase.from('products').delete().eq('id', id)
+      if (error) throw error
+      setSuccessMsg('Product deleted successfully!')
+      fetchAdminData()
     } catch (err: any) {
-      setErrorMsg(`Network error: ${err.message}`)
+      setErrorMsg(`Failed to delete product: ${err.message}`)
     }
   }
 
@@ -851,15 +900,16 @@ export default function AdminPage() {
       return
     }
 
-    const headers = ['name', 'price', 'stock', 'category', 'description', 'base_shipping_fee', 'extra_shipping_fee', 'image_url']
+    const headers = ['name', 'price', 'stock', 'category', 'description', 'base_shipping_fee', 'extra_shipping_fee', 'is_bundle', 'image_url']
     const rows = products.map(p => [
       `"${(p.name || '').replace(/"/g, '""')}"`,
       p.price || 0,
-      p.stock || 0,
+      p.is_bundle ? calculateBundleStock(p.id) : (p.stock || 0),
       `"${(p.category || 'General').replace(/"/g, '""')}"`,
       `"${(p.description || '').replace(/"/g, '""')}"`,
       p.base_shipping_fee || 120,
       p.extra_shipping_fee || 80,
+      p.is_bundle ? 'TRUE' : 'FALSE',
       `"${(p.image_url || '').replace(/"/g, '""')}"`
     ])
 
@@ -1019,10 +1069,12 @@ export default function AdminPage() {
 
     const matchesCategory = selectedCategoryFilter === 'ALL' || (p.category && p.category.trim().toLowerCase() === selectedCategoryFilter.toLowerCase())
 
+    const liveStock = p.is_bundle ? calculateBundleStock(p.id) : (p.stock || 0)
+
     let matchesStock = true
-    if (stockFilter === 'LOW') matchesStock = p.stock <= 5
-    if (stockFilter === 'AVAILABLE') matchesStock = p.stock > 5
-    if (stockFilter === 'OUT') matchesStock = p.stock === 0
+    if (stockFilter === 'LOW') matchesStock = liveStock <= 5
+    if (stockFilter === 'AVAILABLE') matchesStock = liveStock > 5
+    if (stockFilter === 'OUT') matchesStock = liveStock === 0
 
     return matchesSearch && matchesCategory && matchesStock
   })
@@ -1125,7 +1177,10 @@ export default function AdminPage() {
   const totalRevenue = activeAndDeliveredOrders.reduce((acc, o) => acc + Number(o.total_amount || o.final_payable_amount || 0), 0)
   const deliveredRevenue = orders.filter(o => o.status === 'Delivered').reduce((acc, o) => acc + Number(o.total_amount || o.final_payable_amount || 0), 0)
   const averageOrderValue = activeAndDeliveredOrders.length > 0 ? Math.round(totalRevenue / activeAndDeliveredOrders.length) : 0
-  const lowStockProducts = products.filter(p => p.stock <= 5)
+  const lowStockProducts = products.filter(p => {
+    const s = p.is_bundle ? calculateBundleStock(p.id) : (p.stock || 0)
+    return s <= 5
+  })
 
   const productSalesMap = new Map<string, { id: string; name: string; category: string; unitsSold: number; totalSales: number; currentStock: number }>()
   for (const order of activeAndDeliveredOrders) {
@@ -1347,7 +1402,7 @@ export default function AdminPage() {
               activeTab === 'products' ? 'bg-[#B76E79] text-white border-[#B76E79] shadow-xs' : 'bg-[#EFE3D3] text-[#2B2B2B] border-[#8A7968]/30 hover:bg-[#EADBC8]'
             }`}
           >
-            📦 Inventory Management ({products.length})
+            📦 Inventory & Kits ({products.length})
           </button>
           <button
             onClick={() => setActiveTab('customers')}
@@ -1447,17 +1502,20 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {lowStockProducts.map((p) => (
-                    <div key={p.id} className="bg-[#F4EADE] p-3.5 rounded-2xl border border-[#8A7968]/30 flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-bold text-[#2B2B2B]">{p.name || p.title}</h4>
-                        <span className="text-[11px] text-[#8A7968]">{p.category || 'General'}</span>
+                  {lowStockProducts.map((p) => {
+                    const currentStock = p.is_bundle ? calculateBundleStock(p.id) : (p.stock || 0)
+                    return (
+                      <div key={p.id} className="bg-[#F4EADE] p-3.5 rounded-2xl border border-[#8A7968]/30 flex items-center justify-between">
+                        <div>
+                          <h4 className="text-xs font-bold text-[#2B2B2B]">{p.name || p.title}</h4>
+                          <span className="text-[11px] text-[#8A7968]">{p.is_bundle ? '🎒 Lab Kit Bundle' : (p.category || 'General')}</span>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${currentStock === 0 ? 'bg-red-600 text-white' : 'bg-red-100 text-red-800 border border-red-200'}`}>
+                          {currentStock === 0 ? 'OUT OF STOCK' : `${currentStock} left`}
+                        </span>
                       </div>
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-black ${p.stock === 0 ? 'bg-red-600 text-white' : 'bg-red-100 text-red-800 border border-red-200'}`}>
-                        {p.stock === 0 ? 'OUT OF STOCK' : `${p.stock} left`}
-                      </span>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -1995,26 +2053,101 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Changed from 2-column to 12-column responsive layout */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
               {/* Left Column: Add Product Form (4 of 12 columns) */}
               <div className="lg:col-span-4 bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl border border-[#8A7968]/30 shadow-xs h-fit">
-                <h2 className="text-lg font-bold text-[#2B2B2B] mb-4">Add Single Product</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-[#2B2B2B]">{isBundle ? '🎒 Create Lab Kit' : 'Add Single Product'}</h2>
+                  <label className="flex items-center gap-1.5 cursor-pointer bg-[#F4EADE] px-2.5 py-1 rounded-xl border border-[#8A7968]/30">
+                    <input 
+                      type="checkbox" 
+                      checked={isBundle} 
+                      onChange={(e) => setIsBundle(e.target.checked)} 
+                      className="accent-[#B76E79]"
+                    />
+                    <span className="text-[11px] font-black text-[#B76E79]">Kit / Bundle</span>
+                  </label>
+                </div>
+
                 <form onSubmit={handleAddProduct} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Product Name</label>
-                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Arduino Uno R3" className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden" />
+                    <label className="block text-xs font-bold text-[#2B2B2B] mb-1">{isBundle ? 'Kit Name *' : 'Product Name *'}</label>
+                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} placeholder={isBundle ? "e.g. Starter Robotics Lab Kit" : "e.g. Arduino Uno R3"} className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden" />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Price (₹)</label>
+                      <label className="block text-xs font-bold text-[#2B2B2B] mb-1">{isBundle ? 'Kit Price (₹) *' : 'Price (₹) *'}</label>
                       <input type="number" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="599" className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden font-bold" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Stock</label>
-                      <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="50" className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden font-bold" />
+                      <label className="block text-xs font-bold text-[#2B2B2B] mb-1">
+                        {isBundle ? 'Calculated Stock' : 'Stock *'}
+                      </label>
+                      {isBundle ? (
+                        <div className="w-full border border-[#8A7968]/30 bg-[#EADBC8]/70 p-2.5 rounded-xl text-xs text-[#2B2B2B] font-extrabold flex items-center justify-between">
+                          <span>{calculateBundleStock('', kitComponents)} kits</span>
+                          <span className="text-[10px] text-[#8A7968]">Live</span>
+                        </div>
+                      ) : (
+                        <input type="number" required value={stock} onChange={(e) => setStock(e.target.value)} placeholder="50" className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden font-bold" />
+                      )}
                     </div>
                   </div>
+
+                  {/* Kit Recipe Component Manager */}
+                  {isBundle && (
+                    <div className="bg-[#F4EADE] p-3 rounded-2xl border border-[#8A7968]/30 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black text-[#2B2B2B] uppercase tracking-wide">
+                          Kit Recipe ({kitComponents.length} parts)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleAddKitComponent(false)}
+                          className="text-[10px] bg-[#B76E79] text-white px-2 py-1 rounded-lg font-bold hover:bg-[#9E5B65] cursor-pointer"
+                        >
+                          + Add Part
+                        </button>
+                      </div>
+
+                      {kitComponents.length === 0 ? (
+                        <p className="text-[11px] text-[#8A7968] italic">Click "+ Add Part" to select components included in this kit.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                          {kitComponents.map((comp, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 bg-[#EFE3D3] p-2 rounded-xl border border-[#8A7968]/20">
+                              <select
+                                value={comp.component_id}
+                                onChange={(e) => handleUpdateKitComponent(idx, 'component_id', e.target.value, false)}
+                                className="w-full text-xs bg-[#F4EADE] p-1.5 rounded-lg border border-[#8A7968]/30 text-[#2B2B2B] font-medium focus:outline-hidden"
+                              >
+                                {products.filter(p => !p.is_bundle).map(p => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name} ({p.stock} in warehouse)
+                                  </option>
+                                ))}
+                              </select>
+                              <input 
+                                type="number" 
+                                min="1" 
+                                value={comp.quantity} 
+                                onChange={(e) => handleUpdateKitComponent(idx, 'quantity', parseInt(e.target.value) || 1, false)} 
+                                className="w-14 text-center text-xs font-bold bg-[#F4EADE] p-1.5 rounded-lg border border-[#8A7968]/30"
+                                title="Quantity in 1 kit"
+                              />
+                              <button 
+                                type="button" 
+                                onClick={() => handleRemoveKitComponent(idx, false)} 
+                                className="text-red-600 font-bold px-2 py-1 rounded-lg hover:bg-red-100 text-xs cursor-pointer"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Per-Item Shipping Controls */}
                   <div className="grid grid-cols-2 gap-2 bg-[#F4EADE] p-2.5 rounded-2xl border border-[#8A7968]/30">
@@ -2071,7 +2204,9 @@ export default function AdminPage() {
                     <button type="button" onClick={handleAddImageInput} className="mt-1 bg-[#EADBC8] text-[#2B2B2B] hover:bg-[#8A7968]/30 font-bold text-xs px-3 py-2 rounded-xl transition w-full border border-dashed border-[#8A7968]/50 cursor-pointer">+ Add Another Image URL</button>
                   </div>
 
-                  <button type="submit" className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold p-3 rounded-xl text-xs sm:text-sm shadow-xs transition cursor-pointer btn-press">Add Product</button>
+                  <button type="submit" className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold p-3 rounded-xl text-xs sm:text-sm shadow-xs transition cursor-pointer btn-press">
+                    {isBundle ? 'Create Lab Kit 🎒' : 'Add Product'}
+                  </button>
                 </form>
               </div>
 
@@ -2131,7 +2266,7 @@ export default function AdminPage() {
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="border-b border-[#8A7968]/20 bg-[#EADBC8] text-[#2B2B2B] text-xs font-bold">
-                          <th className="px-3 py-3 min-w-[200px]">Product</th>
+                          <th className="px-3 py-3 min-w-[200px]">Product / Kit</th>
                           <th className="px-3 py-3 whitespace-nowrap">Price</th>
                           <th className="px-3 py-3 whitespace-nowrap">Shipping</th>
                           <th className="px-3 py-3 whitespace-nowrap">Stock</th>
@@ -2145,27 +2280,33 @@ export default function AdminPage() {
                           const addedDate = p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'
                           const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleDateString() : null
                           const twelveDigitId = getTwelveDigitId(p.id)
+                          const liveStock = p.is_bundle ? calculateBundleStock(p.id) : (p.stock || 0)
+                          const recipeItems = bundleMap[p.id] || []
 
                           return (
                             <tr key={p.id} className="border-b border-[#8A7968]/15 hover:bg-[#EADBC8]/40 align-middle">
-                              {/* Product Info */}
                               <td className="px-3 py-2.5">
                                 <div className="flex items-center gap-2.5">
                                   <img src={firstImage} alt="" className="h-9 w-9 object-cover rounded-lg border border-[#8A7968]/30 bg-white shrink-0" />
                                   <div className="min-w-0">
-                                    <button onClick={() => openCustomerPreview(p)} className="font-bold text-[#B76E79] hover:underline text-left block truncate max-w-[170px] cursor-pointer" title={p.name || p.title}>
-                                      {p.name || p.title || 'Unnamed'}
-                                    </button>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <button onClick={() => openCustomerPreview(p)} className="font-bold text-[#B76E79] hover:underline text-left block truncate max-w-[170px] cursor-pointer" title={p.name || p.title}>
+                                        {p.name || p.title || 'Unnamed'}
+                                      </button>
+                                      {p.is_bundle && (
+                                        <span className="bg-[#B76E79] text-white text-[9px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                                          🎒 KIT ({recipeItems.length})
+                                        </span>
+                                      )}
+                                    </div>
                                     <span className="text-[10px] text-[#8A7968] font-mono block">ID: {twelveDigitId}</span>
                                     <span className="text-[10px] text-[#8A7968]/80 block truncate max-w-[170px]">{p.category || 'General'}</span>
                                   </div>
                                 </div>
                               </td>
 
-                              {/* Price */}
                               <td className="px-3 py-2.5 font-extrabold text-[#2B2B2B] whitespace-nowrap">₹{p.price}</td>
                               
-                              {/* Shipping Rates */}
                               <td className="px-3 py-2.5 whitespace-nowrap">
                                 <div className="text-[11px] font-bold text-[#2B2B2B]">
                                   Base: <span className="text-[#B76E79]">₹{p.base_shipping_fee ?? 120}</span>
@@ -2175,26 +2316,23 @@ export default function AdminPage() {
                                 </div>
                               </td>
 
-                              {/* Stock */}
                               <td className="px-3 py-2.5 whitespace-nowrap">
                                 <button
                                   onClick={() => openStockAuditModal(p)}
                                   className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition shadow-2xs cursor-pointer hover:underline border ${
-                                    p.stock > 5 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'
+                                    liveStock > 5 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'
                                   }`}
                                   title="Click to view customer order & audit logs"
                                 >
-                                  {p.stock} left 📊
+                                  {liveStock} {p.is_bundle ? 'kits 🎒' : 'left 📊'}
                                 </button>
                               </td>
 
-                              {/* Timestamps */}
                               <td className="px-3 py-2.5 text-[10px] text-[#8A7968] whitespace-nowrap">
                                 <div>Added: {addedDate}</div>
                                 {updatedDate && <div className="text-[#B76E79]">Edit: {updatedDate}</div>}
                               </td>
 
-                              {/* Actions (Sticky Right Column) */}
                               <td className="px-3 py-2.5 text-center sticky right-0 bg-[#F4EADE] shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.08)] whitespace-nowrap">
                                 <div className="inline-flex items-center gap-1.5">
                                   <button onClick={() => openCustomerPreview(p)} className="text-green-800 hover:bg-green-100 font-bold text-[11px] bg-green-50 border border-green-200 px-2 py-1 rounded-lg cursor-pointer">
@@ -3020,7 +3158,7 @@ export default function AdminPage() {
                           {log.status === 'Delivered' && <span className="bg-green-100 text-green-800 px-2.5 py-1 rounded-lg font-bold border border-green-200 block">✓ Delivered Log</span>}
                           {log.status === 'Cancelled' && (
                             <div>
-                              <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-lg font-bold border border-red-200 block mb-1">✕ Cancelled Log</span>
+                              <span className="bg-red-100 text-red-800 px-2.5 py-1 rounded-lg font-bold border border-green-200 block mb-1">✕ Cancelled Log</span>
                               {log.cancellation_reason && <span className="text-[11px] text-[#8A7968] italic block whitespace-normal max-w-xs">{log.cancellation_reason}</span>}
                             </div>
                           )}
