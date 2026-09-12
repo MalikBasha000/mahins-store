@@ -273,10 +273,24 @@ export default function ProfilePage() {
       return
     }
 
+    // Security: strictly use verified session email
+    const verifiedEmail = user.email || email
+
     const { error } = await supabase.from('customer_addresses').upsert({
-      user_id: user.id, full_name: fullName, country_code: countryCode,
-      phone, avatar_url: avatarUrl, house_no: houseNo, plot_no: plotNo,
-      street, city, district, state, pincode, updated_at: new Date().toISOString()
+      user_id: user.id, 
+      email: verifiedEmail,
+      full_name: fullName, 
+      country_code: countryCode,
+      phone, 
+      avatar_url: avatarUrl, 
+      house_no: houseNo, 
+      plot_no: plotNo,
+      street, 
+      city, 
+      district, 
+      state, 
+      pincode, 
+      updated_at: new Date().toISOString()
     }, { onConflict: 'user_id' })
 
     if (error) setErrorMsg(error.message)
@@ -432,6 +446,21 @@ export default function ProfilePage() {
                 />
                 {uploading && <span className="text-xs text-[#B76E79] mt-1 block font-semibold">Uploading image...</span>}
               </div>
+            </div>
+
+            {/* Permanent Verified Login Email (Locked) */}
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-[#2B2B2B] mb-1">
+                Account Email <span className="text-[10px] text-[#B76E79] font-bold ml-1">(Locked & Non-Editable 🔒)</span>
+              </label>
+              <input 
+                type="email" 
+                value={email} 
+                readOnly
+                disabled
+                className="w-full border border-[#8A7968]/40 bg-[#EADBC8]/70 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] font-mono font-bold cursor-not-allowed select-none min-w-0" 
+              />
+              <p className="text-[10px] text-[#8A7968] mt-1">Your verified login email is permanent and secured to protect account orders.</p>
             </div>
 
             <div>

@@ -253,7 +253,9 @@ export default function CheckoutPage() {
   const processOrderSubmission = async (paymentRefId?: string) => {
     const { data: { user } } = await supabase.auth.getUser()
     const currentUserId = user?.id || userId || null
-    const userEmail = email.trim() || user?.email || ''
+    
+    // Security Enforcement: If authenticated, always use verified user account email
+    const userEmail = user?.email || (isLoggedIn ? email : email.trim())
 
     const newTrackingId = generateTrackingId()
     const housePlotPart = [
@@ -621,14 +623,23 @@ export default function CheckoutPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Email Address *</label>
+                  <label className="block text-xs font-bold text-[#2B2B2B] mb-1">
+                    Email Address * {isLoggedIn && <span className="text-[10px] text-[#B76E79] font-bold">(Locked to Account 🔒)</span>}
+                  </label>
                   <input
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      if (!isLoggedIn) setEmail(e.target.value)
+                    }}
+                    readOnly={isLoggedIn}
                     placeholder="name@example.com"
-                    className="w-full border border-[#8A7968]/40 p-2.5 rounded-xl text-xs sm:text-sm text-[#2B2B2B] bg-[#F4EADE] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden font-medium min-w-0"
+                    className={`w-full border border-[#8A7968]/40 p-2.5 rounded-xl text-xs sm:text-sm font-medium min-w-0 ${
+                      isLoggedIn 
+                        ? 'bg-[#EADBC8]/70 text-[#2B2B2B] cursor-not-allowed font-semibold border-[#8A7968]/50' 
+                        : 'bg-[#F4EADE] text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden'
+                    }`}
                   />
                 </div>
               </div>
