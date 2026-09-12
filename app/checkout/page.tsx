@@ -35,6 +35,13 @@ export default function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null)
   const [couponError, setCouponError] = useState('')
 
+  // Shipping Calculation States
+  const [shippingFee, setShippingFee] = useState(120)
+  const [processingFee, setProcessingFee] = useState(0)
+  const [estimatedDelivery, setEstimatedDelivery] = useState('3 - 5 Business Days')
+  const [courierName, setCourierName] = useState('Shiprocket Surface Standard')
+  const [shippingLoading, setShippingLoading] = useState(false)
+
   // Payment Gateway Settings from Admin Dashboard
   const [paymentSettings, setPaymentSettings] = useState({
     is_razorpay_enabled: true,
@@ -57,6 +64,35 @@ export default function CheckoutPage() {
   
   const [paymentMethod, setPaymentMethod] = useState('')
   const [upiUtr, setUpiUtr] = useState('')
+
+  const totalCartItemsCount = cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)
+
+  const fetchShippingRates = async (targetPincode: string, itemsCount: number) => {
+    if (!targetPincode || targetPincode.trim().length !== 6) return
+    setShippingLoading(true)
+    try {
+      const res = await fetch('/api/shipping/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryPincode: targetPincode.trim(),
+          itemCount: itemsCount,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setShippingFee(Number(data.shippingFee) || (itemsCount <= 5 ? 120 : 240))
+        setProcessingFee(Number(data.processingFee) || 0)
+        setEstimatedDelivery(data.estimatedDelivery || '3 - 5 Business Days')
+        setCourierName(data.courierName || 'Shiprocket Surface Standard')
+      }
+    } catch (err) {
+      console.error('Failed to fetch shipping rate:', err)
+      setShippingFee(itemsCount <= 5 ? 120 : 240)
+    } finally {
+      setShippingLoading(false)
+    }
+  }
 
   useEffect(() => {
     setMounted(true)
@@ -99,7 +135,10 @@ export default function CheckoutPage() {
             if (data.city) setCity(data.city)
             if (data.district) setDistrict(data.district)
             if (data.state) setStateName(data.state)
-            if (data.pincode) setPincode(data.pincode)
+            if (data.pincode) {
+              setPincode(data.pincode)
+              fetchShippingRates(data.pincode, totalCartItemsCount)
+            }
           }
         } else {
           setIsLoggedIn(false)
@@ -114,6 +153,15 @@ export default function CheckoutPage() {
     fetchCheckoutConfig()
   }, [supabase])
 
+  // Recalculate shipping rate when item count updates
+  useEffect(() => {
+    const rate = totalCartItemsCount <= 5 ? 120 : 240
+    setShippingFee(rate)
+    if (pincode && pincode.trim().length === 6) {
+      fetchShippingRates(pincode, totalCartItemsCount)
+    }
+  }, [totalCartItemsCount])
+
   // Determine active payment method availability
   useEffect(() => {
     const isRazorpayActive = paymentSettings.is_razorpay_enabled
@@ -126,14 +174,15 @@ export default function CheckoutPage() {
     else setPaymentMethod('')
   }, [paymentSettings, isLoggedIn])
 
-  // Calculate discount and final payable amounts
+  // Calculate discount, shipping, and final payable amounts
   const discountAmount = appliedCoupon 
     ? (appliedCoupon.discount_type === 'percentage' 
         ? (totalPrice * appliedCoupon.discount_value) / 100 
         : appliedCoupon.discount_value)
     : 0
 
-  const finalPayableAmount = Math.max(0, totalPrice - discountAmount)
+  const totalShippingAndProcessing = shippingFee + processingFee
+  const finalPayableAmount = Math.max(0, totalPrice - discountAmount + totalShippingAndProcessing)
 
   const handleApplyCoupon = async () => {
     setCouponError('')
@@ -172,6 +221,7 @@ export default function CheckoutPage() {
     const pin = e.target.value
     setPincode(pin)
     if (pin.length === 6 && /^\d+$/.test(pin)) {
+      fetchShippingRates(pin, totalCartItemsCount)
       try {
         const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`)
         const data = await res.json()
@@ -265,7 +315,7 @@ export default function CheckoutPage() {
       shipping_address: formattedAddress,
       shipping_address_snapshot: addressSnapshotObj,
       payment_method: finalPaymentMethod,
-      total_amount: totalPrice,
+      total_amount: totalPrice + totalShippingAndProcessing,
       final_payable_amount: finalPayableAmount,
       status: initialOrderStatus,
       items: cart.map((item) => ({
@@ -311,6 +361,7 @@ export default function CheckoutPage() {
             shipping_address: formattedAddress,
             payment_method: finalPaymentMethod,
             total_amount: finalPayableAmount,
+            estimated_delivery: estimatedDelivery,
             items: cart.map((item) => ({
               id: item.id,
               name: item.name,
@@ -351,6 +402,11 @@ export default function CheckoutPage() {
 
     if (!phone || phone.trim().length < 10) {
       setErrorMsg('Please enter a valid mobile number.')
+      return
+    }
+
+    if (!pincode || pincode.trim().length !== 6) {
+      setErrorMsg('Please enter a valid 6-digit delivery pincode.')
       return
     }
 
@@ -452,9 +508,10 @@ export default function CheckoutPage() {
             <div className="text-base sm:text-xl font-mono font-extrabold text-[#2B2B2B] tracking-wider break-all">
               {trackingId}
             </div>
-            <p className="text-[11px] sm:text-xs text-[#8A7968] mt-2">
-              Inventory updated and confirmation emails dispatched.
-            </p>
+            <div className="mt-2.5 pt-2 border-t border-[#8A7968]/20 flex items-center justify-between text-xs text-[#8A7968]">
+              <span>Estimated Delivery:</span>
+              <span className="font-bold text-[#2B2B2B]">{estimatedDelivery}</span>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -608,7 +665,7 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Pincode (Auto-fills location) *</label>
+                <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Pincode (Auto-fills & calculates shipping) *</label>
                 <input
                   type="text"
                   required
@@ -771,6 +828,24 @@ export default function CheckoutPage() {
           </div>
 
           <div className="space-y-4 sm:space-y-6 w-full">
+            {/* Delivery Time & Courier Details Box */}
+            <div className="bg-[#EFE3D3] rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/30 p-4 sm:p-5 w-full">
+              <span className="text-[10px] font-extrabold text-[#B76E79] uppercase tracking-wider block mb-1">
+                Estimated Delivery
+              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs sm:text-sm font-black text-[#2B2B2B]">
+                  🚚 {estimatedDelivery}
+                </span>
+                <span className="text-[10px] bg-[#EADBC8] text-[#2B2B2B] font-bold px-2 py-0.5 rounded-lg border border-[#8A7968]/30">
+                  Surface
+                </span>
+              </div>
+              <p className="text-[11px] text-[#8A7968] mt-1">
+                Shipped via {courierName}. Deliveries typically arrive within 3 to 5 business days from the date of order.
+              </p>
+            </div>
+
             {/* Coupon Box */}
             <div className="bg-[#EFE3D3] rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/30 p-4 sm:p-6 w-full">
               <h3 className="text-xs font-bold text-[#2B2B2B] uppercase tracking-wider border-b border-[#8A7968]/20 pb-3 mb-4">
@@ -806,7 +881,7 @@ export default function CheckoutPage() {
             {/* Order Summary Box */}
             <div className="bg-[#EFE3D3] rounded-2xl sm:rounded-3xl shadow-xs border border-[#8A7968]/30 p-4 sm:p-6 h-fit w-full">
               <h3 className="text-xs font-bold text-[#2B2B2B] uppercase tracking-wider border-b border-[#8A7968]/20 pb-3 mb-4">
-                Order Summary ({cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)} items)
+                Order Summary ({totalCartItemsCount} items)
               </h3>
 
               {cart.length === 0 ? (
@@ -853,16 +928,33 @@ export default function CheckoutPage() {
                   <span>Subtotal</span>
                   <span>₹{totalPrice}</span>
                 </div>
+
                 {appliedCoupon && (
                   <div className="flex justify-between text-green-800 font-bold">
                     <span>Discount ({appliedCoupon.code})</span>
                     <span>-₹{discountAmount}</span>
                   </div>
                 )}
+
                 <div className="flex justify-between text-[#8A7968]">
-                  <span>Shipping</span>
-                  <span className="text-green-700 font-bold">FREE</span>
+                  <div className="flex flex-col">
+                    <span>Shipping Charges</span>
+                    <span className="text-[10px] text-[#8A7968]">
+                      {totalCartItemsCount <= 5 ? '(1-5 items: ₹120)' : '(>5 items: ₹240)'}
+                    </span>
+                  </div>
+                  <span className="font-bold text-[#2B2B2B]">
+                    {shippingLoading ? 'Calculating...' : `₹${shippingFee}`}
+                  </span>
                 </div>
+
+                {processingFee > 0 && (
+                  <div className="flex justify-between text-[#8A7968]">
+                    <span>Handling / Processing</span>
+                    <span className="font-bold text-[#2B2B2B]">₹{processingFee}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-sm font-black text-[#2B2B2B] border-t border-[#8A7968]/20 pt-2">
                   <span>Total Payable</span>
                   <span>₹{finalPayableAmount}</span>
