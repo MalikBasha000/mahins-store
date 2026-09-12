@@ -88,17 +88,20 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
 
-    // If it's a bundle, update recipe mapping
-    if (updates.is_bundle !== undefined) {
+    // If components are provided (meaning kit recipe editing is active), update recipe mapping safely
+    if (Array.isArray(components)) {
       await supabaseAdmin.from('bundle_items').delete().eq('bundle_id', id)
       
-      if (updates.is_bundle && Array.isArray(components) && components.length > 0) {
+      if (updates.is_bundle && components.length > 0) {
         const newRecipe = components.map((c: any) => ({
           bundle_id: id,
           component_id: c.component_id,
           quantity: Math.max(1, Number(c.quantity) || 1)
         }))
-        await supabaseAdmin.from('bundle_items').insert(newRecipe)
+        const { error: recipeErr } = await supabaseAdmin.from('bundle_items').insert(newRecipe)
+        if (recipeErr) {
+          return NextResponse.json({ success: false, error: `Recipe update error: ${recipeErr.message}` }, { status: 500 })
+        }
       }
     }
 
