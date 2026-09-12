@@ -74,7 +74,7 @@ export default function AdminPage() {
   const [editReviewComment, setEditReviewComment] = useState('')
   const [editReviewRating, setEditReviewRating] = useState(5)
 
-  // Inventory Products State (with per-item shipping controls)
+  // Inventory Products State
   const [products, setProducts] = useState<any[]>([])
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
@@ -637,7 +637,6 @@ export default function AdminPage() {
         setImageInputs([''])
         fetchAdminData()
       } else {
-        // Direct fallback: if your /api/admin/products route doesn't accept the new keys yet, insert via client supabase
         const { error: directInsertErr } = await supabase.from('products').insert([{
           name,
           price: parseFloat(price),
@@ -740,7 +739,6 @@ export default function AdminPage() {
         setEditingProduct(null)
         fetchAdminData()
       } else {
-        // Direct fallback update
         const { error: directUpdateErr } = await supabase
           .from('products')
           .update({
@@ -1997,8 +1995,10 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-              <div className="bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl border border-[#8A7968]/30 shadow-xs h-fit">
+            {/* Changed from 2-column to 12-column responsive layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
+              {/* Left Column: Add Product Form (4 of 12 columns) */}
+              <div className="lg:col-span-4 bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl border border-[#8A7968]/30 shadow-xs h-fit">
                 <h2 className="text-lg font-bold text-[#2B2B2B] mb-4">Add Single Product</h2>
                 <form onSubmit={handleAddProduct} className="space-y-4">
                   <div>
@@ -2075,17 +2075,18 @@ export default function AdminPage() {
                 </form>
               </div>
 
-              <div className="md:col-span-2 bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl border border-[#8A7968]/30 shadow-xs">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-[#8A7968]/20 pb-4">
+              {/* Right Column: Store Inventory Table (8 of 12 columns) */}
+              <div className="lg:col-span-8 bg-[#EFE3D3] p-4 sm:p-6 rounded-3xl border border-[#8A7968]/30 shadow-xs flex flex-col min-w-0">
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-5 gap-3 border-b border-[#8A7968]/20 pb-4">
                   <h2 className="text-lg font-bold text-[#2B2B2B]">Store Inventory ({filteredProducts.length})</h2>
                   
-                  <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                  <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search name, ID, category..."
-                      className="border border-[#8A7968]/40 bg-[#F4EADE] p-2 rounded-xl text-xs w-full md:w-48 text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden"
+                      className="border border-[#8A7968]/40 bg-[#F4EADE] p-2 rounded-xl text-xs w-full sm:w-44 text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden"
                     />
 
                     <select
@@ -2104,7 +2105,7 @@ export default function AdminPage() {
                       onChange={(e) => setStockFilter(e.target.value)}
                       className="border border-[#8A7968]/40 bg-[#F4EADE] p-2 rounded-xl text-xs text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden"
                     >
-                      <option value="ALL">All Stock Levels</option>
+                      <option value="ALL">All Stock</option>
                       <option value="AVAILABLE">In Stock (&gt;5)</option>
                       <option value="LOW">Low Stock (≤5)</option>
                       <option value="OUT">Out of Stock (0)</option>
@@ -2113,9 +2114,9 @@ export default function AdminPage() {
                     {(searchQuery || selectedCategoryFilter !== 'ALL' || stockFilter !== 'ALL') && (
                       <button
                         onClick={() => { setSearchQuery(''); setSelectedCategoryFilter('ALL'); setStockFilter('ALL'); }}
-                        className="text-xs text-red-600 hover:underline font-bold px-2.5 py-1.5 bg-red-50 border border-red-200 rounded-xl cursor-pointer"
+                        className="text-xs text-red-600 hover:underline font-bold px-2 py-1.5 bg-red-50 border border-red-200 rounded-xl cursor-pointer"
                       >
-                        Clear Filters
+                        Clear
                       </button>
                     )}
                   </div>
@@ -2126,53 +2127,59 @@ export default function AdminPage() {
                 ) : filteredProducts.length === 0 ? (
                   <p className="text-[#8A7968]">No products match your search or filter criteria.</p>
                 ) : (
-                  <div className="overflow-x-auto rounded-2xl border border-[#8A7968]/30 bg-[#F4EADE]">
-                    <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <div className="overflow-x-auto rounded-2xl border border-[#8A7968]/30 bg-[#F4EADE] w-full">
+                    <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="border-b border-[#8A7968]/20 bg-[#EADBC8] text-[#2B2B2B] text-xs font-bold">
-                          <th className="p-3">Product ID & Name</th>
-                          <th className="p-3">Price</th>
-                          <th className="p-3">Shipping Rates</th>
-                          <th className="p-3">Stock (Audit)</th>
-                          <th className="p-3">Timestamps</th>
-                          <th className="p-3 text-right">Actions</th>
+                          <th className="px-3 py-3 min-w-[200px]">Product</th>
+                          <th className="px-3 py-3 whitespace-nowrap">Price</th>
+                          <th className="px-3 py-3 whitespace-nowrap">Shipping</th>
+                          <th className="px-3 py-3 whitespace-nowrap">Stock</th>
+                          <th className="px-3 py-3 whitespace-nowrap">Timestamps</th>
+                          <th className="px-3 py-3 text-center sticky right-0 bg-[#EADBC8] shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.08)] whitespace-nowrap min-w-[140px]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredProducts.map((p) => {
                           const firstImage = p.image_url ? p.image_url.split(',')[0].trim() : 'https://via.placeholder.com/50'
-                          const addedDate = p.created_at ? new Date(p.created_at).toLocaleString() : 'N/A'
-                          const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleString() : null
+                          const addedDate = p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'
+                          const updatedDate = p.updated_at ? new Date(p.updated_at).toLocaleDateString() : null
                           const twelveDigitId = getTwelveDigitId(p.id)
 
                           return (
-                            <tr key={p.id} className="border-b border-[#8A7968]/15 hover:bg-[#EADBC8]/40 align-top">
-                              <td className="p-3 flex items-center gap-3">
-                                <img src={firstImage} alt="" className="h-10 w-10 object-cover rounded-xl border border-[#8A7968]/30 bg-white flex-shrink-0" />
-                                <div>
-                                  <button onClick={() => openCustomerPreview(p)} className="font-bold text-[#B76E79] hover:underline text-left block cursor-pointer">
-                                    {p.name || p.title || 'Unnamed'}
-                                  </button>
-                                  <span className="text-[10px] text-[#8A7968] font-mono tracking-wider block">ID: {twelveDigitId}</span>
-                                  <span className="text-xs text-[#8A7968]">{p.category || 'General'}</span>
+                            <tr key={p.id} className="border-b border-[#8A7968]/15 hover:bg-[#EADBC8]/40 align-middle">
+                              {/* Product Info */}
+                              <td className="px-3 py-2.5">
+                                <div className="flex items-center gap-2.5">
+                                  <img src={firstImage} alt="" className="h-9 w-9 object-cover rounded-lg border border-[#8A7968]/30 bg-white shrink-0" />
+                                  <div className="min-w-0">
+                                    <button onClick={() => openCustomerPreview(p)} className="font-bold text-[#B76E79] hover:underline text-left block truncate max-w-[170px] cursor-pointer" title={p.name || p.title}>
+                                      {p.name || p.title || 'Unnamed'}
+                                    </button>
+                                    <span className="text-[10px] text-[#8A7968] font-mono block">ID: {twelveDigitId}</span>
+                                    <span className="text-[10px] text-[#8A7968]/80 block truncate max-w-[170px]">{p.category || 'General'}</span>
+                                  </div>
                                 </div>
                               </td>
-                              <td className="p-3 font-semibold text-[#2B2B2B] whitespace-nowrap">₹{p.price}</td>
+
+                              {/* Price */}
+                              <td className="px-3 py-2.5 font-extrabold text-[#2B2B2B] whitespace-nowrap">₹{p.price}</td>
                               
-                              {/* Shipping Rates Column */}
-                              <td className="p-3 whitespace-nowrap">
+                              {/* Shipping Rates */}
+                              <td className="px-3 py-2.5 whitespace-nowrap">
                                 <div className="text-[11px] font-bold text-[#2B2B2B]">
                                   Base: <span className="text-[#B76E79]">₹{p.base_shipping_fee ?? 120}</span>
                                 </div>
                                 <div className="text-[10px] text-[#8A7968]">
-                                  +₹{p.extra_shipping_fee ?? 80} / addl. unit
+                                  +₹{p.extra_shipping_fee ?? 80}/extra
                                 </div>
                               </td>
 
-                              <td className="p-3 whitespace-nowrap">
+                              {/* Stock */}
+                              <td className="px-3 py-2.5 whitespace-nowrap">
                                 <button
                                   onClick={() => openStockAuditModal(p)}
-                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shadow-xs cursor-pointer hover:underline border ${
+                                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition shadow-2xs cursor-pointer hover:underline border ${
                                     p.stock > 5 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'
                                   }`}
                                   title="Click to view customer order & audit logs"
@@ -2180,14 +2187,26 @@ export default function AdminPage() {
                                   {p.stock} left 📊
                                 </button>
                               </td>
-                              <td className="p-3 text-[11px] text-[#8A7968] whitespace-nowrap">
-                                <div><span className="font-semibold text-[#2B2B2B]">Added:</span> {addedDate}</div>
-                                {updatedDate && <div><span className="font-semibold text-[#B76E79]">Edited:</span> {updatedDate}</div>}
+
+                              {/* Timestamps */}
+                              <td className="px-3 py-2.5 text-[10px] text-[#8A7968] whitespace-nowrap">
+                                <div>Added: {addedDate}</div>
+                                {updatedDate && <div className="text-[#B76E79]">Edit: {updatedDate}</div>}
                               </td>
-                              <td className="p-3 text-right space-x-1 whitespace-nowrap">
-                                <button onClick={() => openCustomerPreview(p)} className="text-green-700 hover:text-green-900 font-bold text-xs bg-green-50 border border-green-200 px-2 py-1 rounded-lg cursor-pointer">View</button>
-                                <button onClick={() => openEditModal(p)} className="text-[#B76E79] hover:text-[#9E5B65] font-bold text-xs bg-[#B76E79]/15 border border-[#B76E79]/30 px-2 py-1 rounded-lg cursor-pointer">Edit</button>
-                                <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:text-red-800 font-bold text-xs bg-red-50 border border-red-200 px-2 py-1 rounded-lg cursor-pointer">Delete</button>
+
+                              {/* Actions (Sticky Right Column) */}
+                              <td className="px-3 py-2.5 text-center sticky right-0 bg-[#F4EADE] shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.08)] whitespace-nowrap">
+                                <div className="inline-flex items-center gap-1.5">
+                                  <button onClick={() => openCustomerPreview(p)} className="text-green-800 hover:bg-green-100 font-bold text-[11px] bg-green-50 border border-green-200 px-2 py-1 rounded-lg cursor-pointer">
+                                    View
+                                  </button>
+                                  <button onClick={() => openEditModal(p)} className="text-[#B76E79] hover:bg-[#B76E79]/20 font-bold text-[11px] bg-[#B76E79]/15 border border-[#B76E79]/30 px-2 py-1 rounded-lg cursor-pointer">
+                                    Edit ✏️
+                                  </button>
+                                  <button onClick={() => handleDeleteProduct(p.id)} className="text-red-700 hover:bg-red-100 font-bold text-[11px] bg-red-50 border border-red-200 px-2 py-1 rounded-lg cursor-pointer">
+                                    Delete ✕
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           )
