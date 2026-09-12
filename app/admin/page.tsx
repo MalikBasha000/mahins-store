@@ -673,6 +673,7 @@ export default function AdminPage() {
     }
   }
 
+  // Updated to call the server-side API route safely using service_role key
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
@@ -687,9 +688,10 @@ export default function AdminPage() {
     const calculatedStock = isBundle ? calculateBundleStock('', kitComponents) : (parseInt(stock) || 0)
 
     try {
-      const { data: newProd, error: insertErr } = await supabase
-        .from('products')
-        .insert([{
+      const res = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name, 
           price: parseFloat(price), 
           stock: calculatedStock, 
@@ -698,37 +700,31 @@ export default function AdminPage() {
           base_shipping_fee: parseFloat(baseShippingFee) || 120,
           extra_shipping_fee: parseFloat(extraShippingFee) || 80,
           is_bundle: isBundle,
-          image_url: filteredImages 
-        }])
-        .select()
-        .single()
+          image_url: filteredImages,
+          components: isBundle ? kitComponents : []
+        })
+      })
 
-      if (insertErr) throw insertErr
+      const data = await res.json()
 
-      if (isBundle && newProd && kitComponents.length > 0) {
-        const recipePayload = kitComponents.map(c => ({
-          bundle_id: newProd.id,
-          component_id: c.component_id,
-          quantity: Math.max(1, Number(c.quantity) || 1)
-        }))
-        const { error: bundleErr } = await supabase.from('bundle_items').insert(recipePayload)
-        if (bundleErr) console.error('Error inserting bundle items:', bundleErr)
+      if (data.success) {
+        setSuccessMsg(isBundle ? '🎉 Lab Kit created successfully via Admin API!' : 'Product added successfully!')
+        setName('')
+        setPrice('')
+        setStock('')
+        setCategory('')
+        setDescription('')
+        setIsBundle(false)
+        setKitComponents([])
+        setBaseShippingFee('120')
+        setExtraShippingFee('80')
+        setImageInputs([''])
+        fetchAdminData()
+      } else {
+        setErrorMsg(`Failed to add item: ${data.error}`)
       }
-
-      setSuccessMsg(isBundle ? '🎉 Lab Kit created successfully with live inventory linking!' : 'Product added successfully!')
-      setName('')
-      setPrice('')
-      setStock('')
-      setCategory('')
-      setDescription('')
-      setIsBundle(false)
-      setKitComponents([])
-      setBaseShippingFee('120')
-      setExtraShippingFee('80')
-      setImageInputs([''])
-      fetchAdminData()
     } catch (err: any) {
-      setErrorMsg(`Failed to create item: ${err.message}`)
+      setErrorMsg(`Network error: ${err.message}`)
     }
   }
 
@@ -785,9 +781,11 @@ export default function AdminPage() {
     const calculatedStock = editIsBundle ? calculateBundleStock(editingProduct.id, editKitComponents) : (parseInt(editStock) || 0)
 
     try {
-      const { error: directUpdateErr } = await supabase
-        .from('products')
-        .update({
+      const res = await fetch('/api/admin/products', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingProduct.id,
           name: editName,
           price: parseFloat(editPrice),
           stock: calculatedStock,
@@ -797,29 +795,22 @@ export default function AdminPage() {
           extra_shipping_fee: parseFloat(editExtraShippingFee) || 80,
           is_bundle: editIsBundle,
           image_url: filteredImages,
+          components: editIsBundle ? editKitComponents : [],
           updated_at: new Date().toISOString()
         })
-        .eq('id', editingProduct.id)
+      })
 
-      if (directUpdateErr) throw directUpdateErr
+      const data = await res.json()
 
-      if (editIsBundle) {
-        await supabase.from('bundle_items').delete().eq('bundle_id', editingProduct.id)
-        if (editKitComponents.length > 0) {
-          const newRecipe = editKitComponents.map(c => ({
-            bundle_id: editingProduct.id,
-            component_id: c.component_id,
-            quantity: Math.max(1, Number(c.quantity) || 1)
-          }))
-          await supabase.from('bundle_items').insert(newRecipe)
-        }
+      if (data.success) {
+        setSuccessMsg('Product / Kit updated successfully!')
+        setEditingProduct(null)
+        fetchAdminData()
+      } else {
+        setErrorMsg(`Failed to update product: ${data.error}`)
       }
-
-      setSuccessMsg('Product / Kit updated successfully!')
-      setEditingProduct(null)
-      fetchAdminData()
     } catch (err: any) {
-      setErrorMsg(`Failed to update: ${err.message}`)
+      setErrorMsg(`Network error: ${err.message}`)
     }
   }
 
@@ -827,12 +818,19 @@ export default function AdminPage() {
     if (!confirm('Are you sure you want to delete this product?')) return
 
     try {
-      const { error } = await supabase.from('products').delete().eq('id', id)
-      if (error) throw error
-      setSuccessMsg('Product deleted successfully!')
-      fetchAdminData()
+      const res = await fetch(`/api/admin/products?id=${id}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setSuccessMsg('Product deleted successfully!')
+        fetchAdminData()
+      } else {
+        setErrorMsg(`Failed to delete product: ${data.error}`)
+      }
     } catch (err: any) {
-      setErrorMsg(`Failed to delete product: ${err.message}`)
+      setErrorMsg(`Network error: ${err.message}`)
     }
   }
 
