@@ -17,6 +17,7 @@ export default function ProductDetails() {
   const [activeImage, setActiveImage] = useState<string>('')
   const [allImages, setAllImages] = useState<string[]>([])
   const [kitStock, setKitStock] = useState<number>(0)
+  const [kitComponentsList, setKitComponentsList] = useState<any[]>([])
   
   // Reviews & Purchase Verification State
   const [user, setUser] = useState<any>(null)
@@ -69,7 +70,7 @@ export default function ProductDetails() {
         setProduct(data)
         let imgs = data.image_url ? data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean) : []
 
-        // If it's a kit/bundle, fetch component recipes and their images/stock
+        // If it's a kit/bundle, fetch component recipes, quantities, and their images/stock
         if (data.is_bundle) {
           const { data: bundleItems } = await supabase
             .from('bundle_items')
@@ -79,6 +80,7 @@ export default function ProductDetails() {
           if (bundleItems && bundleItems.length > 0) {
             let minStock = Infinity
             const componentImages: string[] = []
+            const partsList: any[] = []
 
             for (const item of bundleItems) {
               const compProd: any = item.products
@@ -90,18 +92,22 @@ export default function ProductDetails() {
                   minStock = possibleKits
                 }
 
-                // Grab the first image of each component part
-                if (compProd.image_url) {
-                  const firstCompImg = compProd.image_url.split(',')[0].trim()
-                  if (firstCompImg && !imgs.includes(firstCompImg) && !componentImages.includes(firstCompImg)) {
-                    componentImages.push(firstCompImg)
-                  }
+                const firstCompImg = compProd.image_url ? compProd.image_url.split(',')[0].trim() : ''
+                
+                partsList.push({
+                  name: compProd.name,
+                  quantity: requiredQty,
+                  image_url: firstCompImg
+                })
+
+                if (firstCompImg && !imgs.includes(firstCompImg) && !componentImages.includes(firstCompImg)) {
+                  componentImages.push(firstCompImg)
                 }
               }
             }
 
             setKitStock(minStock === Infinity ? 0 : minStock)
-            // Combine main product images with component part images
+            setKitComponentsList(partsList)
             imgs = [...imgs, ...componentImages]
           }
         }
@@ -311,6 +317,30 @@ export default function ProductDetails() {
                 {product.description || 'No description available.'}
               </p>
               
+              {/* Kit Contents breakdown list with fetched quantities */}
+              {product.is_bundle && kitComponentsList.length > 0 && (
+                <div className="mb-6 bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 space-y-2">
+                  <h4 className="text-xs font-black text-[#2B2B2B] uppercase tracking-wide">
+                    🎒 Kit Contents ({kitComponentsList.length} items included):
+                  </h4>
+                  <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {kitComponentsList.map((comp, idx) => (
+                      <li key={idx} className="flex items-center justify-between text-xs bg-[#EFE3D3] p-2 rounded-xl border border-[#8A7968]/20">
+                        <div className="flex items-center gap-2 truncate">
+                          {comp.image_url && (
+                            <img src={comp.image_url} alt="" className="w-6 h-6 object-cover rounded-md border border-[#8A7968]/30 bg-white shrink-0" />
+                          )}
+                          <span className="font-bold text-[#2B2B2B] truncate">{comp.name}</span>
+                        </div>
+                        <span className="bg-[#B76E79] text-white font-black px-2 py-0.5 rounded-md text-[11px] shrink-0">
+                          Qty: {comp.quantity}x
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <div className="text-2xl sm:text-3xl font-extrabold text-[#2B2B2B]">₹{product.price}</div>
                 <div className="text-xs font-bold text-[#2B2B2B] bg-[#F4EADE] px-2.5 py-1 rounded-full border border-[#8A7968]/30">
