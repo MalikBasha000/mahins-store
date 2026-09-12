@@ -281,7 +281,13 @@ export default function ProductDetails() {
           <div className="w-full flex flex-col items-center">
             <div className="h-64 sm:h-80 w-full max-w-sm sm:max-w-none bg-[#EADBC8]/50 rounded-2xl overflow-hidden border border-[#8A7968]/30 flex items-center justify-center mb-3">
               {activeImage ? (
-                <img src={activeImage} alt={product.name} className="h-full w-full object-contain p-3" />
+                <img 
+                  src={activeImage} 
+                  alt={product.name} 
+                  onClick={() => setLightboxImage(activeImage)}
+                  className="h-full w-full object-contain p-3 cursor-zoom-in" 
+                  title="Click to zoom image"
+                />
               ) : (
                 <span className="text-[#8A7968] text-xs">Image Coming Soon</span>
               )}
@@ -317,7 +323,7 @@ export default function ProductDetails() {
                 {product.description || 'No description available.'}
               </p>
               
-              {/* Kit Contents breakdown list with fetched quantities */}
+              {/* Kit Contents breakdown list with clickable images to zoom */}
               {product.is_bundle && kitComponentsList.length > 0 && (
                 <div className="mb-6 bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 space-y-2">
                   <h4 className="text-xs font-black text-[#2B2B2B] uppercase tracking-wide">
@@ -325,7 +331,12 @@ export default function ProductDetails() {
                   </h4>
                   <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                     {kitComponentsList.map((comp, idx) => (
-                      <li key={idx} className="flex items-center justify-between text-xs bg-[#EFE3D3] p-2 rounded-xl border border-[#8A7968]/20">
+                      <li 
+                        key={idx} 
+                        onClick={() => comp.image_url && setLightboxImage(comp.image_url)}
+                        className="flex items-center justify-between text-xs bg-[#EFE3D3] p-2 rounded-xl border border-[#8A7968]/20 cursor-pointer hover:bg-[#EADBC8] transition"
+                        title="Click to view zoomed image"
+                      >
                         <div className="flex items-center gap-2 truncate">
                           {comp.image_url && (
                             <img src={comp.image_url} alt="" className="w-6 h-6 object-cover rounded-md border border-[#8A7968]/30 bg-white shrink-0" />
