@@ -193,32 +193,61 @@ export default function CheckoutPage() {
     setCouponError('')
     if (!couponInput.trim()) return
 
-    const { data, error } = await supabase
+    // Security Rule 1: Guests cannot use coupons
+    if (!isLoggedIn || !userId) {
+      setCouponError('Coupons are exclusive to registered customers. Please sign in or create an account to use promo codes.')
+      return
+    }
+
+    const cleanCode = couponInput.trim().toUpperCase()
+
+    const { data: couponData, error } = await supabase
       .from('coupons')
       .select('*')
-      .eq('code', couponInput.trim().toUpperCase())
+      .eq('code', cleanCode)
       .eq('is_active', true)
       .maybeSingle()
 
-    if (error || !data) {
+    if (error || !couponData) {
       setCouponError('Invalid or inactive coupon code.')
       return
     }
 
-    if (data.target_customer_email) {
-      const currentUserEmail = (email || '').trim().toLowerCase()
-      if (!currentUserEmail || currentUserEmail !== data.target_customer_email.toLowerCase()) {
+    // Security Rule 2: Targeted coupon check
+    const currentCustomerEmail = (email || '').trim().toLowerCase()
+    if (couponData.target_customer_email) {
+      if (!currentCustomerEmail || currentCustomerEmail !== couponData.target_customer_email.toLowerCase().trim()) {
         setCouponError('This coupon code is not valid for your account.')
         return
       }
     }
 
-    if (totalPrice < (data.min_order_amount || 0)) {
-      setCouponError(`Minimum order amount of ₹${data.min_order_amount} required for this code.`)
+    // Security Rule 3: Minimum order amount check
+    if (totalPrice < (couponData.min_order_amount || 0)) {
+      setCouponError(`Minimum order amount of ₹${couponData.min_order_amount} required for this code.`)
       return
     }
 
-    setAppliedCoupon(data)
+    // Security Rule 4: One-time use per customer account check
+    const { data: previousUsage, error: usageErr } = await supabase
+      .from('orders')
+      .select('id')
+      .or(`user_id.eq.${userId},customer_email.eq.${currentCustomerEmail}`)
+      .eq('coupon_code', cleanCode)
+      .neq('status', 'Cancelled')
+      .limit(1)
+
+    if (usageErr) {
+      console.error('Coupon history check error:', usageErr)
+    }
+
+    if (previousUsage && previousUsage.length > 0) {
+      setCouponError(`You have already redeemed coupon "${cleanCode}". Promo codes can only be used once per account.`)
+      return
+    }
+
+    // Successfully applied: sets single active coupon
+    setAppliedCoupon(couponData)
     setCouponInput('')
   }
 
@@ -254,7 +283,7 @@ export default function CheckoutPage() {
     const { data: { user } } = await supabase.auth.getUser()
     const currentUserId = user?.id || userId || null
     
-    // Security Enforcement: If authenticated, always use verified user account email
+    // Security Enforcement: Verified user email takes precedence
     const userEmail = user?.email || (isLoggedIn ? email : email.trim())
 
     const newTrackingId = generateTrackingId()
@@ -322,6 +351,7 @@ export default function CheckoutPage() {
       shipping_address: formattedAddress,
       shipping_address_snapshot: addressSnapshotObj,
       payment_method: finalPaymentMethod,
+      coupon_code: appliedCoupon ? appliedCoupon.code : null, // Records redeemed coupon code
       total_amount: totalPrice + totalShippingAndProcessing,
       final_payable_amount: finalPayableAmount,
       status: initialOrderStatus,
@@ -887,31 +917,49 @@ export default function CheckoutPage() {
               <h3 className="text-xs font-bold text-[#2B2B2B] uppercase tracking-wider border-b border-[#8A7968]/20 pb-3 mb-4">
                 Discount Coupon 🏷️
               </h3>
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value)}
-                    placeholder="Enter promo code"
-                    className="border border-[#8A7968]/40 p-2.5 rounded-xl text-xs uppercase font-mono bg-[#F4EADE] text-[#2B2B2B] flex-1 min-w-0 focus:border-[#B76E79] focus:outline-hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold px-4 py-2.5 rounded-xl text-xs cursor-pointer transition shadow-xs shrink-0 btn-press"
-                  >
-                    Apply
-                  </button>
+
+              {!isLoggedIn ? (
+                <div className="bg-[#F4EADE] p-3.5 rounded-xl border border-[#8A7968]/30 text-xs text-[#8A7968]">
+                  <span>🔒 Coupons are available only for registered accounts. </span>
+                  <Link href="/login" className="text-[#B76E79] font-bold underline">
+                    Sign In to Apply
+                  </Link>
                 </div>
-                {couponError && <p className="text-red-700 text-[11px] font-semibold">{couponError}</p>}
-                {appliedCoupon && (
-                  <div className="flex justify-between items-center bg-green-100 text-green-800 p-2.5 rounded-xl text-xs border border-green-300">
-                    <span className="truncate pr-2">Applied: <b>{appliedCoupon.code}</b> ({appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : `₹${appliedCoupon.discount_value}`} OFF)</span>
-                    <button type="button" onClick={() => setAppliedCoupon(null)} className="text-red-600 font-bold hover:underline cursor-pointer shrink-0">Remove</button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value)}
+                      placeholder="Enter promo code"
+                      className="border border-[#8A7968]/40 p-2.5 rounded-xl text-xs uppercase font-mono bg-[#F4EADE] text-[#2B2B2B] flex-1 min-w-0 focus:border-[#B76E79] focus:outline-hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold px-4 py-2.5 rounded-xl text-xs cursor-pointer transition shadow-xs shrink-0 btn-press"
+                    >
+                      Apply
+                    </button>
                   </div>
-                )}
-              </div>
+                  {couponError && <p className="text-red-700 text-[11px] font-semibold">{couponError}</p>}
+                  {appliedCoupon && (
+                    <div className="flex justify-between items-center bg-green-100 text-green-800 p-2.5 rounded-xl text-xs border border-green-300">
+                      <span className="truncate pr-2">
+                        Applied: <b>{appliedCoupon.code}</b> ({appliedCoupon.discount_type === 'percentage' ? `${appliedCoupon.discount_value}%` : `₹${appliedCoupon.discount_value}`} OFF)
+                      </span>
+                      <button 
+                        type="button" 
+                        onClick={() => setAppliedCoupon(null)} 
+                        className="text-red-600 font-bold hover:underline cursor-pointer shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Order Summary Box */}
