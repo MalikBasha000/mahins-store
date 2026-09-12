@@ -673,7 +673,7 @@ export default function AdminPage() {
     }
   }
 
-  // Updated to call the server-side API route safely using service_role key
+  // Uses the admin API endpoint to safely bypass RLS
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
@@ -708,7 +708,7 @@ export default function AdminPage() {
       const data = await res.json()
 
       if (data.success) {
-        setSuccessMsg(isBundle ? '🎉 Lab Kit created successfully via Admin API!' : 'Product added successfully!')
+        setSuccessMsg(isBundle ? '🎉 Lab Kit created successfully!' : 'Product added successfully!')
         setName('')
         setPrice('')
         setStock('')
@@ -3256,12 +3256,25 @@ export default function AdminPage() {
           <div className="fixed inset-0 bg-[#2B2B2B]/85 backdrop-blur-xs flex justify-center items-center p-4 z-50">
             <div className="bg-[#EFE3D3] border border-[#8A7968]/40 rounded-3xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto text-[#2B2B2B]">
               <div className="flex justify-between items-center mb-4 border-b border-[#8A7968]/20 pb-3">
-                <h2 className="text-lg font-bold text-[#2B2B2B]">Edit Product: {editingProduct.name}</h2>
+                <h2 className="text-lg font-bold text-[#2B2B2B]">Edit {editIsBundle ? 'Lab Kit' : 'Product'}: {editingProduct.name}</h2>
                 <button onClick={() => setEditingProduct(null)} className="text-[#8A7968] hover:text-[#2B2B2B] font-bold text-sm bg-[#EADBC8] px-2.5 py-0.5 rounded-full cursor-pointer">✕</button>
               </div>
               <form onSubmit={handleUpdateProduct} className="space-y-4">
+                <div className="flex items-center justify-between bg-[#F4EADE] p-2.5 rounded-xl border border-[#8A7968]/30">
+                  <span className="text-xs font-bold text-[#2B2B2B]">Product Type:</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={editIsBundle} 
+                      onChange={(e) => setEditIsBundle(e.target.checked)} 
+                      className="accent-[#B76E79]"
+                    />
+                    <span className="text-xs font-black text-[#B76E79]">Is Lab Kit / Bundle</span>
+                  </label>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Product Name</label>
+                  <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Name</label>
                   <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className="w-full border border-[#8A7968]/40 p-2.5 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -3270,10 +3283,70 @@ export default function AdminPage() {
                     <input type="number" step="0.01" required value={editPrice} onChange={(e) => setEditPrice(e.target.value)} className="w-full border border-[#8A7968]/40 p-2.5 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-[#2B2B2B] mb-1">Stock</label>
-                    <input type="number" required value={editStock} onChange={(e) => setEditStock(e.target.value)} className="w-full border border-[#8A7968]/40 p-2.5 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" />
+                    <label className="block text-xs font-bold text-[#2B2B2B] mb-1">
+                      {editIsBundle ? 'Calculated Stock' : 'Stock'}
+                    </label>
+                    {editIsBundle ? (
+                      <div className="w-full border border-[#8A7968]/30 bg-[#EADBC8]/70 p-2.5 rounded-xl text-xs text-[#2B2B2B] font-extrabold flex items-center justify-between">
+                        <span>{calculateBundleStock(editingProduct.id, editKitComponents)} kits</span>
+                        <span className="text-[10px] text-[#8A7968]">Live</span>
+                      </div>
+                    ) : (
+                      <input type="number" required value={editStock} onChange={(e) => setEditStock(e.target.value)} className="w-full border border-[#8A7968]/40 p-2.5 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden" />
+                    )}
                   </div>
                 </div>
+
+                {/* Edit Recipe Component Mapping */}
+                {editIsBundle && (
+                  <div className="bg-[#F4EADE] p-3 rounded-2xl border border-[#8A7968]/30 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-[#2B2B2B] uppercase tracking-wide">
+                        Kit Recipe Components ({editKitComponents.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleAddKitComponent(true)}
+                        className="text-[10px] bg-[#B76E79] text-white px-2 py-1 rounded-lg font-bold hover:bg-[#9E5B65] cursor-pointer"
+                      >
+                        + Add Part
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {editKitComponents.map((comp, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5 bg-[#EFE3D3] p-2 rounded-xl border border-[#8A7968]/20">
+                          <select
+                            value={comp.component_id}
+                            onChange={(e) => handleUpdateKitComponent(idx, 'component_id', e.target.value, true)}
+                            className="w-full text-xs bg-[#F4EADE] p-1.5 rounded-lg border border-[#8A7968]/30 text-[#2B2B2B] font-medium focus:outline-hidden"
+                          >
+                            {products.filter(p => p.id !== editingProduct.id && !p.is_bundle).map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} ({p.stock} left)
+                              </option>
+                            ))}
+                          </select>
+                          <input 
+                            type="number" 
+                            min="1" 
+                            value={comp.quantity} 
+                            onChange={(e) => handleUpdateKitComponent(idx, 'quantity', parseInt(e.target.value) || 1, true)} 
+                            className="w-14 text-center text-xs font-bold bg-[#F4EADE] p-1.5 rounded-lg border border-[#8A7968]/30"
+                            title="Quantity per kit"
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveKitComponent(idx, true)} 
+                            className="text-red-600 font-bold px-2 py-1 rounded-lg hover:bg-red-100 text-xs cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Per-Item Shipping Editing Inputs */}
                 <div className="grid grid-cols-2 gap-2 bg-[#F4EADE] p-2.5 rounded-2xl border border-[#8A7968]/30">
