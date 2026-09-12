@@ -66,8 +66,9 @@ export default function CheckoutPage() {
   const [upiUtr, setUpiUtr] = useState('')
 
   const totalCartItemsCount = cart.reduce((total, i) => total + (Number(i.quantity) || 1), 0)
+  const isFreeShippingQualified = totalPrice > 1000
 
-  const fetchShippingRates = async (targetPincode: string, currentCartItems = cart) => {
+  const fetchShippingRates = async (targetPincode: string, currentCartItems = cart, currentSubtotal = totalPrice) => {
     if (!targetPincode || targetPincode.trim().length !== 6 || currentCartItems.length === 0) {
       return
     }
@@ -78,6 +79,7 @@ export default function CheckoutPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           deliveryPincode: targetPincode.trim(),
+          subtotal: currentSubtotal,
           items: currentCartItems.map(item => ({
             id: item.id,
             quantity: Number(item.quantity) || 1
@@ -141,7 +143,7 @@ export default function CheckoutPage() {
             if (data.state) setStateName(data.state)
             if (data.pincode) {
               setPincode(data.pincode)
-              fetchShippingRates(data.pincode, cart)
+              fetchShippingRates(data.pincode, cart, totalPrice)
             }
           }
         } else {
@@ -157,12 +159,12 @@ export default function CheckoutPage() {
     fetchCheckoutConfig()
   }, [supabase])
 
-  // Recalculate shipping whenever cart items or quantities change
+  // Recalculate shipping whenever cart items or subtotal change
   useEffect(() => {
     if (pincode && pincode.trim().length === 6 && cart.length > 0) {
-      fetchShippingRates(pincode, cart)
+      fetchShippingRates(pincode, cart, totalPrice)
     }
-  }, [cart])
+  }, [cart, totalPrice])
 
   // Determine active payment method availability
   useEffect(() => {
@@ -176,14 +178,15 @@ export default function CheckoutPage() {
     else setPaymentMethod('')
   }, [paymentSettings, isLoggedIn])
 
-  // Calculate discount, shipping, and final payable amounts
+  // Calculate discount, effective shipping fee, and final payable amounts
   const discountAmount = appliedCoupon 
     ? (appliedCoupon.discount_type === 'percentage' 
         ? (totalPrice * appliedCoupon.discount_value) / 100 
         : appliedCoupon.discount_value)
     : 0
 
-  const totalShippingAndProcessing = shippingFee + processingFee
+  const effectiveShippingFee = isFreeShippingQualified ? 0 : shippingFee
+  const totalShippingAndProcessing = effectiveShippingFee + processingFee
   const finalPayableAmount = Math.max(0, totalPrice - discountAmount + totalShippingAndProcessing)
 
   const handleApplyCoupon = async () => {
@@ -223,7 +226,7 @@ export default function CheckoutPage() {
     const pin = e.target.value
     setPincode(pin)
     if (pin.length === 6 && /^\d+$/.test(pin)) {
-      fetchShippingRates(pin, cart)
+      fetchShippingRates(pin, cart, totalPrice)
       try {
         const res = await fetch(`https://api.postalpincode.in/pincode/${pin}`)
         const data = await res.json()
@@ -560,6 +563,26 @@ export default function CheckoutPage() {
         <div className="mb-5 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#2B2B2B]">Secure Checkout</h2>
           <p className="text-xs text-[#8A7968] mt-1">Review your items and complete shipping details</p>
+        </div>
+
+        {/* Free Shipping Alert Banner */}
+        <div className={`mb-6 p-4 rounded-2xl border transition ${
+          isFreeShippingQualified 
+            ? 'bg-green-100 border-green-300 text-green-900' 
+            : 'bg-[#EADBC8] border-[#8A7968]/40 text-[#2B2B2B]'
+        }`}>
+          <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+            <span className="font-bold">
+              {isFreeShippingQualified ? (
+                '🎉 FREE SHIPPING UNLOCKED! Your order exceeds ₹1000.'
+              ) : (
+                `🚚 Add ₹${1000 - totalPrice} more to your cart to unlock FREE SHIPPING!`
+              )}
+            </span>
+            <Link href="/" className="font-bold underline text-[#B76E79]">
+              Continue Shopping →
+            </Link>
+          </div>
         </div>
 
         {!isLoggedIn && (
@@ -942,11 +965,11 @@ export default function CheckoutPage() {
                   <div className="flex flex-col">
                     <span>Shipping Charges</span>
                     <span className="text-[10px] text-[#8A7968]">
-                      Calculated per product rules
+                      {isFreeShippingQualified ? '(Free on orders > ₹1000)' : 'Calculated per product rules'}
                     </span>
                   </div>
-                  <span className="font-bold text-[#2B2B2B]">
-                    {shippingLoading ? 'Calculating...' : `₹${shippingFee}`}
+                  <span className={`font-bold ${isFreeShippingQualified ? 'text-green-700 uppercase' : 'text-[#2B2B2B]'}`}>
+                    {shippingLoading ? 'Calculating...' : isFreeShippingQualified ? 'FREE' : `₹${shippingFee}`}
                   </span>
                 </div>
 

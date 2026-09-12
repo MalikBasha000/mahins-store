@@ -12,7 +12,7 @@ function getSupabaseAdmin() {
 
 export async function POST(req: Request) {
   try {
-    const { deliveryPincode, items = [] } = await req.json()
+    const { deliveryPincode, items = [], subtotal = 0 } = await req.json()
 
     if (!deliveryPincode || deliveryPincode.trim().length !== 6) {
       return NextResponse.json(
@@ -31,10 +31,32 @@ export async function POST(req: Request) {
       })
     }
 
+    // Dynamic 3 to 5 business days estimation
+    const today = new Date()
+    const minDate = new Date(today)
+    minDate.setDate(today.getDate() + 3)
+    const maxDate = new Date(today)
+    maxDate.setDate(today.getDate() + 5)
+
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+    const estimatedDelivery = `${minDate.toLocaleDateString('en-US', options)} - ${maxDate.toLocaleDateString('en-US', options)} (3-5 Days)`
+
+    // Free shipping threshold rule: Orders above ₹1000 get ₹0 shipping
+    if (Number(subtotal) > 1000) {
+      return NextResponse.json({
+        success: true,
+        shippingFee: 0,
+        processingFee: 0,
+        totalCharge: 0,
+        courierName: 'Shiprocket Surface Standard',
+        estimatedDelivery,
+        isFreeShipping: true,
+      })
+    }
+
     const supabase = getSupabaseAdmin()
     const productIds = items.map((i: any) => i.id || i.product_id).filter(Boolean)
 
-    // Fetch live product shipping rules
     const { data: dbProducts } = await supabase
       .from('products')
       .select('id, base_shipping_fee, extra_shipping_fee')
@@ -52,26 +74,14 @@ export async function POST(req: Request) {
 
     let calculatedShippingFee = 0
 
-    // Calculate dynamic delivery fee per item & quantity
     for (const item of items) {
       const pId = item.id || item.product_id
       const qty = Math.max(1, Number(item.quantity) || 1)
       const rates = productRateMap.get(pId) || { base: 120, extra: 80 }
 
-      // 1 unit = base, each additional unit = +extra
       const itemShipping = rates.base + (qty - 1) * rates.extra
       calculatedShippingFee += itemShipping
     }
-
-    // Dynamic 3 to 5 business days range
-    const today = new Date()
-    const minDate = new Date(today)
-    minDate.setDate(today.getDate() + 3)
-    const maxDate = new Date(today)
-    maxDate.setDate(today.getDate() + 5)
-
-    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
-    const estimatedDelivery = `${minDate.toLocaleDateString('en-US', options)} - ${maxDate.toLocaleDateString('en-US', options)} (3-5 Days)`
 
     return NextResponse.json({
       success: true,
@@ -80,6 +90,7 @@ export async function POST(req: Request) {
       totalCharge: calculatedShippingFee,
       courierName: 'Shiprocket Surface Standard',
       estimatedDelivery,
+      isFreeShipping: false,
     })
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 })
