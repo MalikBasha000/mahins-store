@@ -15,6 +15,8 @@ export default function ProductDetails() {
   const [loading, setLoading] = useState(true)
   const [quantity, setQuantity] = useState<number | string>(1)
   const [activeImage, setActiveImage] = useState<string>('')
+  const [allImages, setAllImages] = useState<string[]>([])
+  const [kitStock, setKitStock] = useState<number>(0)
   
   // Reviews & Purchase Verification State
   const [user, setUser] = useState<any>(null)
@@ -65,7 +67,46 @@ export default function ProductDetails() {
 
       if (data) {
         setProduct(data)
-        const imgs = data.image_url ? data.image_url.split(',').map((s: string) => s.trim()) : []
+        let imgs = data.image_url ? data.image_url.split(',').map((s: string) => s.trim()).filter(Boolean) : []
+
+        // If it's a kit/bundle, fetch component recipes and their images/stock
+        if (data.is_bundle) {
+          const { data: bundleItems } = await supabase
+            .from('bundle_items')
+            .select('quantity, component_id, products:component_id (id, name, stock, image_url)')
+            .eq('bundle_id', data.id)
+
+          if (bundleItems && bundleItems.length > 0) {
+            let minStock = Infinity
+            const componentImages: string[] = []
+
+            for (const item of bundleItems) {
+              const compProd: any = item.products
+              if (compProd) {
+                const compStock = compProd.stock || 0
+                const requiredQty = item.quantity || 1
+                const possibleKits = Math.floor(compStock / requiredQty)
+                if (possibleKits < minStock) {
+                  minStock = possibleKits
+                }
+
+                // Grab the first image of each component part
+                if (compProd.image_url) {
+                  const firstCompImg = compProd.image_url.split(',')[0].trim()
+                  if (firstCompImg && !imgs.includes(firstCompImg) && !componentImages.includes(firstCompImg)) {
+                    componentImages.push(firstCompImg)
+                  }
+                }
+              }
+            }
+
+            setKitStock(minStock === Infinity ? 0 : minStock)
+            // Combine main product images with component part images
+            imgs = [...imgs, ...componentImages]
+          }
+        }
+
+        setAllImages(imgs)
         if (imgs.length > 0) setActiveImage(imgs[0])
         getUserAndPurchases(data.id)
       }
@@ -97,8 +138,8 @@ export default function ProductDetails() {
   if (loading) return <div className="p-10 text-center text-xs sm:text-sm text-[#8A7968] font-bold">Loading product details...</div>
   if (!product) return <div className="p-10 text-center text-xs sm:text-sm text-[#8A7968] font-bold">Product not found.</div>
 
-  const images = product.image_url ? product.image_url.split(',').map((s: string) => s.trim()) : []
-  const maxStock = product.stock ?? 999
+  const effectiveStock = product.is_bundle ? kitStock : (product.stock ?? 999)
+  const maxStock = effectiveStock
 
   const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
@@ -240,9 +281,9 @@ export default function ProductDetails() {
               )}
             </div>
             
-            {images.length > 1 && (
+            {allImages.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-2 w-full max-w-sm sm:max-w-none justify-start no-scrollbar">
-                {images.map((img: string, idx: number) => (
+                {allImages.map((img: string, idx: number) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImage(img)}
@@ -278,8 +319,8 @@ export default function ProductDetails() {
               </div>
               
               <div className="mb-4">
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${product.stock > 0 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
-                  {product.stock > 0 ? `In Stock (${product.stock} available)` : 'Out of Stock'}
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${effectiveStock > 0 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
+                  {effectiveStock > 0 ? `In Stock (${effectiveStock} available)` : 'Out of Stock'}
                 </span>
               </div>
 
@@ -302,7 +343,7 @@ export default function ProductDetails() {
             <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full mt-2">
               <button 
                 onClick={handleAddToCart}
-                disabled={product.stock <= 0}
+                disabled={effectiveStock <= 0}
                 className="flex-1 rounded-xl bg-[#EADBC8] hover:bg-[#8A7968]/20 border border-[#8A7968]/40 py-3 font-bold text-xs sm:text-sm text-[#2B2B2B] transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
               >
                 Add to Cart 🛒
@@ -310,7 +351,7 @@ export default function ProductDetails() {
 
               <button 
                 onClick={handleBuyNow}
-                disabled={product.stock <= 0}
+                disabled={effectiveStock <= 0}
                 className="flex-1 rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-3 font-bold text-xs sm:text-sm text-white transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
               >
                 Buy Now ⚡
