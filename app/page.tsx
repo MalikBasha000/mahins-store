@@ -198,10 +198,10 @@ export default function HomePage() {
               <div 
                 key={b.id} 
                 onClick={() => setSelectedPoster(b)}
-                className="rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs border border-[#8A7968]/40 bg-[#EFE3D3] relative group cursor-pointer transition transform hover:scale-[1.01]"
+                className="rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs border border-[#8A7968]/40 bg-[#B76E79] relative group cursor-pointer transition transform hover:scale-[1.01]"
                 title="Click to view full poster"
               >
-                <div className="w-full h-80 sm:h-96 flex items-center justify-center bg-[#EADBC8]/30 overflow-hidden p-2">
+                <div className="w-full h-80 sm:h-96 flex items-center justify-center overflow-hidden p-2">
                   <img 
                     src={b.image_url} 
                     alt={b.title} 
@@ -230,7 +230,7 @@ export default function HomePage() {
                   ✕ Close
                 </button>
               </div>
-              <div className="w-full max-h-[75vh] flex items-center justify-center bg-[#EFE3D3] rounded-xl sm:rounded-2xl overflow-hidden">
+              <div className="w-full max-h-[75vh] flex items-center justify-center bg-[#B76E79] rounded-xl sm:rounded-2xl overflow-hidden p-2">
                 <img 
                   src={selectedPoster.image_url} 
                   alt={selectedPoster.title} 
