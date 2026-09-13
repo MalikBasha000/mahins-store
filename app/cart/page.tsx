@@ -146,6 +146,14 @@ Hi, I would like to order the items listed above. Please confirm availability an
             </div>
           </div>
 
+          {/* School PO Quote Banner / Button */}
+          <Link
+            href="/po-checkout"
+            className="w-full bg-[#EFE3D3] hover:bg-[#EADBC8] border border-[#8A7968]/40 text-[#2B2B2B] font-extrabold p-3.5 rounded-xl text-xs sm:text-sm text-center transition shadow-2xs block cursor-pointer"
+          >
+            🏛️ Request School PO / Bulk Quote (15% Educational Discount)
+          </Link>
+
           {/* Action Buttons */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-3 w-full pt-1">
             <button
