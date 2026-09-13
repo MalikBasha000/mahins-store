@@ -198,14 +198,14 @@ export default function HomePage() {
               <div 
                 key={b.id} 
                 onClick={() => setSelectedPoster(b)}
-                className="rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs border border-[#8A7968]/40 bg-[#2B2B2B] relative group cursor-pointer transition transform hover:scale-[1.01]"
+                className="rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs border border-[#8A7968]/40 bg-[#EFE3D3] relative group cursor-pointer transition transform hover:scale-[1.01] h-64 sm:h-80"
                 title="Click to view full poster"
               >
-                <div className="w-full bg-[#2B2B2B] flex items-center justify-center">
+                <div className="w-full h-full flex items-center justify-center overflow-hidden">
                   <img 
                     src={b.image_url} 
                     alt={b.title} 
-                    className="w-full h-auto object-contain max-h-[320px] sm:max-h-[400px]" 
+                    className="w-full h-full object-cover" 
                   />
                 </div>
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#2B2B2B]/95 via-[#2B2B2B]/60 to-transparent p-3 sm:p-4 flex items-center justify-between">
@@ -230,7 +230,7 @@ export default function HomePage() {
                   ✕ Close
                 </button>
               </div>
-              <div className="w-full max-h-[75vh] flex items-center justify-center bg-[#2B2B2B] rounded-xl sm:rounded-2xl overflow-hidden">
+              <div className="w-full max-h-[75vh] flex items-center justify-center bg-[#EFE3D3] rounded-xl sm:rounded-2xl overflow-hidden">
                 <img 
                   src={selectedPoster.image_url} 
                   alt={selectedPoster.title} 
