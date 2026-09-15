@@ -20,7 +20,7 @@ export default function SchoolPOCheckoutPage() {
   const [atlCode, setAtlCode] = useState('')
   const [address, setAddress] = useState('')
   const [loading, setLoading] = useState(false)
-  const [successMsg, setSuccessMsg] = useState(false)
+  const [confirmedTrackingId, setConfirmedTrackingId] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
 
   useEffect(() => {
@@ -37,6 +37,11 @@ export default function SchoolPOCheckoutPage() {
     setAddress(schoolUser.address || '')
   }, [schoolUser, router])
 
+  const generate13DigitPOTracking = () => {
+    const random11 = Math.floor(10000000000 + Math.random() * 90000000000).toString()
+    return `PO${random11}`
+  }
+
   const handleSubmitPO = async (e: React.FormEvent) => {
     e.preventDefault()
     if (poCart.length === 0) {
@@ -48,8 +53,11 @@ export default function SchoolPOCheckoutPage() {
     setErrorMsg('')
 
     try {
-      const { error } = await supabase.from('purchase_orders').insert([
+      const generatedTracking = generate13DigitPOTracking()
+
+      const { data, error } = await supabase.from('purchase_orders').insert([
         {
+          tracking_id: generatedTracking,
           school_name: schoolName.trim(),
           educator_name: educatorName.trim(),
           email: email.trim().toLowerCase(),
@@ -59,11 +67,33 @@ export default function SchoolPOCheckoutPage() {
           total_estimated_amount: poTotalPrice,
           status: 'Pending Review'
         }
-      ])
+      ]).select().single()
 
       if (error) throw error
 
-      setSuccessMsg(true)
+      // Trigger automatic background email notification to Admin & School
+      try {
+        await fetch('/api/school-po/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'NEW_PO_ALERT',
+            poId: data.id,
+            trackingId: generatedTracking,
+            schoolName: schoolName.trim(),
+            educatorName: educatorName.trim(),
+            customerEmail: email.trim().toLowerCase(),
+            phone: phone.trim(),
+            shippingAddress: address.trim(),
+            items: poCart,
+            totalAmount: poTotalPrice,
+          })
+        })
+      } catch (mailErr) {
+        console.warn('Notification email error:', mailErr)
+      }
+
+      setConfirmedTrackingId(generatedTracking)
       clearPOCart()
     } catch (err: any) {
       setErrorMsg(`Submission failed: ${err.message}`)
@@ -71,21 +101,33 @@ export default function SchoolPOCheckoutPage() {
     setLoading(false)
   }
 
-  if (successMsg) {
+  if (confirmedTrackingId) {
     return (
       <div className="min-h-screen bg-[#F4EADE] flex items-center justify-center p-6 text-[#2B2B2B]">
         <div className="bg-[#EFE3D3] p-8 rounded-3xl border border-[#8A7968]/30 max-w-lg text-center space-y-4 shadow-xl">
           <div className="text-4xl">🏛️</div>
           <h2 className="text-xl font-black">Official Purchase Order Placed!</h2>
+          <div className="bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 space-y-1">
+            <span className="text-[11px] font-bold text-[#8A7968] uppercase block">13-Digit PO Tracking Reference</span>
+            <span className="font-mono text-lg font-black text-[#B76E79] select-all tracking-wider">{confirmedTrackingId}</span>
+          </div>
           <p className="text-xs text-[#8A7968] leading-relaxed">
-            Thank you, <span className="font-bold text-[#2B2B2B]">{educatorName}</span>. Your institutional PO request for <span className="font-bold text-[#2B2B2B]">{schoolName}</span> (UDISE: {udiseCode}) has been registered. An official offline quotation and invoice will be sent to <span className="font-bold text-[#2B2B2B]">{email}</span>.
+            Thank you, <span className="font-bold text-[#2B2B2B]">{educatorName}</span>. Your institutional PO request for <span className="font-bold text-[#2B2B2B]">{schoolName}</span> has been dispatched. A confirmation summary has been sent to <span className="font-bold text-[#2B2B2B]">{email}</span>.
           </p>
-          <Link
-            href="/school-po"
-            className="inline-block bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-6 py-3 rounded-xl transition"
-          >
-            Return to PO Catalog
-          </Link>
+          <div className="flex gap-3 justify-center pt-2">
+            <Link
+              href="/school-po/orders"
+              className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-xs"
+            >
+              View My PO Orders
+            </Link>
+            <Link
+              href="/school-po/track"
+              className="bg-[#EADBC8] hover:bg-[#8A7968]/30 text-[#2B2B2B] font-bold text-xs px-5 py-3 rounded-xl border border-[#8A7968]/30 transition"
+            >
+              Track Order Live
+            </Link>
+          </div>
         </div>
       </div>
     )
@@ -97,7 +139,7 @@ export default function SchoolPOCheckoutPage() {
         <div className="flex justify-between items-center border-b border-[#8A7968]/20 pb-4">
           <div>
             <h1 className="text-lg sm:text-2xl font-black">🏛️ Finalize School Purchase Order</h1>
-            <p className="text-xs text-[#8A7968]">Confirm verified institution details and submit quotation request</p>
+            <p className="text-xs text-[#8A7968]">Confirm institutional details and generate an official quote request</p>
           </div>
           <Link href="/school-po/cart" className="text-xs font-bold text-[#B76E79] hover:underline">
             ← Back to PO Cart
@@ -112,12 +154,15 @@ export default function SchoolPOCheckoutPage() {
 
         {/* PO Items Summary */}
         <div className="bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 space-y-2">
-          <h3 className="text-xs font-bold text-[#B76E79] uppercase">Items in PO ({poCart.length} products)</h3>
-          <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
+          <h3 className="text-xs font-bold text-[#B76E79] uppercase">Items Summary ({poCart.length} products)</h3>
+          <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 text-xs">
             {poCart.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center bg-[#EFE3D3] p-2 rounded-xl">
-                <span className="font-bold truncate">{item.name} (x{item.quantity})</span>
-                <span className="font-black">₹{item.price * item.quantity}</span>
+                <div>
+                  <span className="font-bold block truncate max-w-sm">{item.name}</span>
+                  <span className="text-[10px] text-[#8A7968]">₹{item.price} × {item.quantity}</span>
+                </div>
+                <span className="font-black text-[#2B2B2B]">₹{item.price * item.quantity}</span>
               </div>
             ))}
           </div>
@@ -138,7 +183,7 @@ export default function SchoolPOCheckoutPage() {
               <input type="text" required value={educatorName} onChange={(e) => setEducatorName(e.target.value)} className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs" />
             </div>
             <div>
-              <label className="block text-xs font-bold mb-1">Official Email *</label>
+              <label className="block text-xs font-bold mb-1">Official School Email *</label>
               <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs" />
             </div>
             <div>
