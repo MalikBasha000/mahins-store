@@ -117,6 +117,14 @@ export default function HomePage() {
 
           {/* Action Navigation Controls */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* School PO Portal Quick Link Button */}
+            <Link
+              href="/school-po"
+              className="hidden lg:flex items-center gap-1.5 rounded-xl bg-[#B76E79] px-3.5 py-2 text-xs font-black text-white hover:bg-[#9E5B65] transition shadow-xs"
+            >
+              🏛️ School PO Portal
+            </Link>
+
             {/* Desktop Only: Order Tracking */}
             <Link
               href="/track"
