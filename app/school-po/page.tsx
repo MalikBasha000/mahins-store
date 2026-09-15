@@ -17,22 +17,19 @@ export default function SchoolPOCatalog() {
   const supabase = createClient()
 
   useEffect(() => {
-    // Verify whether the institution is registered/signed in
-    const savedUser = typeof window !== 'undefined' ? localStorage.getItem('school_po_user') : null
-    if (!savedUser && !schoolUser) {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('school_po_user') : null
+    if (!saved && !schoolUser) {
       router.push('/school-po/auth')
       return
     }
 
     const fetchData = async () => {
-      // Fetch products
       const { data: prodData } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false })
       if (prodData) setProducts(prodData)
 
-      // Fetch dynamic PO discount setting
       const { data: settingData } = await supabase
         .from('store_settings')
         .select('setting_value')
@@ -85,7 +82,7 @@ export default function SchoolPOCatalog() {
               href="/school-po/cart" 
               className="relative bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-xs flex items-center gap-1.5"
             >
-              <span>🛒 School PO Cart</span>
+              <span>🛒 View PO Cart</span>
               {poTotalItems > 0 && (
                 <span className="bg-white text-[#B76E79] rounded-full text-[10px] font-black px-1.5 py-0.2">
                   {poTotalItems}
@@ -94,7 +91,10 @@ export default function SchoolPOCatalog() {
             </Link>
 
             <button
-              onClick={logoutSchool}
+              onClick={() => {
+                logoutSchool()
+                router.push('/school-po/auth')
+              }}
               className="bg-[#EADBC8] hover:bg-[#8A7968]/30 text-[#2B2B2B] font-bold text-xs px-3.5 py-2.5 rounded-xl border border-[#8A7968]/30 transition cursor-pointer"
             >
               Sign Out School
@@ -102,7 +102,7 @@ export default function SchoolPOCatalog() {
           </div>
         </div>
 
-        {/* Product Grid with View Option */}
+        {/* Product Grid */}
         <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
           {products.map((product) => {
             const firstImage = product.image_url ? product.image_url.split(',')[0].trim() : null
@@ -121,7 +121,6 @@ export default function SchoolPOCatalog() {
                 <Link 
                   href={`/product/${product.id}`}
                   className="h-44 sm:h-48 w-full bg-[#EADBC8]/50 flex items-center justify-center overflow-hidden border-b border-[#8A7968]/20 cursor-pointer group"
-                  title="Click to view images and specifications"
                 >
                   {firstImage ? (
                     <img 

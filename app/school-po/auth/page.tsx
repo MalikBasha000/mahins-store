@@ -7,7 +7,7 @@ import { useSchoolPOCart } from '../../context/SchoolPOCartContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function SchoolPOAuth() {
+export default function SchoolPOAuthPage() {
   const [isLogin, setIsLogin] = useState(false)
   const [schoolName, setSchoolName] = useState('')
   const [educatorName, setEducatorName] = useState('')
@@ -47,8 +47,8 @@ export default function SchoolPOAuth() {
         .single()
 
       if (error) {
-        if (error.message.includes('unique constraint')) {
-          throw new Error('An institution with this email is already registered. Please sign in.')
+        if (error.message.includes('unique constraint') || error.message.includes('duplicate key')) {
+          throw new Error('An institution with this email is already registered. Please click "Sign In".')
         }
         throw error
       }
@@ -75,7 +75,7 @@ export default function SchoolPOAuth() {
         .single()
 
       if (error || !data) {
-        throw new Error('Invalid institutional email or UDISE code combination.')
+        throw new Error('No verified institution found matching this Email and UDISE Code.')
       }
 
       setSchoolUser(data)
@@ -92,12 +92,12 @@ export default function SchoolPOAuth() {
         <div className="text-center space-y-1 border-b border-[#8A7968]/20 pb-4">
           <div className="text-3xl">🏛️</div>
           <h1 className="text-xl sm:text-2xl font-black">
-            {isLogin ? 'Institutional PO Login' : 'School PO Verification & Registration'}
+            {isLogin ? 'School PO Verification Login' : 'School PO Verification & Signup'}
           </h1>
           <p className="text-xs text-[#8A7968]">
             {isLogin 
-              ? 'Sign in using your institutional email & registered UDISE code' 
-              : 'Register your school or Atal Tinkering Lab to unlock institutional bulk pricing'}
+              ? 'Access institutional bulk pricing with your registered School Email and UDISE Code.'
+              : 'Register your school or Atal Tinkering Lab to verify bulk discount eligibility.'}
           </p>
         </div>
 
@@ -116,7 +116,7 @@ export default function SchoolPOAuth() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="educator@school.edu.in"
+                placeholder="incharge@school.edu.in"
                 className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
@@ -127,7 +127,7 @@ export default function SchoolPOAuth() {
                 required
                 value={udiseCode}
                 onChange={(e) => setUdiseCode(e.target.value)}
-                placeholder="e.g. 36010100101"
+                placeholder="11-digit UDISE Code"
                 className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs font-mono uppercase focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
@@ -136,7 +136,7 @@ export default function SchoolPOAuth() {
               disabled={loading}
               className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press"
             >
-              {loading ? 'Verifying...' : 'Access School PO Portal 🏛️'}
+              {loading ? 'Verifying...' : 'Login & Open School PO Portal 🏛️'}
             </button>
           </form>
         ) : (
@@ -149,23 +149,23 @@ export default function SchoolPOAuth() {
                   required
                   value={schoolName}
                   onChange={(e) => setSchoolName(e.target.value)}
-                  placeholder="e.g. Govt High School Bolaram"
+                  placeholder="e.g. Kendriya Vidyalaya / Govt High School"
                   className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2 rounded-xl text-xs focus:border-[#B76E79] focus:outline-hidden"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold mb-1">Educator / Incharge Name *</label>
+                <label className="block text-[11px] font-bold mb-1">Educator / Lab Incharge *</label>
                 <input
                   type="text"
                   required
                   value={educatorName}
                   onChange={(e) => setEducatorName(e.target.value)}
-                  placeholder="e.g. ATL Lab Incharge"
+                  placeholder="e.g. Science / ATL Lead"
                   className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2 rounded-xl text-xs focus:border-[#B76E79] focus:outline-hidden"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold mb-1">Official Email *</label>
+                <label className="block text-[11px] font-bold mb-1">School Official Email *</label>
                 <input
                   type="email"
                   required
@@ -187,7 +187,7 @@ export default function SchoolPOAuth() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold mb-1">School UDISE Code *</label>
+                <label className="block text-[11px] font-bold mb-1">UDISE Code *</label>
                 <input
                   type="text"
                   required
@@ -203,20 +203,20 @@ export default function SchoolPOAuth() {
                   type="text"
                   value={atlCode}
                   onChange={(e) => setAtlCode(e.target.value)}
-                  placeholder="e.g. ATL-123456"
+                  placeholder="e.g. ATL-098231"
                   className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2 rounded-xl text-xs font-mono uppercase focus:border-[#B76E79] focus:outline-hidden"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold mb-1">School Delivery Address *</label>
+              <label className="block text-[11px] font-bold mb-1">School Campus Delivery Address *</label>
               <textarea
                 rows={2}
                 required
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Full delivery address with pincode..."
+                placeholder="Complete street address, district, state & pincode..."
                 className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2 rounded-xl text-xs focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
@@ -226,7 +226,7 @@ export default function SchoolPOAuth() {
               disabled={loading}
               className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press"
             >
-              {loading ? 'Verifying & Registering...' : 'Verify Details & Enter Portal 🚀'}
+              {loading ? 'Submitting Details...' : 'Verify & Enter School PO Portal 🚀'}
             </button>
           </form>
         )}
@@ -237,7 +237,7 @@ export default function SchoolPOAuth() {
             onClick={() => { setIsLogin(!isLogin); setErrorMsg(''); }}
             className="text-[#B76E79] font-bold hover:underline cursor-pointer"
           >
-            {isLogin ? '← New School? Register here' : 'Already registered? Sign In'}
+            {isLogin ? '← Register new school' : 'Already registered? Sign In'}
           </button>
           <Link href="/" className="text-[#8A7968] font-bold hover:underline">
             Return to Store

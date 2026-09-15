@@ -78,7 +78,7 @@ export default function SchoolPOCheckoutPage() {
           <div className="text-4xl">🏛️</div>
           <h2 className="text-xl font-black">Official Purchase Order Placed!</h2>
           <p className="text-xs text-[#8A7968] leading-relaxed">
-            Thank you, <span className="font-bold text-[#2B2B2B]">{educatorName}</span>. Your institutional PO request for <span className="font-bold text-[#2B2B2B]">{schoolName}</span> (UDISE: {udiseCode}) has been registered. An official offline quotation and invoice will be delivered to <span className="font-bold text-[#2B2B2B]">{email}</span> shortly.
+            Thank you, <span className="font-bold text-[#2B2B2B]">{educatorName}</span>. Your institutional PO request for <span className="font-bold text-[#2B2B2B]">{schoolName}</span> (UDISE: {udiseCode}) has been registered. An official offline quotation and invoice will be sent to <span className="font-bold text-[#2B2B2B]">{email}</span>.
           </p>
           <Link
             href="/school-po"
@@ -97,7 +97,7 @@ export default function SchoolPOCheckoutPage() {
         <div className="flex justify-between items-center border-b border-[#8A7968]/20 pb-4">
           <div>
             <h1 className="text-lg sm:text-2xl font-black">🏛️ Finalize School Purchase Order</h1>
-            <p className="text-xs text-[#8A7968]">Confirm verified institution details and submit PO request</p>
+            <p className="text-xs text-[#8A7968]">Confirm verified institution details and submit quotation request</p>
           </div>
           <Link href="/school-po/cart" className="text-xs font-bold text-[#B76E79] hover:underline">
             ← Back to PO Cart
@@ -112,7 +112,7 @@ export default function SchoolPOCheckoutPage() {
 
         {/* PO Items Summary */}
         <div className="bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 space-y-2">
-          <h3 className="text-xs font-bold text-[#B76E79] uppercase">Items Summary ({poCart.length} products)</h3>
+          <h3 className="text-xs font-bold text-[#B76E79] uppercase">Items in PO ({poCart.length} products)</h3>
           <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
             {poCart.map((item, idx) => (
               <div key={idx} className="flex justify-between items-center bg-[#EFE3D3] p-2 rounded-xl">
