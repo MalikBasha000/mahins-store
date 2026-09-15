@@ -7,6 +7,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
+import { useSchoolPOCart } from '../context/SchoolPOCartContext'
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null)
@@ -15,6 +16,7 @@ export default function Navbar() {
   const supabase = createClient()
   const { totalItems } = useCart()
   const { wishlist } = useWishlist()
+  const { poTotalItems, schoolUser } = useSchoolPOCart()
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -58,10 +60,16 @@ export default function Navbar() {
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* School PO Portal Link */}
           <Link
-            href="/school-po"
+            href={schoolUser ? "/school-po" : "/school-po/auth"}
             className="flex items-center gap-1.5 rounded-xl bg-[#B76E79] px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-[11px] sm:text-xs font-black text-white hover:bg-[#9E5B65] transition shadow-xs"
           >
-            🏛️ <span className="hidden sm:inline">School PO Portal</span>
+            <span>🏛️</span>
+            <span className="hidden sm:inline">School PO Portal</span>
+            {poTotalItems > 0 && (
+              <span className="flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-white text-[10px] sm:text-xs text-[#B76E79] font-black shadow-2xs">
+                {poTotalItems}
+              </span>
+            )}
           </Link>
 
           {/* Order Tracking */}

@@ -5,6 +5,7 @@ import Script from "next/script"
 import "./globals.css"
 import { CartProvider } from "./context/CartContext"
 import { WishlistProvider } from "./context/WishlistContext"
+import { SchoolPOCartProvider } from "./context/SchoolPOCartContext"
 import MobileBottomNav from "./components/MobileBottomNav"
 import Navbar from "./components/Navbar"
 
@@ -31,11 +32,13 @@ export default function RootLayout({
       <body className={`${inter.className} w-full min-h-screen overflow-x-hidden bg-[#F4EADE] text-[#2B2B2B] pb-24 sm:pb-0 antialiased selection:bg-[#B76E79] selection:text-white`}>
         <CartProvider>
           <WishlistProvider>
-            <div className="w-full max-w-full flex flex-col min-h-screen">
-              <Navbar />
-              {children}
-            </div>
-            <MobileBottomNav />
+            <SchoolPOCartProvider>
+              <div className="w-full max-w-full flex flex-col min-h-screen">
+                <Navbar />
+                {children}
+              </div>
+              <MobileBottomNav />
+            </SchoolPOCartProvider>
           </WishlistProvider>
         </CartProvider>
 
