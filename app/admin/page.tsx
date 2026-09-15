@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [schoolAccounts, setSchoolAccounts] = useState<any[]>([])
   const [poDiscountVal, setPoDiscountVal] = useState('15')
   const [viewingPOProduct, setViewingPOProduct] = useState<any | null>(null)
+  const [viewingSchoolCustomer, setViewingSchoolCustomer] = useState<any | null>(null)
   const [emailingPO, setEmailingPO] = useState<any | null>(null)
   const [poEmailCustomNotes, setPoEmailCustomNotes] = useState('')
   const [dispatchingQuoteEmail, setDispatchingQuoteEmail] = useState(false)
@@ -683,7 +684,6 @@ export default function AdminPage() {
     if (prodErr) setErrorMsg(prodErr.message)
     else setProducts(prodData || [])
 
-    // Fetch bundle recipes mapping
     try {
       const { data: bundleData } = await supabase
         .from('bundle_items')
@@ -1637,6 +1637,9 @@ export default function AdminPage() {
                   {purchaseOrders.map((po) => {
                     const poDate = po.created_at ? new Date(po.created_at).toLocaleString() : 'N/A'
                     const trackingCode = po.tracking_id || `PO${po.id.replace(/-/g, '').slice(0, 11).toUpperCase()}`
+                    
+                    const matchedSchool = schoolAccounts.find((s) => s.email?.toLowerCase() === po.email?.toLowerCase())
+                    const schoolRegistrationId = matchedSchool ? getTwelveDigitId(matchedSchool.id) : getTwelveDigitId(po.id)
 
                     return (
                       <div key={po.id} className="bg-[#F4EADE] rounded-3xl border border-[#8A7968]/30 p-5 space-y-4 shadow-2xs">
@@ -1647,7 +1650,12 @@ export default function AdminPage() {
                           </div>
                           <div>
                             <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">School / Institution</span>
-                            <h3 className="font-black text-sm text-[#2B2B2B]">{po.school_name}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-black text-sm text-[#2B2B2B]">{po.school_name}</h3>
+                              <span className="text-[10px] font-mono text-[#2B2B2B] bg-[#EADBC8] px-2 py-0.5 rounded-lg border border-[#8A7968]/30 font-bold">
+                                Reg ID: {schoolRegistrationId}
+                              </span>
+                            </div>
                           </div>
                           <div className="text-right">
                             <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Estimated Quote Total</span>
@@ -1662,6 +1670,9 @@ export default function AdminPage() {
                             <div>✉️ {po.email}</div>
                             <div>📞 {po.phone}</div>
                             <div className="text-[#8A7968]">🕒 {poDate}</div>
+                            {matchedSchool?.udise_code && (
+                              <div className="text-[#8A7968]">UDISE: <span className="font-mono font-bold text-[#2B2B2B]">{matchedSchool.udise_code}</span></div>
+                            )}
                             <div className="pt-1 text-[#8A7968] leading-relaxed">
                               <strong>Delivery:</strong> {po.shipping_address}
                             </div>
@@ -1675,19 +1686,25 @@ export default function AdminPage() {
                             <div className="overflow-x-auto">
                               <table className="w-full text-left border-collapse text-xs">
                                 <thead>
-                                  <tr className="border-b border-[#8A7968]/20 font-bold text-[#8A7968]">
+                                  <tr className="border-b border-[#8A7968]/20 font-bold text-[#8A7968] text-[11px]">
                                     <th className="pb-1.5">Product</th>
-                                    <th className="pb-1.5 text-center">Unit Price</th>
+                                    <th className="pb-1.5 text-center">Regular Price</th>
+                                    <th className="pb-1.5 text-center">Discount</th>
+                                    <th className="pb-1.5 text-center">PO Price</th>
                                     <th className="pb-1.5 text-center">Qty</th>
                                     <th className="pb-1.5 text-right">Total</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {Array.isArray(po.items) && po.items.map((it: any, idx: number) => {
-                                    const unitPrice = Number(it.price) || 0
+                                    const originalProd = products.find((p) => p.id === (it.id || it.product_id) || p.name === it.name)
+                                    const originalRetailPrice = originalProd ? Number(originalProd.price) : Math.round((Number(it.price) || 0) / (1 - (Number(poDiscountVal) || 15) / 100))
+                                    const discountedUnitPrice = Number(it.price) || 0
+                                    const discountDiff = Math.max(0, originalRetailPrice - discountedUnitPrice)
                                     const qty = Number(it.quantity) || 1
+
                                     return (
-                                      <tr key={idx} className="border-b border-[#8A7968]/10">
+                                      <tr key={idx} className="border-b border-[#8A7968]/10 text-xs">
                                         <td className="py-1.5 font-bold">
                                           <button
                                             type="button"
@@ -1697,12 +1714,14 @@ export default function AdminPage() {
                                             {it.image_url && (
                                               <img src={it.image_url.split(',')[0]} alt="" className="w-6 h-6 object-cover rounded-md bg-white border border-[#8A7968]/30 shrink-0" />
                                             )}
-                                            <span className="truncate max-w-xs">{it.name}</span>
+                                            <span className="truncate max-w-[140px]">{it.name}</span>
                                           </button>
                                         </td>
-                                        <td className="py-1.5 text-center font-bold">₹{unitPrice}</td>
+                                        <td className="py-1.5 text-center text-[#8A7968] line-through">₹{originalRetailPrice}</td>
+                                        <td className="py-1.5 text-center text-green-700 font-bold">-{poDiscountVal}% (₹{discountDiff})</td>
+                                        <td className="py-1.5 text-center font-bold text-[#2B2B2B]">₹{discountedUnitPrice}</td>
                                         <td className="py-1.5 text-center font-black">{qty}</td>
-                                        <td className="py-1.5 text-right font-black">₹{unitPrice * qty}</td>
+                                        <td className="py-1.5 text-right font-black text-[#B76E79]">₹{discountedUnitPrice * qty}</td>
                                       </tr>
                                     )
                                   })}
@@ -1753,7 +1772,7 @@ export default function AdminPage() {
           <div className="bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl shadow-xs border border-[#8A7968]/30 space-y-6">
             <div className="border-b border-[#8A7968]/20 pb-4">
               <h2 className="text-lg font-extrabold text-[#2B2B2B]">🏫 Registered & Verified School Accounts ({schoolAccounts.length})</h2>
-              <p className="text-xs text-[#8A7968]">Directory of all schools and Atal Tinkering Labs registered for purchase orders.</p>
+              <p className="text-xs text-[#8A7968]">Directory of all schools and Atal Tinkering Labs registered for institutional purchase orders.</p>
             </div>
 
             {schoolAccounts.length === 0 ? (
@@ -1763,27 +1782,44 @@ export default function AdminPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {schoolAccounts.map((sch) => {
-                  const totalPoCount = purchaseOrders.filter((p) => p.email?.toLowerCase() === sch.email?.toLowerCase()).length
-                  const totalSpend = purchaseOrders
-                    .filter((p) => p.email?.toLowerCase() === sch.email?.toLowerCase() && p.status !== 'Cancelled')
+                  const schoolPOs = purchaseOrders.filter((p) => p.email?.toLowerCase() === sch.email?.toLowerCase())
+                  const totalSpend = schoolPOs
+                    .filter((p) => p.status !== 'Cancelled')
                     .reduce((sum, p) => sum + (Number(p.total_estimated_amount) || 0), 0)
+                  const school12Id = getTwelveDigitId(sch.id)
 
                   return (
-                    <div key={sch.id} className="bg-[#F4EADE] p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 space-y-2.5">
-                      <div className="flex justify-between items-start gap-2">
-                        <h4 className="font-black text-sm text-[#2B2B2B]">{sch.school_name}</h4>
-                        <span className="bg-[#EADBC8] text-[#B76E79] font-black text-xs px-2.5 py-1 rounded-lg border border-[#8A7968]/20">
-                          ₹{totalSpend.toLocaleString()}
-                        </span>
+                    <div key={sch.id} className="bg-[#F4EADE] p-5 rounded-3xl border border-[#8A7968]/30 shadow-2xs space-y-3 hover:border-[#B76E79] transition flex flex-col justify-between">
+                      <div className="space-y-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="font-bold text-sm text-[#2B2B2B]">{sch.school_name}</h4>
+                            <span className="text-[10px] font-mono text-[#2B2B2B] bg-[#EADBC8] px-2.5 py-0.5 rounded-lg border border-[#8A7968]/30 block mt-0.5">
+                              ID: {school12Id}
+                            </span>
+                          </div>
+                          <span className="bg-[#EADBC8] text-[#B76E79] text-xs font-extrabold px-2.5 py-1 rounded-xl border border-[#8A7968]/30">
+                            ₹{totalSpend.toLocaleString()}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-1 text-xs text-[#8A7968]">
+                          <div><strong>UDISE:</strong> <span className="font-mono text-[#2B2B2B] font-bold">{sch.udise_code}</span></div>
+                          {sch.atl_code && <div><strong>ATL Code:</strong> <span className="font-mono text-[#2B2B2B] font-bold">{sch.atl_code}</span></div>}
+                          <div><strong>Incharge:</strong> {sch.educator_name}</div>
+                          <div>✉️ {sch.email}</div>
+                          <div>📞 {sch.phone}</div>
+                          <div>📦 {schoolPOs.length} total purchase orders</div>
+                        </div>
                       </div>
-                      <div className="text-xs text-[#8A7968] space-y-1">
-                        <div><strong>UDISE:</strong> <span className="font-mono text-[#2B2B2B] font-bold">{sch.udise_code}</span></div>
-                        {sch.atl_code && <div><strong>ATL Code:</strong> <span className="font-mono text-[#2B2B2B] font-bold">{sch.atl_code}</span></div>}
-                        <div><strong>Incharge:</strong> {sch.educator_name}</div>
-                        <div><strong>Email:</strong> {sch.email}</div>
-                        <div><strong>Phone:</strong> {sch.phone}</div>
-                        <div className="truncate"><strong>Campus:</strong> {sch.address}</div>
-                        <div><strong>Total POs Submitted:</strong> {totalPoCount}</div>
+
+                      <div className="pt-3 border-t border-[#8A7968]/20 flex justify-end">
+                        <button
+                          onClick={() => setViewingSchoolCustomer({ ...sch, totalSpend, schoolPOs })}
+                          className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-4 py-2 rounded-xl transition cursor-pointer btn-press"
+                        >
+                          View Full Profile & Orders →
+                        </button>
                       </div>
                     </div>
                   )
@@ -3524,6 +3560,109 @@ export default function AdminPage() {
                         <div className="text-right">
                           <span className="text-sm font-black text-[#2B2B2B] block">₹{log.total_amount || log.final_payable_amount}</span>
                           <span className="text-[11px] text-[#8A7968]">{log.payment_method || 'Online'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Full School Profile & Orders Modal */}
+        {viewingSchoolCustomer && (
+          <div className="fixed inset-0 bg-[#2B2B2B]/85 backdrop-blur-xs flex justify-center items-center p-4 z-50">
+            <div className="bg-[#EFE3D3] border border-[#8A7968]/40 rounded-3xl shadow-2xl w-full max-w-4xl p-6 max-h-[92vh] overflow-y-auto text-[#2B2B2B]">
+              <div className="flex justify-between items-center mb-6 border-b border-[#8A7968]/20 pb-4">
+                <div>
+                  <span className="text-xs font-bold text-[#B76E79] uppercase tracking-wider">Institution Profile Details</span>
+                  <h3 className="text-2xl font-black text-[#2B2B2B] mt-1">{viewingSchoolCustomer.school_name}</h3>
+                  <span className="text-xs font-mono text-[#2B2B2B] font-bold bg-[#EADBC8] px-2 py-0.5 rounded-lg border border-[#8A7968]/30">
+                    Registration ID: {getTwelveDigitId(viewingSchoolCustomer.id)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setViewingSchoolCustomer(null)}
+                  className="text-[#8A7968] hover:text-[#2B2B2B] font-bold text-lg bg-[#EADBC8] px-3 py-1 rounded-full cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 text-xs">
+                <div>
+                  <span className="text-[11px] font-bold text-[#8A7968] uppercase block">Educator Incharge</span>
+                  <span className="text-sm font-bold text-[#2B2B2B]">{viewingSchoolCustomer.educator_name}</span>
+                  <div className="text-[#8A7968] mt-1">✉️ {viewingSchoolCustomer.email}</div>
+                  <div className="text-[#8A7968]">📞 {viewingSchoolCustomer.phone}</div>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-[#8A7968] uppercase block">Institutional Verification</span>
+                  <div className="mt-0.5"><strong>UDISE:</strong> <span className="font-mono font-bold">{viewingSchoolCustomer.udise_code}</span></div>
+                  {viewingSchoolCustomer.atl_code && (
+                    <div><strong>ATL Code:</strong> <span className="font-mono font-bold">{viewingSchoolCustomer.atl_code}</span></div>
+                  )}
+                  <span className="inline-block mt-1 bg-green-100 text-green-800 border border-green-200 text-[10px] font-bold px-2 py-0.5 rounded-md">
+                    ✓ Verified Educational Account
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-[#8A7968] uppercase block">Lifetime PO Value</span>
+                  <span className="text-xl font-extrabold text-[#B76E79]">₹{viewingSchoolCustomer.totalSpend?.toLocaleString()}</span>
+                  <div className="text-[#8A7968] mt-1">{viewingSchoolCustomer.schoolPOs?.length || 0} Total Purchase Orders</div>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-xs font-bold text-[#2B2B2B] uppercase">Registered Campus Delivery Address</h4>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(viewingSchoolCustomer.address)
+                      alert(`Campus address copied to clipboard!`)
+                    }}
+                    className="bg-[#EADBC8] hover:bg-[#8A7968]/30 text-[#2B2B2B] text-[11px] font-bold px-2.5 py-1 rounded-lg transition border border-[#8A7968]/30 cursor-pointer"
+                  >
+                    📋 Copy Address
+                  </button>
+                </div>
+                <div className="bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 text-xs text-[#2B2B2B] leading-relaxed whitespace-pre-line">
+                  {viewingSchoolCustomer.address}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-[#2B2B2B] uppercase mb-3">
+                  Purchase Order History Logs ({viewingSchoolCustomer.schoolPOs?.length || 0})
+                </h4>
+
+                {(!viewingSchoolCustomer.schoolPOs || viewingSchoolCustomer.schoolPOs.length === 0) ? (
+                  <p className="text-xs text-[#8A7968] italic">No purchase orders submitted by this institution yet.</p>
+                ) : (
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {viewingSchoolCustomer.schoolPOs.map((po: any) => (
+                      <div key={po.id} className="bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 flex flex-wrap justify-between items-center gap-4 hover:border-[#B76E79] transition">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
+                              po.status === 'Cancelled' ? 'bg-red-100 text-red-800 border-red-200' :
+                              po.status === 'Completed' || po.status === 'PO Approved' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-[#EADBC8] text-[#B76E79] border-[#8A7968]/30'
+                            }`}>
+                              {po.status || 'Pending Review'}
+                            </span>
+                            <span className="text-xs font-mono font-bold text-[#2B2B2B]">
+                              Tracking: {po.tracking_id || `PO${po.id.slice(0, 11)}`}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#8A7968]">
+                            Items: {Array.isArray(po.items) ? po.items.map((i: any) => `${i.name} (${i.quantity}x)`).join(', ') : 'No items data'}
+                          </p>
+                          <span className="text-[11px] text-[#8A7968]/80 block mt-1">Date: {new Date(po.created_at).toLocaleString()}</span>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-sm font-black text-[#B76E79] block">₹{po.total_estimated_amount}</span>
                         </div>
                       </div>
                     ))}

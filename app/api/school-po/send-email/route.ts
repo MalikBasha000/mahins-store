@@ -2,14 +2,6 @@
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'mahinsonestoponestore@gmail.com',
-    pass: process.env.EMAIL_PASS || '',
-  },
-})
-
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -29,6 +21,23 @@ export async function POST(req: Request) {
     } = body
 
     const ADMIN_EMAIL = 'mahinsonestoponestore@gmail.com'
+    const emailUser = process.env.EMAIL_USER || ADMIN_EMAIL
+    const emailPass = process.env.EMAIL_PASS || process.env.GMAIL_APP_PASSWORD || ''
+
+    if (!emailPass) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Missing email password configuration (EMAIL_PASS is not set in environment variables).' 
+      }, { status: 400 })
+    }
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: emailUser,
+        pass: emailPass,
+      },
+    })
 
     // Format itemized table
     const itemsTableHtml = `
@@ -63,7 +72,7 @@ export async function POST(req: Request) {
     if (type === 'NEW_PO_ALERT') {
       // 1. Email to Admin
       await transporter.sendMail({
-        from: `"Mahin's Store Alerts" <${process.env.EMAIL_USER || ADMIN_EMAIL}>`,
+        from: `"Mahin's Store Alerts" <${emailUser}>`,
         to: ADMIN_EMAIL,
         subject: `🚨 New School Purchase Order: ${schoolName} (Ref: ${trackingId})`,
         html: `
@@ -83,7 +92,7 @@ export async function POST(req: Request) {
 
       // 2. Acknowledgment to Customer
       await transporter.sendMail({
-        from: `"Mahin's One-Stop One-Store" <${process.env.EMAIL_USER || ADMIN_EMAIL}>`,
+        from: `"Mahin's One-Stop One-Store" <${emailUser}>`,
         to: customerEmail,
         subject: `Official Purchase Order Request Received - ${trackingId}`,
         html: `
@@ -105,7 +114,7 @@ export async function POST(req: Request) {
     } else if (type === 'OFFICIAL_QUOTE') {
       // Direct Admin Send Quote
       await transporter.sendMail({
-        from: `"Mahin's One-Stop One-Store" <${process.env.EMAIL_USER || ADMIN_EMAIL}>`,
+        from: `"Mahin's One-Stop One-Store" <${emailUser}>`,
         to: customerEmail,
         subject: `Official Quotation Approved: ${schoolName} (PO: ${trackingId})`,
         html: `
