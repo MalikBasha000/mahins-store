@@ -150,19 +150,20 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdminAuthenticated) {
       fetchAdminData()
+      fetchPoDiscountSetting()
     }
   }, [activeTab, isAdminAuthenticated])
 
   useEffect(() => {
     if (!isAdminAuthenticated) return
-    if (activeTab === 'payments') {
-      fetchPaymentSettings()
-      fetchPoDiscountSetting()
-    }
+    if (activeTab === 'payments') fetchPaymentSettings()
     if (activeTab === 'reviews') fetchAdminReviews()
     if (activeTab === 'coupons') fetchCoupons()
     if (activeTab === 'banners') fetchBanners()
-    if (activeTab === 'purchase_orders') fetchPurchaseOrders()
+    if (activeTab === 'purchase_orders') {
+      fetchPurchaseOrders()
+      fetchPoDiscountSetting()
+    }
   }, [activeTab, isAdminAuthenticated])
 
   const fetchPaymentSettings = async () => {
@@ -1520,90 +1521,124 @@ export default function AdminPage() {
 
         {/* ----------------- TAB: SCHOOL PURCHASE ORDERS ----------------- */}
         {activeTab === 'purchase_orders' && (
-          <div className="bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl shadow-xs border border-[#8A7968]/30 space-y-6">
-            <div className="border-b border-[#8A7968]/20 pb-4">
-              <h2 className="text-lg font-extrabold text-[#2B2B2B]">🏛️ School Purchase Orders & Institutional Quotes</h2>
-              <p className="text-xs text-[#8A7968]">Review quotation requests submitted by educators and school administrators</p>
+          <div className="space-y-6">
+            {/* School PO Bulk Discount Configuration Manager */}
+            <div className="bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl shadow-xs border border-[#8A7968]/30">
+              <div className="border-b border-[#8A7968]/20 pb-3 mb-4">
+                <h3 className="text-base font-black text-[#2B2B2B]">⚙️ School PO Discount Configuration</h3>
+                <p className="text-xs text-[#8A7968]">Manage the global institutional discount percentage applied in the School PO portal and quote estimates.</p>
+              </div>
+
+              <form onSubmit={handleSavePoDiscount} className="flex flex-wrap items-center gap-3 bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30">
+                <div>
+                  <label className="block text-[11px] font-bold text-[#2B2B2B] mb-1">Institutional Discount (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={poDiscountVal}
+                    onChange={(e) => setPoDiscountVal(e.target.value)}
+                    className="w-32 border border-[#8A7968]/40 bg-[#EFE3D3] p-2.5 rounded-xl text-xs font-bold text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden text-center"
+                    required
+                  />
+                </div>
+                <div className="mt-auto">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold px-5 py-2.5 rounded-xl text-xs transition cursor-pointer btn-press shadow-xs"
+                  >
+                    Save Discount Rate 💾
+                  </button>
+                </div>
+              </form>
             </div>
 
-            {purchaseOrders.length === 0 ? (
-              <div className="py-12 text-center text-[#8A7968] bg-[#F4EADE] rounded-2xl border border-[#8A7968]/30">
-                <p className="text-sm font-semibold">No school purchase orders received yet.</p>
+            <div className="bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl shadow-xs border border-[#8A7968]/30 space-y-6">
+              <div className="border-b border-[#8A7968]/20 pb-4">
+                <h2 className="text-lg font-extrabold text-[#2B2B2B]">🏛️ School Purchase Orders & Institutional Quotes</h2>
+                <p className="text-xs text-[#8A7968]">Review quotation requests submitted by educators and school administrators</p>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {purchaseOrders.map((po) => {
-                  const poDate = po.created_at ? new Date(po.created_at).toLocaleString() : 'N/A'
-                  return (
-                    <div key={po.id} className="bg-[#F4EADE] rounded-3xl border border-[#8A7968]/30 p-5 space-y-4 shadow-2xs">
-                      <div className="flex flex-wrap justify-between items-center border-b border-[#8A7968]/20 pb-3 gap-2">
-                        <div>
-                          <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">School / Institution</span>
-                          <h3 className="font-black text-base text-[#2B2B2B]">{po.school_name}</h3>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Estimated Quote ({poDiscountVal}% OFF)</span>
-                          <span className="text-xl font-black text-[#B76E79]">₹{po.total_estimated_amount}</span>
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                        <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
-                          <span className="text-[10px] font-bold text-[#B76E79] uppercase block">Educator Contact</span>
-                          <div className="font-bold text-[#2B2B2B]">{po.educator_name}</div>
-                          <div>✉️ {po.email}</div>
-                          <div>📞 {po.phone}</div>
-                          <div className="text-[#8A7968]">🕒 {poDate}</div>
-                        </div>
-
-                        <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
-                          <span className="text-[10px] font-bold text-[#B76E79] uppercase block">Requested Items</span>
-                          <div className="max-h-28 overflow-y-auto space-y-1 pr-1">
-                            {Array.isArray(po.items) && po.items.map((item: any, idx: number) => (
-                              <div key={idx} className="flex justify-between text-[11px] bg-[#F4EADE] p-1.5 rounded-lg border border-[#8A7968]/20">
-                                <span className="font-bold truncate">{item.name}</span>
-                                <span className="font-black">x{item.quantity}</span>
-                              </div>
-                            ))}
+              {purchaseOrders.length === 0 ? (
+                <div className="py-12 text-center text-[#8A7968] bg-[#F4EADE] rounded-2xl border border-[#8A7968]/30">
+                  <p className="text-sm font-semibold">No school purchase orders received yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {purchaseOrders.map((po) => {
+                    const poDate = po.created_at ? new Date(po.created_at).toLocaleString() : 'N/A'
+                    return (
+                      <div key={po.id} className="bg-[#F4EADE] rounded-3xl border border-[#8A7968]/30 p-5 space-y-4 shadow-2xs">
+                        <div className="flex flex-wrap justify-between items-center border-b border-[#8A7968]/20 pb-3 gap-2">
+                          <div>
+                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">School / Institution</span>
+                            <h3 className="font-black text-base text-[#2B2B2B]">{po.school_name}</h3>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Estimated Quote ({poDiscountVal}% OFF)</span>
+                            <span className="text-xl font-black text-[#B76E79]">₹{po.total_estimated_amount}</span>
                           </div>
                         </div>
 
-                        <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
-                          <span className="text-[10px] font-bold text-[#B76E79] uppercase block">Delivery Address</span>
-                          <p className="text-[11px] text-[#2B2B2B] leading-relaxed max-h-28 overflow-y-auto">{po.shipping_address}</p>
-                        </div>
-                      </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                          <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
+                            <span className="text-[10px] font-bold text-[#B76E79] uppercase block">Educator Contact</span>
+                            <div className="font-bold text-[#2B2B2B]">{po.educator_name}</div>
+                            <div>✉️ {po.email}</div>
+                            <div>📞 {po.phone}</div>
+                            <div className="text-[#8A7968]">🕒 {poDate}</div>
+                          </div>
 
-                      <div className="flex flex-wrap justify-between items-center pt-3 border-t border-[#8A7968]/20 gap-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#8A7968]">PO Status:</span>
-                          <select
-                            value={po.status || 'Pending Review'}
-                            onChange={(e) => handleUpdatePOStatus(po.id, e.target.value)}
-                            className="border border-[#8A7968]/40 p-2 rounded-xl text-xs font-bold bg-[#EFE3D3] text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden cursor-pointer"
+                          <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
+                            <span className="text-[10px] font-bold text-[#B76E79] uppercase block">Requested Items</span>
+                            <div className="max-h-28 overflow-y-auto space-y-1 pr-1">
+                              {Array.isArray(po.items) && po.items.map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between text-[11px] bg-[#F4EADE] p-1.5 rounded-lg border border-[#8A7968]/20">
+                                  <span className="font-bold truncate">{item.name}</span>
+                                  <span className="font-black">x{item.quantity}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
+                            <span className="text-[10px] font-bold text-[#B76E79] uppercase block">Delivery Address</span>
+                            <p className="text-[11px] text-[#2B2B2B] leading-relaxed max-h-28 overflow-y-auto">{po.shipping_address}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap justify-between items-center pt-3 border-t border-[#8A7968]/20 gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-[#8A7968]">PO Status:</span>
+                            <select
+                              value={po.status || 'Pending Review'}
+                              onChange={(e) => handleUpdatePOStatus(po.id, e.target.value)}
+                              className="border border-[#8A7968]/40 p-2 rounded-xl text-xs font-bold bg-[#EFE3D3] text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden cursor-pointer"
+                            >
+                              <option value="Pending Review">Pending Review</option>
+                              <option value="Quote Sent">Quote Sent</option>
+                              <option value="PO Approved">PO Approved</option>
+                              <option value="Completed">Completed / Fulfilled</option>
+                              <option value="Cancelled">Cancelled</option>
+                            </select>
+                          </div>
+
+                          <a
+                            href={`mailto:${po.email}?subject=${encodeURIComponent(`Official Quotation - Mahin's One-Stop One-Store for ${po.school_name}`)}&body=${encodeURIComponent(
+                              `Dear ${po.educator_name},\n\nThank you for requesting an institutional quotation for ${po.school_name}.\n\nTotal Estimated Amount (with ${poDiscountVal}% Educational Discount): ₹${po.total_estimated_amount}\n\nPlease review your items and confirm the official school Purchase Order (PO) details.\n\nBest regards,\nMahin's One-Stop One-Store`
+                            )}`}
+                            className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
                           >
-                            <option value="Pending Review">Pending Review</option>
-                            <option value="Quote Sent">Quote Sent</option>
-                            <option value="PO Approved">PO Approved</option>
-                            <option value="Completed">Completed / Fulfilled</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
+                            ✉️ Email Official Quote
+                          </a>
                         </div>
-
-                        <a
-                          href={`mailto:${po.email}?subject=${encodeURIComponent(`Official Quotation - Mahin's One-Stop One-Store for ${po.school_name}`)}&body=${encodeURIComponent(
-                            `Dear ${po.educator_name},\n\nThank you for requesting an institutional quotation for ${po.school_name}.\n\nTotal Estimated Amount (with ${poDiscountVal}% Educational Discount): ₹${po.total_estimated_amount}\n\nPlease review your items and confirm the official school Purchase Order (PO) details.\n\nBest regards,\nMahin's One-Stop One-Store`
-                          )}`}
-                          className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
-                        >
-                          ✉️ Email Official Quote
-                        </a>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -3095,38 +3130,11 @@ export default function AdminPage() {
         {activeTab === 'payments' && (
           <div className="bg-[#EFE3D3] p-6 sm:p-8 rounded-3xl shadow-xs border border-[#8A7968]/30 max-w-2xl mx-auto space-y-6 text-[#2B2B2B]">
             <div className="border-b border-[#8A7968]/20 pb-4">
-              <h2 className="text-xl font-black text-[#2B2B2B]">💳 Payment Gateway & School PO Settings</h2>
-              <p className="text-xs text-[#8A7968] mt-1">Configure payment options and manage global institutional bulk discounts.</p>
+              <h2 className="text-xl font-black text-[#2B2B2B]">💳 Payment Gateway Control Center</h2>
+              <p className="text-xs text-[#8A7968] mt-1">Enable or disable payment options and customize customer checkout notices.</p>
             </div>
 
-            {/* School PO Discount Manager Section */}
-            <form onSubmit={handleSavePoDiscount} className="p-4 rounded-2xl bg-[#F4EADE] border border-[#8A7968]/30 space-y-3">
-              <div>
-                <h4 className="text-sm font-bold text-[#2B2B2B]">🏛️ School PO Bulk Discount Percentage</h4>
-                <p className="text-xs text-[#8A7968]">Set the automatic discount applied across all items in the School PO Portal.</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={poDiscountVal}
-                  onChange={(e) => setPoDiscountVal(e.target.value)}
-                  className="w-28 border border-[#8A7968]/40 bg-[#EFE3D3] p-2.5 rounded-xl text-xs font-bold text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden text-center"
-                  required
-                />
-                <span className="text-xs font-black text-[#B76E79]">% OFF</span>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="ml-auto bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer btn-press"
-                >
-                  Update Discount 💾
-                </button>
-              </div>
-            </form>
-
-            <form onSubmit={handleSavePaymentSettings} className="space-y-6 pt-4 border-t border-[#8A7968]/20">
+            <form onSubmit={handleSavePaymentSettings} className="space-y-6">
               <div className="flex items-center justify-between p-4 rounded-2xl bg-[#F4EADE] border border-[#8A7968]/30">
                 <div>
                   <h4 className="text-sm font-bold text-[#2B2B2B]">Razorpay Gateway</h4>
