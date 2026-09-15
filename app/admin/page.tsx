@@ -24,7 +24,7 @@ export default function AdminPage() {
   const [otpToken, setOtpToken] = useState('')
   const [generatedOtp, setGeneratedOtp] = useState('')
   
-  const [activeTab, setActiveTab] = useState<'analytics' | 'purchase_orders' | 'upi_verifications' | 'orders' | 'products' | 'customers' | 'coupons' | 'banners' | 'payments' | 'reviews'>('analytics')
+  const [activeTab, setActiveTab] = useState<'analytics' | 'purchase_orders' | 'school_directory' | 'upi_verifications' | 'orders' | 'products' | 'customers' | 'coupons' | 'banners' | 'payments' | 'reviews'>('analytics')
   const [activeAdminOrderTab, setActiveAdminOrderTab] = useState('ALL')
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -38,8 +38,14 @@ export default function AdminPage() {
     cod_message: 'Payments not accepting currently'
   })
 
-  // School PO Discount Setting State
+  // School PO States
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([])
+  const [schoolAccounts, setSchoolAccounts] = useState<any[]>([])
   const [poDiscountVal, setPoDiscountVal] = useState('15')
+  const [viewingPOProduct, setViewingPOProduct] = useState<any | null>(null)
+  const [emailingPO, setEmailingPO] = useState<any | null>(null)
+  const [poEmailCustomNotes, setPoEmailCustomNotes] = useState('')
+  const [dispatchingQuoteEmail, setDispatchingQuoteEmail] = useState(false)
 
   // Coupons Management State
   const [coupons, setCoupons] = useState<any[]>([])
@@ -129,9 +135,6 @@ export default function AdminPage() {
   const [minAmountFilter, setMinAmountFilter] = useState('')
   const [maxAmountFilter, setMaxAmountFilter] = useState('')
 
-  // School Purchase Orders State
-  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([])
-
   // UPI Verifications Filter State
   const [upiSearchQuery, setUpiSearchQuery] = useState('')
   const [upiStatusFilter, setUpiStatusFilter] = useState('ALL')
@@ -150,7 +153,6 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAdminAuthenticated) {
       fetchAdminData()
-      fetchPoDiscountSetting()
     }
   }, [activeTab, isAdminAuthenticated])
 
@@ -160,8 +162,9 @@ export default function AdminPage() {
     if (activeTab === 'reviews') fetchAdminReviews()
     if (activeTab === 'coupons') fetchCoupons()
     if (activeTab === 'banners') fetchBanners()
-    if (activeTab === 'purchase_orders') {
+    if (activeTab === 'purchase_orders' || activeTab === 'school_directory') {
       fetchPurchaseOrders()
+      fetchSchoolAccounts()
       fetchPoDiscountSetting()
     }
   }, [activeTab, isAdminAuthenticated])
@@ -231,6 +234,18 @@ export default function AdminPage() {
     }
   }
 
+  const fetchSchoolAccounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('school_accounts')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (data) setSchoolAccounts(data)
+    } catch (err) {
+      console.error('Failed to fetch school accounts:', err)
+    }
+  }
+
   const handleUpdatePOStatus = async (poId: string, newStatus: string) => {
     try {
       const { error } = await supabase
@@ -244,6 +259,49 @@ export default function AdminPage() {
     } catch (err: any) {
       setErrorMsg(`Failed to update PO status: ${err.message}`)
     }
+  }
+
+  const handleSendOfficialQuote = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!emailingPO) return
+
+    setDispatchingQuoteEmail(true)
+    setErrorMsg('')
+    setSuccessMsg('')
+
+    try {
+      const trackingCode = emailingPO.tracking_id || `PO${emailingPO.id.replace(/-/g, '').slice(0, 11).toUpperCase()}`
+
+      const res = await fetch('/api/school-po/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'OFFICIAL_QUOTE',
+          poId: emailingPO.id,
+          trackingId: trackingCode,
+          schoolName: emailingPO.school_name,
+          educatorName: emailingPO.educator_name,
+          customerEmail: emailingPO.email,
+          items: emailingPO.items,
+          totalAmount: emailingPO.total_estimated_amount,
+          customNotes: poEmailCustomNotes.trim()
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        await supabase.from('purchase_orders').update({ status: 'Quote Sent' }).eq('id', emailingPO.id)
+        setSuccessMsg(`Official Quotation email dispatched directly to ${emailingPO.email}!`)
+        setEmailingPO(null)
+        setPoEmailCustomNotes('')
+        fetchPurchaseOrders()
+      } else {
+        setErrorMsg(`Email dispatch failed: ${data.error || 'Check server mailer settings'}`)
+      }
+    } catch (err: any) {
+      setErrorMsg(`Error dispatching quote email: ${err.message}`)
+    }
+    setDispatchingQuoteEmail(false)
   }
 
   const handleToggleReviewApproval = async (reviewId: string, currentApprovalStatus: boolean) => {
@@ -669,6 +727,8 @@ export default function AdminPage() {
     fetchCoupons()
     fetchBanners()
     fetchPurchaseOrders()
+    fetchSchoolAccounts()
+    fetchPoDiscountSetting()
     setLoading(false)
   }
 
@@ -1449,6 +1509,14 @@ export default function AdminPage() {
             🏛️ School POs ({purchaseOrders.length})
           </button>
           <button
+            onClick={() => setActiveTab('school_directory')}
+            className={`px-4 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer flex items-center gap-2 border ${
+              activeTab === 'school_directory' ? 'bg-[#B76E79] text-white border-[#B76E79] shadow-xs' : 'bg-[#EFE3D3] text-[#2B2B2B] border-[#8A7968]/30 hover:bg-[#EADBC8]'
+            }`}
+          >
+            🏫 School Accounts Directory ({schoolAccounts.length})
+          </button>
+          <button
             onClick={() => setActiveTab('upi_verifications')}
             className={`px-4 sm:px-5 py-2 rounded-xl font-bold text-xs sm:text-sm transition cursor-pointer relative flex items-center gap-2 border ${
               activeTab === 'upi_verifications' ? 'bg-[#B76E79] text-white border-[#B76E79] shadow-xs' : 'bg-[#EADBC8] text-[#2B2B2B] border-[#8A7968]/30 hover:bg-[#8A7968]/20'
@@ -1568,15 +1636,21 @@ export default function AdminPage() {
                 <div className="space-y-4">
                   {purchaseOrders.map((po) => {
                     const poDate = po.created_at ? new Date(po.created_at).toLocaleString() : 'N/A'
+                    const trackingCode = po.tracking_id || `PO${po.id.replace(/-/g, '').slice(0, 11).toUpperCase()}`
+
                     return (
                       <div key={po.id} className="bg-[#F4EADE] rounded-3xl border border-[#8A7968]/30 p-5 space-y-4 shadow-2xs">
                         <div className="flex flex-wrap justify-between items-center border-b border-[#8A7968]/20 pb-3 gap-2">
                           <div>
+                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">13-Digit PO Tracking ID</span>
+                            <span className="font-mono text-base font-black text-[#2B2B2B]">{trackingCode}</span>
+                          </div>
+                          <div>
                             <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">School / Institution</span>
-                            <h3 className="font-black text-base text-[#2B2B2B]">{po.school_name}</h3>
+                            <h3 className="font-black text-sm text-[#2B2B2B]">{po.school_name}</h3>
                           </div>
                           <div className="text-right">
-                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Estimated Quote ({poDiscountVal}% OFF)</span>
+                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Estimated Quote Total</span>
                             <span className="text-xl font-black text-[#B76E79]">₹{po.total_estimated_amount}</span>
                           </div>
                         </div>
@@ -1588,23 +1662,53 @@ export default function AdminPage() {
                             <div>✉️ {po.email}</div>
                             <div>📞 {po.phone}</div>
                             <div className="text-[#8A7968]">🕒 {poDate}</div>
-                          </div>
-
-                          <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
-                            <span className="text-[10px] font-bold text-[#B76E79] uppercase block">Requested Items</span>
-                            <div className="max-h-28 overflow-y-auto space-y-1 pr-1">
-                              {Array.isArray(po.items) && po.items.map((item: any, idx: number) => (
-                                <div key={idx} className="flex justify-between text-[11px] bg-[#F4EADE] p-1.5 rounded-lg border border-[#8A7968]/20">
-                                  <span className="font-bold truncate">{item.name}</span>
-                                  <span className="font-black">x{item.quantity}</span>
-                                </div>
-                              ))}
+                            <div className="pt-1 text-[#8A7968] leading-relaxed">
+                              <strong>Delivery:</strong> {po.shipping_address}
                             </div>
                           </div>
 
-                          <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
-                            <span className="text-[10px] font-bold text-[#B76E79] uppercase block">Delivery Address</span>
-                            <p className="text-[11px] text-[#2B2B2B] leading-relaxed max-h-28 overflow-y-auto">{po.shipping_address}</p>
+                          {/* Itemized Table Breakdown */}
+                          <div className="md:col-span-2 bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20">
+                            <span className="text-[10px] font-bold text-[#B76E79] uppercase block mb-2">
+                              Requested Items (Click item name for photo & details cross-check)
+                            </span>
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                  <tr className="border-b border-[#8A7968]/20 font-bold text-[#8A7968]">
+                                    <th className="pb-1.5">Product</th>
+                                    <th className="pb-1.5 text-center">Unit Price</th>
+                                    <th className="pb-1.5 text-center">Qty</th>
+                                    <th className="pb-1.5 text-right">Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {Array.isArray(po.items) && po.items.map((it: any, idx: number) => {
+                                    const unitPrice = Number(it.price) || 0
+                                    const qty = Number(it.quantity) || 1
+                                    return (
+                                      <tr key={idx} className="border-b border-[#8A7968]/10">
+                                        <td className="py-1.5 font-bold">
+                                          <button
+                                            type="button"
+                                            onClick={() => setViewingPOProduct(it)}
+                                            className="text-[#B76E79] hover:underline text-left cursor-pointer flex items-center gap-1.5"
+                                          >
+                                            {it.image_url && (
+                                              <img src={it.image_url.split(',')[0]} alt="" className="w-6 h-6 object-cover rounded-md bg-white border border-[#8A7968]/30 shrink-0" />
+                                            )}
+                                            <span className="truncate max-w-xs">{it.name}</span>
+                                          </button>
+                                        </td>
+                                        <td className="py-1.5 text-center font-bold">₹{unitPrice}</td>
+                                        <td className="py-1.5 text-center font-black">{qty}</td>
+                                        <td className="py-1.5 text-right font-black">₹{unitPrice * qty}</td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
                         </div>
 
@@ -1624,14 +1728,16 @@ export default function AdminPage() {
                             </select>
                           </div>
 
-                          <a
-                            href={`mailto:${po.email}?subject=${encodeURIComponent(`Official Quotation - Mahin's One-Stop One-Store for ${po.school_name}`)}&body=${encodeURIComponent(
-                              `Dear ${po.educator_name},\n\nThank you for requesting an institutional quotation for ${po.school_name}.\n\nTotal Estimated Amount (with ${poDiscountVal}% Educational Discount): ₹${po.total_estimated_amount}\n\nPlease review your items and confirm the official school Purchase Order (PO) details.\n\nBest regards,\nMahin's One-Stop One-Store`
-                            )}`}
-                            className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEmailingPO(po)
+                              setPoEmailCustomNotes('')
+                            }}
+                            className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer btn-press shadow-xs"
                           >
                             ✉️ Email Official Quote
-                          </a>
+                          </button>
                         </div>
                       </div>
                     )
@@ -1639,6 +1745,51 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: SCHOOL ACCOUNTS DIRECTORY ----------------- */}
+        {activeTab === 'school_directory' && (
+          <div className="bg-[#EFE3D3] p-5 sm:p-6 rounded-3xl shadow-xs border border-[#8A7968]/30 space-y-6">
+            <div className="border-b border-[#8A7968]/20 pb-4">
+              <h2 className="text-lg font-extrabold text-[#2B2B2B]">🏫 Registered & Verified School Accounts ({schoolAccounts.length})</h2>
+              <p className="text-xs text-[#8A7968]">Directory of all schools and Atal Tinkering Labs registered for purchase orders.</p>
+            </div>
+
+            {schoolAccounts.length === 0 ? (
+              <div className="py-12 text-center text-[#8A7968] bg-[#F4EADE] rounded-2xl border border-[#8A7968]/30">
+                <p className="text-sm font-semibold">No registered school accounts found.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {schoolAccounts.map((sch) => {
+                  const totalPoCount = purchaseOrders.filter((p) => p.email?.toLowerCase() === sch.email?.toLowerCase()).length
+                  const totalSpend = purchaseOrders
+                    .filter((p) => p.email?.toLowerCase() === sch.email?.toLowerCase() && p.status !== 'Cancelled')
+                    .reduce((sum, p) => sum + (Number(p.total_estimated_amount) || 0), 0)
+
+                  return (
+                    <div key={sch.id} className="bg-[#F4EADE] p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 space-y-2.5">
+                      <div className="flex justify-between items-start gap-2">
+                        <h4 className="font-black text-sm text-[#2B2B2B]">{sch.school_name}</h4>
+                        <span className="bg-[#EADBC8] text-[#B76E79] font-black text-xs px-2.5 py-1 rounded-lg border border-[#8A7968]/20">
+                          ₹{totalSpend.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-xs text-[#8A7968] space-y-1">
+                        <div><strong>UDISE:</strong> <span className="font-mono text-[#2B2B2B] font-bold">{sch.udise_code}</span></div>
+                        {sch.atl_code && <div><strong>ATL Code:</strong> <span className="font-mono text-[#2B2B2B] font-bold">{sch.atl_code}</span></div>}
+                        <div><strong>Incharge:</strong> {sch.educator_name}</div>
+                        <div><strong>Email:</strong> {sch.email}</div>
+                        <div><strong>Phone:</strong> {sch.phone}</div>
+                        <div className="truncate"><strong>Campus:</strong> {sch.address}</div>
+                        <div><strong>Total POs Submitted:</strong> {totalPoCount}</div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -3210,6 +3361,77 @@ export default function AdminPage() {
         )}
 
         {/* ----------------- MODALS ----------------- */}
+        {/* Send Official Quote Direct In-App Modal */}
+        {emailingPO && (
+          <div className="fixed inset-0 bg-[#2B2B2B]/85 backdrop-blur-xs flex justify-center items-center p-4 z-50">
+            <div className="bg-[#EFE3D3] border border-[#8A7968]/40 rounded-3xl shadow-2xl w-full max-w-lg p-6 relative space-y-4 text-[#2B2B2B]">
+              <div className="flex justify-between items-center border-b border-[#8A7968]/20 pb-3">
+                <h3 className="font-black text-base">Send Official Quotation to {emailingPO.school_name}</h3>
+                <button onClick={() => setEmailingPO(null)} className="text-xs bg-[#EADBC8] px-2.5 py-1 rounded-full font-bold cursor-pointer">
+                  ✕
+                </button>
+              </div>
+              <form onSubmit={handleSendOfficialQuote} className="space-y-3.5 text-xs">
+                <div>
+                  <label className="block font-bold mb-1 text-[#8A7968]">To Educator / Official Email</label>
+                  <input type="text" readOnly value={emailingPO.email} className="w-full bg-[#F4EADE] p-2.5 rounded-xl border border-[#8A7968]/30 font-bold" />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1 text-[#8A7968]">Total Quotation Amount</label>
+                  <input type="text" readOnly value={`₹${emailingPO.total_estimated_amount}`} className="w-full bg-[#F4EADE] p-2.5 rounded-xl border border-[#8A7968]/30 font-black text-[#B76E79]" />
+                </div>
+                <div>
+                  <label className="block font-bold mb-1">Custom Notes / Terms & Conditions (Optional)</label>
+                  <textarea
+                    rows={3}
+                    value={poEmailCustomNotes}
+                    onChange={(e) => setPoEmailCustomNotes(e.target.value)}
+                    placeholder="e.g. Valid for 30 days. Includes free ATL lab training and 1-year replacement warranty."
+                    className="w-full bg-[#F4EADE] p-2.5 rounded-xl border border-[#8A7968]/40 text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
+                  />
+                </div>
+                <div className="flex gap-2.5 pt-2">
+                  <button type="button" onClick={() => setEmailingPO(null)} className="w-1/2 bg-[#EADBC8] p-2.5 rounded-xl font-bold border border-[#8A7968]/30 cursor-pointer">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={dispatchingQuoteEmail} className="w-1/2 bg-[#B76E79] hover:bg-[#9E5B65] text-white p-2.5 rounded-xl font-black shadow-xs cursor-pointer btn-press">
+                    {dispatchingQuoteEmail ? 'Sending...' : 'Send Official Quote 🚀'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* PO Item Lightbox Modal for Photo & Details Inspection */}
+        {viewingPOProduct && (
+          <div className="fixed inset-0 bg-[#2B2B2B]/85 backdrop-blur-xs flex justify-center items-center p-4 z-50">
+            <div className="bg-[#EFE3D3] border border-[#8A7968]/40 rounded-3xl shadow-2xl w-full max-w-md p-6 relative space-y-4 text-[#2B2B2B]">
+              <div className="flex justify-between items-center border-b border-[#8A7968]/20 pb-2">
+                <h3 className="font-bold text-sm">Product Item Verification</h3>
+                <button onClick={() => setViewingPOProduct(null)} className="text-xs bg-[#EADBC8] px-2.5 py-1 rounded-full font-bold cursor-pointer">
+                  ✕
+                </button>
+              </div>
+              <div className="h-44 bg-[#F4EADE] rounded-2xl flex items-center justify-center p-2 border border-[#8A7968]/30">
+                <img src={viewingPOProduct.image_url?.split(',')[0] || 'https://via.placeholder.com/200'} alt="" className="h-full w-full object-contain" />
+              </div>
+              <div>
+                <h4 className="font-black text-base">{viewingPOProduct.name}</h4>
+                <div className="text-sm font-extrabold text-[#B76E79] mt-1">₹{viewingPOProduct.price} per unit</div>
+                {viewingPOProduct.description && (
+                  <p className="text-xs text-[#8A7968] mt-2 leading-relaxed">{viewingPOProduct.description}</p>
+                )}
+              </div>
+              <div className="pt-2">
+                <Link href={`/product/${viewingPOProduct.id}`} target="_blank" className="block text-center w-full bg-[#B76E79] text-white text-xs font-bold py-2.5 rounded-xl">
+                  Open Storefront Product Page ↗
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activePrintOrder && (
           <OrderInvoiceModal
             order={activePrintOrder.order}
