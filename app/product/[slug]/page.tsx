@@ -34,7 +34,7 @@ export default function ProductDetails() {
   // Review Photo Lightbox Modal State
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
 
-  const { addToCart } = useCart()
+  const { addToCart, totalItems } = useCart()
   const supabase = createClient()
 
   useEffect(() => {
@@ -140,6 +140,12 @@ export default function ProductDetails() {
       setHasUserReviewed(reviews.some(r => r.user_id === user.id))
     }
   }, [user, reviews])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+    router.refresh()
+  }
 
   if (loading) return <div className="p-10 text-center text-xs sm:text-sm text-[#8A7968] font-bold">Loading product details...</div>
   if (!product) return <div className="p-10 text-center text-xs sm:text-sm text-[#8A7968] font-bold">Product not found.</div>
@@ -270,278 +276,360 @@ export default function ProductDetails() {
     : 'No ratings yet'
 
   return (
-    <div className="min-h-screen bg-[#F4EADE] px-3 sm:px-6 lg:px-8 py-4 sm:py-8 w-full overflow-x-hidden text-[#2B2B2B]">
-      <div className="mx-auto max-w-4xl rounded-2xl sm:rounded-3xl bg-[#EFE3D3] p-4 sm:p-8 shadow-xs border border-[#8A7968]/30 w-full">
-        <Link href="/" className="inline-flex items-center text-xs sm:text-sm font-semibold text-[#B76E79] hover:underline mb-2">
-          ← Back to Store
-        </Link>
-        
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 w-full">
-          {/* Product Media Gallery */}
-          <div className="w-full flex flex-col items-center">
-            <div className="h-64 sm:h-80 w-full max-w-sm sm:max-w-none bg-[#EADBC8]/50 rounded-2xl overflow-hidden border border-[#8A7968]/30 flex items-center justify-center mb-3">
-              {activeImage ? (
-                <img 
-                  src={activeImage} 
-                  alt={product.name} 
-                  onClick={() => setLightboxImage(activeImage)}
-                  className="h-full w-full object-contain p-3 cursor-zoom-in" 
-                  title="Click to zoom image"
-                />
-              ) : (
-                <span className="text-[#8A7968] text-xs">Image Coming Soon</span>
+    <div className="min-h-screen bg-[#F4EADE] text-[#2B2B2B] w-full overflow-x-hidden">
+      {/* Top Header */}
+      <header className="bg-[#EFE3D3] px-3 sm:px-8 lg:px-12 py-3.5 sm:py-5 shadow-xs sticky top-0 z-50 w-full border-b border-[#8A7968]/30">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
+          <Link href="/" className="hover:opacity-90 transition cursor-pointer min-w-0 shrink">
+            <h1 className="text-sm sm:text-xl md:text-2xl font-black text-[#2B2B2B] tracking-tight truncate">
+              Mahin's One-Stop One-Store
+            </h1>
+          </Link>
+
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <Link
+              href="/school-po"
+              className="flex items-center gap-1.5 rounded-xl bg-[#B76E79] px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-[11px] sm:text-xs font-black text-white hover:bg-[#9E5B65] transition shadow-xs"
+            >
+              🏛️ <span className="hidden sm:inline">School PO Portal</span>
+            </Link>
+
+            <Link
+              href="/track"
+              className="hidden md:flex items-center gap-1.5 rounded-xl bg-[#F4EADE] px-3.5 py-2 text-xs font-bold text-[#2B2B2B] hover:bg-[#EADBC8] transition border border-[#8A7968]/30"
+            >
+              📦 Track Order
+            </Link>
+
+            <Link
+              href="/wishlist"
+              className="relative flex items-center gap-1 rounded-xl bg-[#B76E79]/15 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-[#B76E79] hover:bg-[#B76E79]/25 transition border border-[#B76E79]/40"
+            >
+              <span>★</span>
+              <span className="hidden sm:inline">Wishlist</span>
+            </Link>
+
+            <Link
+              href="/cart"
+              className="flex relative items-center gap-1.5 rounded-xl bg-[#F4EADE] px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-[#2B2B2B] text-xs sm:text-sm font-semibold hover:bg-[#EADBC8] transition border border-[#8A7968]/30"
+            >
+              <span>🛒</span>
+              <span className="hidden sm:inline">Cart</span>
+              {totalItems > 0 && (
+                <span className="flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-[#B76E79] text-[10px] sm:text-xs text-white font-bold">
+                  {totalItems}
+                </span>
+              )}
+            </Link>
+
+            {user ? (
+              <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-[#8A7968]/30">
+                <Link
+                  href="/orders"
+                  className="rounded-xl bg-[#F4EADE] px-2.5 py-1.5 text-xs font-bold text-[#2B2B2B] transition hover:bg-[#EADBC8] border border-[#8A7968]/30 flex items-center gap-1"
+                >
+                  <span>📋</span>
+                  <span className="hidden md:inline">Orders</span>
+                </Link>
+
+                <Link
+                  href="/profile"
+                  className="rounded-xl bg-[#F4EADE] px-2.5 py-1.5 text-xs font-bold text-[#2B2B2B] transition hover:bg-[#EADBC8] border border-[#8A7968]/30"
+                >
+                  Profile
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="rounded-xl bg-[#EADBC8] px-2.5 py-1.5 text-xs font-bold text-[#2B2B2B] transition hover:bg-[#8A7968]/30 cursor-pointer hidden sm:inline-block border border-[#8A7968]/30"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-[#8A7968]/30 text-xs font-bold text-[#B76E79]">
+                <Link href="/login" className="hover:underline py-1">
+                  Sign In
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-8 w-full">
+        <div className="mx-auto max-w-4xl rounded-2xl sm:rounded-3xl bg-[#EFE3D3] p-4 sm:p-8 shadow-xs border border-[#8A7968]/30 w-full">
+          <Link href="/" className="inline-flex items-center text-xs sm:text-sm font-semibold text-[#B76E79] hover:underline mb-2">
+            ← Back to Store
+          </Link>
+          
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 w-full">
+            {/* Product Media Gallery */}
+            <div className="w-full flex flex-col items-center">
+              <div className="h-64 sm:h-80 w-full max-w-sm sm:max-w-none bg-[#EADBC8]/50 rounded-2xl overflow-hidden border border-[#8A7968]/30 flex items-center justify-center mb-3">
+                {activeImage ? (
+                  <img 
+                    src={activeImage} 
+                    alt={product.name} 
+                    onClick={() => setLightboxImage(activeImage)}
+                    className="h-full w-full object-contain p-3 cursor-zoom-in" 
+                    title="Click to zoom image"
+                  />
+                ) : (
+                  <span className="text-[#8A7968] text-xs">Image Coming Soon</span>
+                )}
+              </div>
+              
+              {allImages.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-2 w-full max-w-sm sm:max-w-none justify-start no-scrollbar">
+                  {allImages.map((img: string, idx: number) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveImage(img)}
+                      className={`h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden border-2 shrink-0 transition bg-[#F4EADE] cursor-pointer ${
+                        activeImage === img ? 'border-[#B76E79] scale-105 shadow-xs' : 'border-[#8A7968]/30 opacity-60'
+                      }`}
+                    >
+                      <img src={img} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
-            
-            {allImages.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto pb-2 w-full max-w-sm sm:max-w-none justify-start no-scrollbar">
-                {allImages.map((img: string, idx: number) => (
+
+            {/* Product Information */}
+            <div className="flex flex-col justify-between w-full">
+              <div>
+                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#8A7968]">
+                  {product.category || 'Uncategorized'}
+                </span>
+                <h1 className="text-xl sm:text-3xl font-black text-[#2B2B2B] mt-1 mb-2 leading-tight">
+                  {product.name}
+                </h1>
+                <p className="text-[#8A7968] mb-4 sm:mb-6 text-xs sm:text-sm leading-relaxed">
+                  {product.description || 'No description available.'}
+                </p>
+                
+                {/* Kit Contents breakdown list with clickable images to zoom */}
+                {product.is_bundle && kitComponentsList.length > 0 && (
+                  <div className="mb-6 bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 space-y-2">
+                    <h4 className="text-xs font-black text-[#2B2B2B] uppercase tracking-wide">
+                      🎒 Kit Contents ({kitComponentsList.length} items included):
+                    </h4>
+                    <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                      {kitComponentsList.map((comp, idx) => (
+                        <li 
+                          key={idx} 
+                          onClick={() => comp.image_url && setLightboxImage(comp.image_url)}
+                          className="flex items-center justify-between text-xs bg-[#EFE3D3] p-2 rounded-xl border border-[#8A7968]/20 cursor-pointer hover:bg-[#EADBC8] transition"
+                          title="Click to view zoomed image"
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            {comp.image_url && (
+                              <img src={comp.image_url} alt="" className="w-6 h-6 object-cover rounded-md border border-[#8A7968]/30 bg-white shrink-0" />
+                            )}
+                            <span className="font-bold text-[#2B2B2B] truncate">{comp.name}</span>
+                          </div>
+                          <span className="bg-[#B76E79] text-white font-black px-2 py-0.5 rounded-md text-[11px] shrink-0">
+                            Qty: {comp.quantity}x
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-3 mb-4">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-[#2B2B2B]">₹{product.price}</div>
+                  <div className="text-xs font-bold text-[#2B2B2B] bg-[#F4EADE] px-2.5 py-1 rounded-full border border-[#8A7968]/30">
+                    ⭐ {averageRating} {reviews.length > 0 && `(${reviews.length})`}
+                  </div>
+                </div>
+                
+                <div className="mb-4">
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${effectiveStock > 0 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
+                    {effectiveStock > 0 ? `In Stock (${effectiveStock} available)` : 'Out of Stock'}
+                  </span>
+                </div>
+
+                <div className="mb-6 flex items-center gap-3">
+                  <label htmlFor="quantity" className="text-xs sm:text-sm font-medium text-[#2B2B2B]">Quantity:</label>
+                  <input
+                    type="number"
+                    id="quantity"
+                    min="1"
+                    max={maxStock}
+                    value={quantity}
+                    onChange={handleQuantityChange}
+                    onBlur={handleQuantityBlur}
+                    className="w-16 sm:w-20 rounded-xl border border-[#8A7968]/40 bg-[#F4EADE] px-3 py-2 text-center text-xs sm:text-sm font-bold text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Side-by-Side Dual Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full mt-2">
+                <button 
+                  onClick={handleAddToCart}
+                  disabled={effectiveStock <= 0}
+                  className="flex-1 rounded-xl bg-[#EADBC8] hover:bg-[#8A7968]/20 border border-[#8A7968]/40 py-3 font-bold text-xs sm:text-sm text-[#2B2B2B] transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
+                >
+                  Add to Cart 🛒
+                </button>
+
+                <button 
+                  onClick={handleBuyNow}
+                  disabled={effectiveStock <= 0}
+                  className="flex-1 rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-3 font-bold text-xs sm:text-sm text-white transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
+                >
+                  Buy Now ⚡
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Reviews Section */}
+          <div className="mt-8 sm:mt-12 border-t border-[#8A7968]/20 pt-6 sm:pt-8 w-full">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
+              <h3 className="text-base sm:text-lg font-black text-[#2B2B2B]">Customer Reviews & Ratings</h3>
+              <div className="text-xs sm:text-sm font-bold text-[#2B2B2B] bg-[#F4EADE] px-3 py-1 rounded-full border border-[#8A7968]/30 inline-block w-fit">
+                ⭐ {averageRating} {reviews.length > 0 && `(${reviews.length} reviews)`}
+              </div>
+            </div>
+
+            {/* Feedback alerts */}
+            {reviewMessage && (
+              <div
+                className={`mb-4 p-3.5 rounded-xl text-xs font-semibold border ${
+                  reviewMessage.type === 'success'
+                    ? 'bg-green-100 text-green-800 border-green-300'
+                    : 'bg-red-100 text-red-700 border-red-300'
+                }`}
+              >
+                {reviewMessage.text}
+              </div>
+            )}
+
+            {/* Review Submission Form with Verification */}
+            {!user ? (
+              <div className="bg-[#EADBC8]/50 p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 text-center text-xs font-bold text-[#2B2B2B] mb-6">
+                Please <Link href="/login" className="underline text-[#B76E79]">sign in</Link> and purchase this item to leave a review.
+              </div>
+            ) : !hasPurchasedProduct ? (
+              <div className="bg-[#EADBC8]/50 p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 text-center text-xs font-bold text-[#8A7968] mb-6">
+                🔒 Only customers who have purchased this item can leave a review.
+              </div>
+            ) : hasUserReviewed ? (
+              <div className="bg-[#EADBC8] p-4 sm:p-5 rounded-2xl border border-[#8A7968]/40 text-center text-xs font-bold text-[#2B2B2B] mb-6">
+                ✓ Thank you! You have already submitted a review for this product. Reviews cannot be edited once posted.
+              </div>
+            ) : (
+              <div className="bg-[#EADBC8]/40 p-4 sm:p-6 rounded-2xl border border-[#8A7968]/30 mb-6">
+                <h4 className="text-xs font-bold text-[#8A7968] uppercase mb-3">Leave a Verified Purchase Review</h4>
+                <form onSubmit={handleReviewSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2B2B2B] mb-1">Rating</label>
+                    <select 
+                      value={userRating} 
+                      onChange={(e) => setUserRating(Number(e.target.value))}
+                      className="w-full sm:w-auto border border-[#8A7968]/40 p-2 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden"
+                    >
+                      <option value="5">⭐⭐⭐⭐⭐ (5/5 - Excellent)</option>
+                      <option value="4">⭐⭐⭐⭐ (4/5 - Good)</option>
+                      <option value="3">⭐⭐⭐ (3/5 - Average)</option>
+                      <option value="2">⭐⭐ (2/5 - Poor)</option>
+                      <option value="1">⭐ (1/5 - Terrible)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2B2B2B] mb-1">Your Feedback</label>
+                    <textarea 
+                      rows={3}
+                      required
+                      value={userComment}
+                      onChange={(e) => setUserComment(e.target.value)}
+                      placeholder="Write your experience with this component..."
+                      className="w-full border border-[#8A7968]/40 p-3 rounded-xl text-xs text-[#2B2B2B] bg-[#F4EADE] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-[#2B2B2B] mb-1">
+                      Attach Photo of Purchased Item <span className="text-[#8A7968]">(Optional)</span>
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="cursor-pointer bg-[#F4EADE] border border-[#8A7968]/40 hover:bg-[#EADBC8] text-[#2B2B2B] font-bold text-xs px-4 py-2 rounded-xl transition shadow-2xs">
+                        + Browse File
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleFileSelect} 
+                          className="hidden" 
+                        />
+                      </label>
+                      {selectedFile && (
+                        <span className="text-xs text-[#B76E79] font-semibold truncate max-w-xs">
+                          📎 {selectedFile.name}
+                        </span>
+                      )}
+                    </div>
+                    {filePreview && (
+                      <div className="mt-3 w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] p-1 shadow-2xs">
+                        <img src={filePreview} alt="Preview" className="w-full h-full object-cover rounded-lg" />
+                      </div>
+                    )}
+                  </div>
+
                   <button
-                    key={idx}
-                    onClick={() => setActiveImage(img)}
-                    className={`h-14 w-14 sm:h-16 sm:w-16 rounded-xl overflow-hidden border-2 shrink-0 transition bg-[#F4EADE] cursor-pointer ${
-                      activeImage === img ? 'border-[#B76E79] scale-105 shadow-xs' : 'border-[#8A7968]/30 opacity-60'
-                    }`}
+                    type="submit"
+                    disabled={submittingReview}
+                    className="w-full sm:w-auto bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-xs transition cursor-pointer btn-press"
                   >
-                    <img src={img} alt="" className="h-full w-full object-cover" />
+                    {submittingReview ? 'Uploading & Posting...' : 'Submit Review ✍️'}
                   </button>
+                </form>
+              </div>
+            )}
+
+            {/* Reviews List */}
+            {reviews.length === 0 ? (
+              <p className="text-xs text-[#8A7968] italic">Be the first to review this product!</p>
+            ) : (
+              <div className="space-y-3">
+                {reviews.map((rev) => (
+                  <div key={rev.id} className="bg-[#EADBC8]/40 p-3.5 sm:p-5 rounded-2xl border border-[#8A7968]/30 shadow-2xs space-y-2 sm:space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-[#2B2B2B]">{rev.customer_name}</span>
+                      <span className="text-[10px] sm:text-[11px] text-[#8A7968]">{new Date(rev.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div className="text-amber-600 text-xs font-bold">
+                      {'⭐'.repeat(rev.rating)}
+                    </div>
+                    <p className="text-xs text-[#2B2B2B] leading-relaxed">{rev.comment}</p>
+                    {rev.image_url && (
+                      <div className="mt-2 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] shadow-2xs group relative">
+                        <img
+                          src={rev.image_url}
+                          alt="Customer purchase"
+                          onClick={() => setLightboxImage(rev.image_url)}
+                          className="w-full h-full object-cover cursor-pointer transition-transform duration-200 group-hover:scale-105"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setLightboxImage(rev.image_url)}
+                          className="absolute inset-0 bg-[#2B2B2B]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold cursor-pointer"
+                          title="Click to zoom in"
+                        >
+                          🔍 Zoom
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
           </div>
-
-          {/* Product Information */}
-          <div className="flex flex-col justify-between w-full">
-            <div>
-              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-[#8A7968]">
-                {product.category || 'Uncategorized'}
-              </span>
-              <h1 className="text-xl sm:text-3xl font-black text-[#2B2B2B] mt-1 mb-2 leading-tight">
-                {product.name}
-              </h1>
-              <p className="text-[#8A7968] mb-4 sm:mb-6 text-xs sm:text-sm leading-relaxed">
-                {product.description || 'No description available.'}
-              </p>
-              
-              {/* Kit Contents breakdown list with clickable images to zoom */}
-              {product.is_bundle && kitComponentsList.length > 0 && (
-                <div className="mb-6 bg-[#F4EADE] p-4 rounded-2xl border border-[#8A7968]/30 space-y-2">
-                  <h4 className="text-xs font-black text-[#2B2B2B] uppercase tracking-wide">
-                    🎒 Kit Contents ({kitComponentsList.length} items included):
-                  </h4>
-                  <ul className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                    {kitComponentsList.map((comp, idx) => (
-                      <li 
-                        key={idx} 
-                        onClick={() => comp.image_url && setLightboxImage(comp.image_url)}
-                        className="flex items-center justify-between text-xs bg-[#EFE3D3] p-2 rounded-xl border border-[#8A7968]/20 cursor-pointer hover:bg-[#EADBC8] transition"
-                        title="Click to view zoomed image"
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          {comp.image_url && (
-                            <img src={comp.image_url} alt="" className="w-6 h-6 object-cover rounded-md border border-[#8A7968]/30 bg-white shrink-0" />
-                          )}
-                          <span className="font-bold text-[#2B2B2B] truncate">{comp.name}</span>
-                        </div>
-                        <span className="bg-[#B76E79] text-white font-black px-2 py-0.5 rounded-md text-[11px] shrink-0">
-                          Qty: {comp.quantity}x
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                <div className="text-2xl sm:text-3xl font-extrabold text-[#2B2B2B]">₹{product.price}</div>
-                <div className="text-xs font-bold text-[#2B2B2B] bg-[#F4EADE] px-2.5 py-1 rounded-full border border-[#8A7968]/30">
-                  ⭐ {averageRating} {reviews.length > 0 && `(${reviews.length})`}
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${effectiveStock > 0 ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
-                  {effectiveStock > 0 ? `In Stock (${effectiveStock} available)` : 'Out of Stock'}
-                </span>
-              </div>
-
-              <div className="mb-6 flex items-center gap-3">
-                <label htmlFor="quantity" className="text-xs sm:text-sm font-medium text-[#2B2B2B]">Quantity:</label>
-                <input
-                  type="number"
-                  id="quantity"
-                  min="1"
-                  max={maxStock}
-                  value={quantity}
-                  onChange={handleQuantityChange}
-                  onBlur={handleQuantityBlur}
-                  className="w-16 sm:w-20 rounded-xl border border-[#8A7968]/40 bg-[#F4EADE] px-3 py-2 text-center text-xs sm:text-sm font-bold text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
-                />
-              </div>
-            </div>
-
-            {/* Side-by-Side Dual Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full mt-2">
-              <button 
-                onClick={handleAddToCart}
-                disabled={effectiveStock <= 0}
-                className="flex-1 rounded-xl bg-[#EADBC8] hover:bg-[#8A7968]/20 border border-[#8A7968]/40 py-3 font-bold text-xs sm:text-sm text-[#2B2B2B] transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
-              >
-                Add to Cart 🛒
-              </button>
-
-              <button 
-                onClick={handleBuyNow}
-                disabled={effectiveStock <= 0}
-                className="flex-1 rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-3 font-bold text-xs sm:text-sm text-white transition shadow-xs disabled:opacity-50 cursor-pointer btn-press"
-              >
-                Buy Now ⚡
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Customer Reviews Section */}
-        <div className="mt-8 sm:mt-12 border-t border-[#8A7968]/20 pt-6 sm:pt-8 w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-            <h3 className="text-base sm:text-lg font-black text-[#2B2B2B]">Customer Reviews & Ratings</h3>
-            <div className="text-xs sm:text-sm font-bold text-[#2B2B2B] bg-[#F4EADE] px-3 py-1 rounded-full border border-[#8A7968]/30 inline-block w-fit">
-              ⭐ {averageRating} {reviews.length > 0 && `(${reviews.length} reviews)`}
-            </div>
-          </div>
-
-          {/* Feedback alerts */}
-          {reviewMessage && (
-            <div
-              className={`mb-4 p-3.5 rounded-xl text-xs font-semibold border ${
-                reviewMessage.type === 'success'
-                  ? 'bg-green-100 text-green-800 border-green-300'
-                  : 'bg-red-100 text-red-700 border-red-300'
-              }`}
-            >
-              {reviewMessage.text}
-            </div>
-          )}
-
-          {/* Review Submission Form with Verification */}
-          {!user ? (
-            <div className="bg-[#EADBC8]/50 p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 text-center text-xs font-bold text-[#2B2B2B] mb-6">
-              Please <Link href="/login" className="underline text-[#B76E79]">sign in</Link> and purchase this item to leave a review.
-            </div>
-          ) : !hasPurchasedProduct ? (
-            <div className="bg-[#EADBC8]/50 p-4 sm:p-5 rounded-2xl border border-[#8A7968]/30 text-center text-xs font-bold text-[#8A7968] mb-6">
-              🔒 Only customers who have purchased this item can leave a review.
-            </div>
-          ) : hasUserReviewed ? (
-            <div className="bg-[#EADBC8] p-4 sm:p-5 rounded-2xl border border-[#8A7968]/40 text-center text-xs font-bold text-[#2B2B2B] mb-6">
-              ✓ Thank you! You have already submitted a review for this product. Reviews cannot be edited once posted.
-            </div>
-          ) : (
-            <div className="bg-[#EADBC8]/40 p-4 sm:p-6 rounded-2xl border border-[#8A7968]/30 mb-6">
-              <h4 className="text-xs font-bold text-[#8A7968] uppercase mb-3">Leave a Verified Purchase Review</h4>
-              <form onSubmit={handleReviewSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-[#2B2B2B] mb-1">Rating</label>
-                  <select 
-                    value={userRating} 
-                    onChange={(e) => setUserRating(Number(e.target.value))}
-                    className="w-full sm:w-auto border border-[#8A7968]/40 p-2 rounded-xl text-xs bg-[#F4EADE] text-[#2B2B2B] font-bold focus:border-[#B76E79] focus:outline-hidden"
-                  >
-                    <option value="5">⭐⭐⭐⭐⭐ (5/5 - Excellent)</option>
-                    <option value="4">⭐⭐⭐⭐ (4/5 - Good)</option>
-                    <option value="3">⭐⭐⭐ (3/5 - Average)</option>
-                    <option value="2">⭐⭐ (2/5 - Poor)</option>
-                    <option value="1">⭐ (1/5 - Terrible)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#2B2B2B] mb-1">Your Feedback</label>
-                  <textarea 
-                    rows={3}
-                    required
-                    value={userComment}
-                    onChange={(e) => setUserComment(e.target.value)}
-                    placeholder="Write your experience with this component..."
-                    className="w-full border border-[#8A7968]/40 p-3 rounded-xl text-xs text-[#2B2B2B] bg-[#F4EADE] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#2B2B2B] mb-1">
-                    Attach Photo of Purchased Item <span className="text-[#8A7968]">(Optional)</span>
-                  </label>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <label className="cursor-pointer bg-[#F4EADE] border border-[#8A7968]/40 hover:bg-[#EADBC8] text-[#2B2B2B] font-bold text-xs px-4 py-2 rounded-xl transition shadow-2xs">
-                      + Browse File
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleFileSelect} 
-                        className="hidden" 
-                      />
-                    </label>
-                    {selectedFile && (
-                      <span className="text-xs text-[#B76E79] font-semibold truncate max-w-xs">
-                        📎 {selectedFile.name}
-                      </span>
-                    )}
-                  </div>
-                  {filePreview && (
-                    <div className="mt-3 w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] p-1 shadow-2xs">
-                      <img src={filePreview} alt="Preview" className="w-full h-full object-cover rounded-lg" />
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submittingReview}
-                  className="w-full sm:w-auto bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-xs transition cursor-pointer btn-press"
-                >
-                  {submittingReview ? 'Uploading & Posting...' : 'Submit Review ✍️'}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Reviews List */}
-          {reviews.length === 0 ? (
-            <p className="text-xs text-[#8A7968] italic">Be the first to review this product!</p>
-          ) : (
-            <div className="space-y-3">
-              {reviews.map((rev) => (
-                <div key={rev.id} className="bg-[#EADBC8]/40 p-3.5 sm:p-5 rounded-2xl border border-[#8A7968]/30 shadow-2xs space-y-2 sm:space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-[#2B2B2B]">{rev.customer_name}</span>
-                    <span className="text-[10px] sm:text-[11px] text-[#8A7968]">{new Date(rev.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <div className="text-amber-600 text-xs font-bold">
-                    {'⭐'.repeat(rev.rating)}
-                  </div>
-                  <p className="text-xs text-[#2B2B2B] leading-relaxed">{rev.comment}</p>
-                  {rev.image_url && (
-                    <div className="mt-2 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-[#8A7968]/30 bg-[#F4EADE] shadow-2xs group relative">
-                      <img
-                        src={rev.image_url}
-                        alt="Customer purchase"
-                        onClick={() => setLightboxImage(rev.image_url)}
-                        className="w-full h-full object-cover cursor-pointer transition-transform duration-200 group-hover:scale-105"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setLightboxImage(rev.image_url)}
-                        className="absolute inset-0 bg-[#2B2B2B]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold cursor-pointer"
-                        title="Click to zoom in"
-                      >
-                        🔍 Zoom
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
