@@ -38,6 +38,9 @@ export default function AdminPage() {
     cod_message: 'Payments not accepting currently'
   })
 
+  // School PO Discount Setting State
+  const [poDiscountVal, setPoDiscountVal] = useState('15')
+
   // Coupons Management State
   const [coupons, setCoupons] = useState<any[]>([])
   const [couponCode, setCouponCode] = useState('')
@@ -152,7 +155,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isAdminAuthenticated) return
-    if (activeTab === 'payments') fetchPaymentSettings()
+    if (activeTab === 'payments') {
+      fetchPaymentSettings()
+      fetchPoDiscountSetting()
+    }
     if (activeTab === 'reviews') fetchAdminReviews()
     if (activeTab === 'coupons') fetchCoupons()
     if (activeTab === 'banners') fetchBanners()
@@ -169,6 +175,35 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to load payment settings', err)
     }
+  }
+
+  const fetchPoDiscountSetting = async () => {
+    try {
+      const { data } = await supabase.from('store_settings').select('setting_value').eq('id', 'school_po_discount_percent').single()
+      if (data) {
+        setPoDiscountVal(data.setting_value)
+      }
+    } catch (err) {
+      console.error('Failed to fetch PO discount setting', err)
+    }
+  }
+
+  const handleSavePoDiscount = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setErrorMsg('')
+    setSuccessMsg('')
+    try {
+      const { error } = await supabase.from('store_settings').upsert({
+        id: 'school_po_discount_percent',
+        setting_value: poDiscountVal
+      })
+      if (error) throw error
+      setSuccessMsg('School PO bulk discount percentage updated successfully!')
+    } catch (err: any) {
+      setErrorMsg(`Failed to update PO discount: ${err.message}`)
+    }
+    setLoading(false)
   }
 
   const fetchAdminReviews = async () => {
@@ -1507,7 +1542,7 @@ export default function AdminPage() {
                           <h3 className="font-black text-base text-[#2B2B2B]">{po.school_name}</h3>
                         </div>
                         <div className="text-right">
-                          <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Estimated Quote (15% OFF)</span>
+                          <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Estimated Quote ({poDiscountVal}% OFF)</span>
                           <span className="text-xl font-black text-[#B76E79]">₹{po.total_estimated_amount}</span>
                         </div>
                       </div>
@@ -1557,7 +1592,7 @@ export default function AdminPage() {
 
                         <a
                           href={`mailto:${po.email}?subject=${encodeURIComponent(`Official Quotation - Mahin's One-Stop One-Store for ${po.school_name}`)}&body=${encodeURIComponent(
-                            `Dear ${po.educator_name},\n\nThank you for requesting an institutional quotation for ${po.school_name}.\n\nTotal Estimated Amount (with 15% Educational Discount): ₹${po.total_estimated_amount}\n\nPlease review your items and confirm the official school Purchase Order (PO) details.\n\nBest regards,\nMahin's One-Stop One-Store`
+                            `Dear ${po.educator_name},\n\nThank you for requesting an institutional quotation for ${po.school_name}.\n\nTotal Estimated Amount (with ${poDiscountVal}% Educational Discount): ₹${po.total_estimated_amount}\n\nPlease review your items and confirm the official school Purchase Order (PO) details.\n\nBest regards,\nMahin's One-Stop One-Store`
                           )}`}
                           className="bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer"
                         >
@@ -3060,11 +3095,38 @@ export default function AdminPage() {
         {activeTab === 'payments' && (
           <div className="bg-[#EFE3D3] p-6 sm:p-8 rounded-3xl shadow-xs border border-[#8A7968]/30 max-w-2xl mx-auto space-y-6 text-[#2B2B2B]">
             <div className="border-b border-[#8A7968]/20 pb-4">
-              <h2 className="text-xl font-black text-[#2B2B2B]">💳 Payment Gateway Control Center</h2>
-              <p className="text-xs text-[#8A7968] mt-1">Enable or disable payment options and customize customer checkout notices.</p>
+              <h2 className="text-xl font-black text-[#2B2B2B]">💳 Payment Gateway & School PO Settings</h2>
+              <p className="text-xs text-[#8A7968] mt-1">Configure payment options and manage global institutional bulk discounts.</p>
             </div>
 
-            <form onSubmit={handleSavePaymentSettings} className="space-y-6">
+            {/* School PO Discount Manager Section */}
+            <form onSubmit={handleSavePoDiscount} className="p-4 rounded-2xl bg-[#F4EADE] border border-[#8A7968]/30 space-y-3">
+              <div>
+                <h4 className="text-sm font-bold text-[#2B2B2B]">🏛️ School PO Bulk Discount Percentage</h4>
+                <p className="text-xs text-[#8A7968]">Set the automatic discount applied across all items in the School PO Portal.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={poDiscountVal}
+                  onChange={(e) => setPoDiscountVal(e.target.value)}
+                  className="w-28 border border-[#8A7968]/40 bg-[#EFE3D3] p-2.5 rounded-xl text-xs font-bold text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden text-center"
+                  required
+                />
+                <span className="text-xs font-black text-[#B76E79]">% OFF</span>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="ml-auto bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer btn-press"
+                >
+                  Update Discount 💾
+                </button>
+              </div>
+            </form>
+
+            <form onSubmit={handleSavePaymentSettings} className="space-y-6 pt-4 border-t border-[#8A7968]/20">
               <div className="flex items-center justify-between p-4 rounded-2xl bg-[#F4EADE] border border-[#8A7968]/30">
                 <div>
                   <h4 className="text-sm font-bold text-[#2B2B2B]">Razorpay Gateway</h4>
