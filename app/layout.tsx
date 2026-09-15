@@ -6,6 +6,7 @@ import "./globals.css"
 import { CartProvider } from "./context/CartContext"
 import { WishlistProvider } from "./context/WishlistContext"
 import MobileBottomNav from "./components/MobileBottomNav"
+import Navbar from "./components/Navbar"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -31,6 +32,7 @@ export default function RootLayout({
         <CartProvider>
           <WishlistProvider>
             <div className="w-full max-w-full flex flex-col min-h-screen">
+              <Navbar />
               {children}
             </div>
             <MobileBottomNav />
