@@ -1,7 +1,7 @@
 // app/school-po/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '../../lib/supabase/client'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -12,24 +12,31 @@ export default function SchoolPOCatalog() {
   const [discountPercent, setDiscountPercent] = useState<number>(15)
   const [loading, setLoading] = useState(true)
 
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All')
+
   const { schoolUser, addToPOCart, poTotalItems, logoutSchool } = useSchoolPOCart()
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('school_po_user') : null
-    if (!saved && !schoolUser) {
+    // Verify whether the institution is registered/signed in
+    const savedUser = typeof window !== 'undefined' ? localStorage.getItem('school_po_user') : null
+    if (!savedUser && !schoolUser) {
       router.push('/school-po/auth')
       return
     }
 
     const fetchData = async () => {
+      // Fetch products
       const { data: prodData } = await supabase
         .from('products')
         .select('*')
         .order('created_at', { ascending: false })
       if (prodData) setProducts(prodData)
 
+      // Fetch dynamic PO discount setting
       const { data: settingData } = await supabase
         .from('store_settings')
         .select('setting_value')
@@ -44,6 +51,35 @@ export default function SchoolPOCatalog() {
 
     fetchData()
   }, [schoolUser, router, supabase])
+
+  // Extract unique categories dynamically
+  const categoriesList = useMemo(() => {
+    const categories = new Set<string>()
+    products.forEach((p) => {
+      if (p.category && p.category.trim()) {
+        categories.add(p.category.trim())
+      }
+    })
+    return ['All', ...Array.from(categories).sort((a, b) => a.localeCompare(b))]
+  }, [products])
+
+  // Filtered product items
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const q = searchQuery.toLowerCase().trim()
+      const matchesSearch =
+        !q ||
+        (product.name && product.name.toLowerCase().includes(q)) ||
+        (product.description && product.description.toLowerCase().includes(q)) ||
+        (product.category && product.category.toLowerCase().includes(q))
+
+      const matchesCategory =
+        selectedCategory === 'All' ||
+        (product.category && product.category.trim().toLowerCase() === selectedCategory.toLowerCase())
+
+      return matchesSearch && matchesCategory
+    })
+  }, [products, searchQuery, selectedCategory])
 
   if (loading) {
     return (
@@ -102,77 +138,154 @@ export default function SchoolPOCatalog() {
           </div>
         </div>
 
-        {/* Product Grid */}
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
-          {products.map((product) => {
-            const firstImage = product.image_url ? product.image_url.split(',')[0].trim() : null
-            const originalPrice = Number(product.price) || 0
-            const schoolPrice = Math.round(originalPrice * (1 - discountPercent / 100))
-
-            return (
-              <div 
-                key={product.id} 
-                className="flex flex-col overflow-hidden rounded-2xl bg-[#EFE3D3] border border-[#8A7968]/30 shadow-2xs transition hover:shadow-md relative"
-              >
-                <div className="absolute top-3 left-3 z-10 bg-[#B76E79] text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase shadow-2xs">
-                  {discountPercent}% School OFF
-                </div>
-
-                <Link 
-                  href={`/product/${product.id}`}
-                  className="h-44 sm:h-48 w-full bg-[#EADBC8]/50 flex items-center justify-center overflow-hidden border-b border-[#8A7968]/20 cursor-pointer group"
+        {/* Search Bar & Category Filter Section */}
+        <div className="bg-[#EFE3D3] p-4 sm:p-5 rounded-3xl border border-[#8A7968]/30 shadow-xs space-y-3.5">
+          {/* Search Input Row */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search components, sensors, DIY kits..."
+                className="w-full border border-[#8A7968]/40 bg-[#F4EADE] px-4 py-2.5 rounded-2xl text-xs sm:text-sm text-[#2B2B2B] placeholder:text-[#8A7968]/70 focus:border-[#B76E79] focus:outline-hidden"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-2.5 text-xs text-[#8A7968] hover:text-[#2B2B2B] font-bold cursor-pointer"
                 >
-                  {firstImage ? (
-                    <img 
-                      src={firstImage} 
-                      alt={product.name} 
-                      className="h-full w-full object-contain p-3 group-hover:scale-105 transition-transform duration-200" 
-                    />
-                  ) : (
-                    <span className="text-[#8A7968] text-xs">Image Coming Soon</span>
-                  )}
-                </Link>
-                
-                <div className="flex flex-1 flex-col p-4 sm:p-5">
-                  <span className="mb-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[#8A7968]">
-                    {product.category || 'Uncategorized'}
-                  </span>
-                  <Link href={`/product/${product.id}`} className="hover:underline">
-                    <h3 className="mb-1.5 text-base sm:text-lg font-bold text-[#2B2B2B] leading-tight line-clamp-1">
-                      {product.name}
-                    </h3>
-                  </Link>
-                  <p className="mb-4 flex-1 text-xs sm:text-sm text-[#8A7968] line-clamp-2">
-                    {product.description || 'No description available.'}
-                  </p>
-                  
-                  <div className="mt-auto space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-[#8A7968] line-through">₹{originalPrice}</span>
-                      <span className="text-lg sm:text-xl font-black text-[#B76E79]">₹{schoolPrice}</span>
-                    </div>
+                  ✕
+                </button>
+              )}
+            </div>
+            {(searchQuery || selectedCategory !== 'All') && (
+              <button
+                onClick={() => {
+                  setSearchQuery('')
+                  setSelectedCategory('All')
+                }}
+                className="bg-[#EADBC8] hover:bg-[#8A7968]/30 text-[#2B2B2B] font-bold text-xs px-4 py-2.5 rounded-2xl border border-[#8A7968]/30 transition cursor-pointer shrink-0"
+              >
+                Reset Filters
+              </button>
+            )}
+          </div>
 
-                    <div className="flex items-center gap-2 w-full">
-                      <Link
-                        href={`/product/${product.id}`}
-                        className="w-1/2 text-center rounded-xl bg-[#EADBC8] hover:bg-[#8A7968]/30 border border-[#8A7968]/40 py-2.5 text-xs font-bold text-[#2B2B2B] transition cursor-pointer"
-                      >
-                        View 🔍
-                      </Link>
-                      
-                      <button 
-                        onClick={() => addToPOCart({ ...product, price: schoolPrice }, 1)}
-                        className="w-1/2 rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-2.5 text-xs font-semibold text-white transition btn-press cursor-pointer shadow-2xs truncate px-1"
-                      >
-                        Add PO 🏛️
-                      </button>
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            {categoriesList.map((cat) => {
+              const isSelected = selectedCategory.toLowerCase() === cat.toLowerCase()
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 border ${
+                    isSelected
+                      ? 'bg-[#B76E79] text-white border-[#B76E79] shadow-xs'
+                      : 'bg-[#F4EADE] text-[#2B2B2B] border-[#8A7968]/30 hover:bg-[#EADBC8]'
+                  }`}
+                >
+                  {cat}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex justify-between items-center text-[11px] text-[#8A7968] font-semibold pt-1">
+            <span>Showing {filteredProducts.length} of {products.length} products</span>
+            {selectedCategory !== 'All' && <span>Category: <strong>{selectedCategory}</strong></span>}
+          </div>
+        </div>
+
+        {/* Product Grid */}
+        {filteredProducts.length === 0 ? (
+          <div className="bg-[#EFE3D3] p-12 rounded-3xl border border-[#8A7968]/30 text-center space-y-3">
+            <div className="text-3xl">🔍</div>
+            <p className="text-sm font-bold text-[#2B2B2B]">No components or lab kits found matching your search.</p>
+            <p className="text-xs text-[#8A7968]">Try searching with a different term or clearing your category filters.</p>
+            <button
+              onClick={() => {
+                setSearchQuery('')
+                setSelectedCategory('All')
+              }}
+              className="bg-[#B76E79] text-white text-xs font-bold px-4 py-2 rounded-xl"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 w-full">
+            {filteredProducts.map((product) => {
+              const firstImage = product.image_url ? product.image_url.split(',')[0].trim() : null
+              const originalPrice = Number(product.price) || 0
+              const schoolPrice = Math.round(originalPrice * (1 - discountPercent / 100))
+
+              return (
+                <div 
+                  key={product.id} 
+                  className="flex flex-col overflow-hidden rounded-2xl bg-[#EFE3D3] border border-[#8A7968]/30 shadow-2xs transition hover:shadow-md relative"
+                >
+                  <div className="absolute top-3 left-3 z-10 bg-[#B76E79] text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase shadow-2xs">
+                    {discountPercent}% School OFF
+                  </div>
+
+                  <Link 
+                    href={`/product/${product.id}`}
+                    className="h-44 sm:h-48 w-full bg-[#EADBC8]/50 flex items-center justify-center overflow-hidden border-b border-[#8A7968]/20 cursor-pointer group"
+                  >
+                    {firstImage ? (
+                      <img 
+                        src={firstImage} 
+                        alt={product.name} 
+                        className="h-full w-full object-contain p-3 group-hover:scale-105 transition-transform duration-200" 
+                      />
+                    ) : (
+                      <span className="text-[#8A7968] text-xs">Image Coming Soon</span>
+                    )}
+                  </Link>
+                  
+                  <div className="flex flex-1 flex-col p-4 sm:p-5">
+                    <span className="mb-1 text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[#8A7968]">
+                      {product.category || 'Uncategorized'}
+                    </span>
+                    <Link href={`/product/${product.id}`} className="hover:underline">
+                      <h3 className="mb-1.5 text-base sm:text-lg font-bold text-[#2B2B2B] leading-tight line-clamp-1">
+                        {product.name}
+                      </h3>
+                    </Link>
+                    <p className="mb-4 flex-1 text-xs sm:text-sm text-[#8A7968] line-clamp-2">
+                      {product.description || 'No description available.'}
+                    </p>
+                    
+                    <div className="mt-auto space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[#8A7968] line-through">₹{originalPrice}</span>
+                        <span className="text-lg sm:text-xl font-black text-[#B76E79]">₹{schoolPrice}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 w-full">
+                        <Link
+                          href={`/product/${product.id}`}
+                          className="w-1/2 text-center rounded-xl bg-[#EADBC8] hover:bg-[#8A7968]/30 border border-[#8A7968]/40 py-2.5 text-xs font-bold text-[#2B2B2B] transition cursor-pointer"
+                        >
+                          View 🔍
+                        </Link>
+                        
+                        <button 
+                          onClick={() => addToPOCart({ ...product, price: schoolPrice }, 1)}
+                          className="w-1/2 rounded-xl bg-[#B76E79] hover:bg-[#9E5B65] py-2.5 text-xs font-semibold text-white transition btn-press cursor-pointer shadow-2xs truncate px-1"
+                        >
+                          Add PO 🏛️
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
