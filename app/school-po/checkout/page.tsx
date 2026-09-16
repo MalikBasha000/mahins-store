@@ -19,6 +19,7 @@ export default function SchoolPOCheckoutPage() {
   const [udiseCode, setUdiseCode] = useState('')
   const [atlCode, setAtlCode] = useState('')
   const [address, setAddress] = useState('')
+  const [activeDiscountPercent, setActiveDiscountPercent] = useState<number>(15)
   const [loading, setLoading] = useState(false)
   const [confirmedTrackingId, setConfirmedTrackingId] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -35,7 +36,20 @@ export default function SchoolPOCheckoutPage() {
     setUdiseCode(schoolUser.udise_code || '')
     setAtlCode(schoolUser.atl_code || '')
     setAddress(schoolUser.address || '')
-  }, [schoolUser, router])
+
+    // Fetch active store discount percentage to lock into this specific order
+    const fetchDiscount = async () => {
+      try {
+        const { data } = await supabase.from('store_settings').select('setting_value').eq('id', 'school_po_discount_percent').single()
+        if (data && data.setting_value) {
+          setActiveDiscountPercent(Number(data.setting_value) || 15)
+        }
+      } catch (err) {
+        console.error('Error fetching discount setting:', err)
+      }
+    }
+    fetchDiscount()
+  }, [schoolUser, router, supabase])
 
   const generate13DigitPOTracking = () => {
     const random11 = Math.floor(10000000000 + Math.random() * 90000000000).toString()
@@ -65,6 +79,7 @@ export default function SchoolPOCheckoutPage() {
           shipping_address: address.trim(),
           items: poCart,
           total_estimated_amount: poTotalPrice,
+          discount_percent: activeDiscountPercent, // Lock in current store discount permanently
           status: 'Pending Review'
         }
       ]).select().single()
@@ -112,7 +127,7 @@ export default function SchoolPOCheckoutPage() {
             <span className="font-mono text-lg font-black text-[#B76E79] select-all tracking-wider">{confirmedTrackingId}</span>
           </div>
           <p className="text-xs text-[#8A7968] leading-relaxed">
-            Thank you, <span className="font-bold text-[#2B2B2B]">{educatorName}</span>. Your institutional PO request for <span className="font-bold text-[#2B2B2B]">{schoolName}</span> has been dispatched. A confirmation summary has been sent to <span className="font-bold text-[#2B2B2B]">{email}</span>.
+            Thank you, <span className="font-bold text-[#2B2B2B]">{educatorName}</span>. Your institutional PO request for <span className="font-bold text-[#2B2B2B]">{schoolName}</span> has been dispatched with a locked <span className="font-bold text-[#2B2B2B]">{activeDiscountPercent}%</span> educational discount. A confirmation summary has been sent to <span className="font-bold text-[#2B2B2B]">{email}</span>.
           </p>
           <div className="flex gap-3 justify-center pt-2">
             <Link
@@ -139,7 +154,7 @@ export default function SchoolPOCheckoutPage() {
         <div className="flex justify-between items-center border-b border-[#8A7968]/20 pb-4">
           <div>
             <h1 className="text-lg sm:text-2xl font-black">🏛️ Finalize School Purchase Order</h1>
-            <p className="text-xs text-[#8A7968]">Confirm institutional details and generate an official quote request</p>
+            <p className="text-xs text-[#8A7968]">Confirm institutional details and generate an official quote request ({activeDiscountPercent}% Educational Discount Applied)</p>
           </div>
           <Link href="/school-po/cart" className="text-xs font-bold text-[#B76E79] hover:underline">
             ← Back to PO Cart
