@@ -44,10 +44,8 @@ export async function POST(req: Request) {
 
       if (updateErr) throw updateErr
 
-      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://mahinsonestoponestore.in')
-        .replace(/[\[\]\(\)]/g, '')
-        .replace(/\/+$/, '')
-      const resetLink = `${siteUrl}/school-po/reset-password?token=${resetToken}`
+      // Hardcoded verified origin ensures no accidental URL doubling or malformed scheme
+      const resetLink = `https://mahinsonestoponestore.in/school-po/reset-password?token=${resetToken}`
 
       const emailUser = process.env.EMAIL_USER || 'mahinsonestoponestore@gmail.com'
       const emailPass = process.env.EMAIL_PASS
@@ -72,28 +70,31 @@ export async function POST(req: Request) {
         to: cleanEmail,
         subject: `🔐 Reset Password - School PO Portal (${school.school_name})`,
         html: `
-          <div style="font-family: Arial, sans-serif; background-color: #F4EADE; padding: 30px 15px; color: #2B2B2B;">
-            <div style="max-width: 520px; margin: auto; background-color: #EFE3D3; border-radius: 20px; padding: 30px; border: 1px solid rgba(138, 121, 104, 0.3);">
+          <!DOCTYPE html>
+          <html>
+          <body style="font-family: Arial, sans-serif; background-color: #F4EADE; padding: 25px; margin: 0;">
+            <div style="max-width: 520px; margin: 0 auto; background-color: #EFE3D3; border-radius: 20px; padding: 30px; border: 1px solid rgba(138, 121, 104, 0.3);">
               <h2 style="color: #2B2B2B; margin-top: 0; font-size: 20px;">Institutional Password Reset</h2>
               <p style="font-size: 14px; color: #4A3F35;">Dear <strong>${school.educator_name || 'Educator'}</strong>,</p>
               <p style="font-size: 13px; color: #666; line-height: 1.6;">
                 A password reset request was initiated for your registered institution: <strong>${school.school_name}</strong>.
               </p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${resetLink}" style="background-color: #B76E79; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-block;">
-                  Click Here to Reset Password 🔑
+                <a href="${resetLink}" target="_blank" rel="noopener noreferrer" style="background-color: #B76E79; color: #ffffff !important; text-decoration: none; padding: 13px 26px; border-radius: 12px; font-weight: bold; font-size: 14px; display: inline-block;">
+                  Reset School Password 🔑
                 </a>
               </div>
-              <p style="font-size: 11px; color: #8A7968; word-break: break-all;">
-                Or copy and paste this link into your browser:<br/>
-                <a href="${resetLink}" style="color: #B76E79;">${resetLink}</a>
+              <p style="font-size: 11px; color: #8A7968; word-break: break-all; line-height: 1.5;">
+                If the button above does not open, copy and paste this exact link into your browser address bar:<br/>
+                <a href="${resetLink}" target="_blank" rel="noopener noreferrer" style="color: #B76E79;">${resetLink}</a>
               </p>
               <hr style="border: none; border-top: 1px solid rgba(138, 121, 104, 0.2); margin: 20px 0;" />
               <p style="font-size: 11px; color: #8A7968; margin-bottom: 0;">
-                This link will automatically expire in 60 minutes. If you did not make this request, you can safely ignore this message.
+                This link will expire in 60 minutes. If you did not make this request, you can safely ignore this message.
               </p>
             </div>
-          </div>
+          </body>
+          </html>
         `,
       })
 
