@@ -47,7 +47,7 @@ export default function Navbar() {
     return null
   }
 
-  // If we are on ANY School PO page, show the dedicated School PO Navbar
+  // Dedicated School PO Navbar
   const isSchoolPOPage = pathname?.startsWith('/school-po')
 
   if (isSchoolPOPage) {
@@ -112,12 +112,22 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* School User Auth */}
+            {/* School User Auth & Profile Navigation */}
             {schoolUser ? (
               <div className="flex items-center gap-1.5 sm:gap-2 border-l pl-2 sm:pl-3 border-[#8A7968]/30">
-                <span className="hidden lg:inline-block text-[11px] font-bold text-green-800 bg-green-100 border border-green-200 px-2 py-0.5 rounded-lg truncate max-w-[150px]" title={schoolUser.school_name}>
+                <Link
+                  href="/school-po/profile"
+                  className="hidden lg:inline-block text-[11px] font-bold text-green-800 bg-green-100 hover:bg-green-200 border border-green-200 px-2 py-1 rounded-lg truncate max-w-[150px] transition cursor-pointer"
+                  title="Click to view and edit School Profile"
+                >
                   ✓ {schoolUser.school_name}
-                </span>
+                </Link>
+                <Link
+                  href="/school-po/profile"
+                  className="rounded-xl bg-[#F4EADE] hover:bg-[#EADBC8] px-2.5 py-1.5 text-xs font-bold text-[#2B2B2B] transition border border-[#8A7968]/30 cursor-pointer"
+                >
+                  Profile
+                </Link>
                 <button
                   onClick={() => {
                     logoutSchool()
@@ -201,7 +211,7 @@ export default function Navbar() {
             )}
           </Link>
 
-          {/* Auth Controls */}
+          {/* Store User Auth Controls */}
           {user ? (
             <div className="flex items-center gap-1.5 sm:gap-3 border-l pl-2 sm:pl-4 border-[#8A7968]/30">
               <Link
