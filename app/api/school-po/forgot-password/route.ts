@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: 'No registered institution found with this email address.' }, { status: 404 })
       }
 
-      // Generate secure 32-byte token valid for 60 minutes
+      // Generate 32-byte secure token valid for 60 minutes
       const resetToken = crypto.randomBytes(32).toString('hex')
       const expiryDate = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
@@ -44,10 +44,10 @@ export async function POST(req: Request) {
 
       if (updateErr) throw updateErr
 
-      // Clean site URL resolution (strictly prevents markdown duplicate string corruption)
-      const rawUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mahinsonestoponestore.in'
-      const cleanOrigin = rawUrl.replace(/[\[\]\(\)]/g, '').replace(/\/+$/, '')
-      const resetLink = `${cleanOrigin}/school-po/reset-password?token=${resetToken}`
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://mahinsonestoponestore.in')
+        .replace(/[\[\]\(\)]/g, '')
+        .replace(/\/+$/, '')
+      const resetLink = `${siteUrl}/school-po/reset-password?token=${resetToken}`
 
       const emailUser = process.env.EMAIL_USER || 'mahinsonestoponestore@gmail.com'
       const emailPass = process.env.EMAIL_PASS
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
       if (!emailPass) {
         return NextResponse.json({
           success: false,
-          error: 'Email service configuration error: EMAIL_PASS is not configured on the server.'
+          error: 'EMAIL_PASS is not configured on the server. Please add it to your Vercel Environment Variables.'
         }, { status: 500 })
       }
 
@@ -67,7 +67,6 @@ export async function POST(req: Request) {
         },
       })
 
-      // Send the reset email
       await transporter.sendMail({
         from: `"Mahin's One-Stop One-Store" <${emailUser}>`,
         to: cleanEmail,
@@ -78,7 +77,7 @@ export async function POST(req: Request) {
               <h2 style="color: #2B2B2B; margin-top: 0; font-size: 20px;">Institutional Password Reset</h2>
               <p style="font-size: 14px; color: #4A3F35;">Dear <strong>${school.educator_name || 'Educator'}</strong>,</p>
               <p style="font-size: 13px; color: #666; line-height: 1.6;">
-                A password reset request was initiated for your registered institution <strong>${school.school_name}</strong>.
+                A password reset request was initiated for your registered institution: <strong>${school.school_name}</strong>.
               </p>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${resetLink}" style="background-color: #B76E79; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-block;">
@@ -91,14 +90,13 @@ export async function POST(req: Request) {
               </p>
               <hr style="border: none; border-top: 1px solid rgba(138, 121, 104, 0.2); margin: 20px 0;" />
               <p style="font-size: 11px; color: #8A7968; margin-bottom: 0;">
-                This link will automatically expire in 60 minutes. If you did not make this request, your account remains secure and you can ignore this email.
+                This link will automatically expire in 60 minutes. If you did not make this request, you can safely ignore this message.
               </p>
             </div>
           </div>
         `,
       })
 
-      // Strict security: Do NOT return the reset link in the response body
       return NextResponse.json({
         success: true,
         message: `Password reset link has been dispatched to ${cleanEmail}. Please check your inbox or spam folder.`
