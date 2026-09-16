@@ -1640,6 +1640,9 @@ export default function AdminPage() {
                     
                     const matchedSchool = schoolAccounts.find((s) => s.email?.toLowerCase() === po.email?.toLowerCase())
                     const schoolRegistrationId = matchedSchool ? getTwelveDigitId(matchedSchool.id) : getTwelveDigitId(po.id)
+                    
+                    // Locked-in historical discount rate for this specific purchase order
+                    const orderDiscountPercent = Number(po.discount_percent) || Number(poDiscountVal) || 15
 
                     return (
                       <div key={po.id} className="bg-[#F4EADE] rounded-3xl border border-[#8A7968]/30 p-5 space-y-4 shadow-2xs">
@@ -1658,7 +1661,9 @@ export default function AdminPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Estimated Quote Total</span>
+                            <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">
+                              Estimated Quote ({orderDiscountPercent}% OFF)
+                            </span>
                             <span className="text-xl font-black text-[#B76E79]">₹{po.total_estimated_amount}</span>
                           </div>
                         </div>
@@ -1678,7 +1683,7 @@ export default function AdminPage() {
                             </div>
                           </div>
 
-                          {/* Itemized Table Breakdown */}
+                          {/* Itemized Table Breakdown with Locked Historical Discount Calculations */}
                           <div className="md:col-span-2 bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20">
                             <span className="text-[10px] font-bold text-[#B76E79] uppercase block mb-2">
                               Requested Items (Click item name for photo & details cross-check)
@@ -1689,7 +1694,7 @@ export default function AdminPage() {
                                   <tr className="border-b border-[#8A7968]/20 font-bold text-[#8A7968] text-[11px]">
                                     <th className="pb-1.5">Product</th>
                                     <th className="pb-1.5 text-center">Regular Price</th>
-                                    <th className="pb-1.5 text-center">Discount</th>
+                                    <th className="pb-1.5 text-center">Discount (-{orderDiscountPercent}%)</th>
                                     <th className="pb-1.5 text-center">PO Price</th>
                                     <th className="pb-1.5 text-center">Qty</th>
                                     <th className="pb-1.5 text-right">Total</th>
@@ -1698,7 +1703,7 @@ export default function AdminPage() {
                                 <tbody>
                                   {Array.isArray(po.items) && po.items.map((it: any, idx: number) => {
                                     const originalProd = products.find((p) => p.id === (it.id || it.product_id) || p.name === it.name)
-                                    const originalRetailPrice = originalProd ? Number(originalProd.price) : Math.round((Number(it.price) || 0) / (1 - (Number(poDiscountVal) || 15) / 100))
+                                    const originalRetailPrice = originalProd ? Number(originalProd.price) : Math.round((Number(it.price) || 0) / (1 - orderDiscountPercent / 100))
                                     const discountedUnitPrice = Number(it.price) || 0
                                     const discountDiff = Math.max(0, originalRetailPrice - discountedUnitPrice)
                                     const qty = Number(it.quantity) || 1
@@ -1718,7 +1723,7 @@ export default function AdminPage() {
                                           </button>
                                         </td>
                                         <td className="py-1.5 text-center text-[#8A7968] line-through">₹{originalRetailPrice}</td>
-                                        <td className="py-1.5 text-center text-green-700 font-bold">-{poDiscountVal}% (₹{discountDiff})</td>
+                                        <td className="py-1.5 text-center text-green-700 font-bold">-{orderDiscountPercent}% (₹{discountDiff})</td>
                                         <td className="py-1.5 text-center font-bold text-[#2B2B2B]">₹{discountedUnitPrice}</td>
                                         <td className="py-1.5 text-center font-black">{qty}</td>
                                         <td className="py-1.5 text-right font-black text-[#B76E79]">₹{discountedUnitPrice * qty}</td>
@@ -3426,13 +3431,28 @@ export default function AdminPage() {
                     className="w-full bg-[#F4EADE] p-2.5 rounded-xl border border-[#8A7968]/40 text-[#2B2B2B] focus:border-[#B76E79] focus:outline-hidden"
                   />
                 </div>
-                <div className="flex gap-2.5 pt-2">
-                  <button type="button" onClick={() => setEmailingPO(null)} className="w-1/2 bg-[#EADBC8] p-2.5 rounded-xl font-bold border border-[#8A7968]/30 cursor-pointer">
+                <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+                  <button type="button" onClick={() => setEmailingPO(null)} className="w-full sm:w-1/3 bg-[#EADBC8] p-2.5 rounded-xl font-bold border border-[#8A7968]/30 cursor-pointer">
                     Cancel
                   </button>
-                  <button type="submit" disabled={dispatchingQuoteEmail} className="w-1/2 bg-[#B76E79] hover:bg-[#9E5B65] text-white p-2.5 rounded-xl font-black shadow-xs cursor-pointer btn-press">
-                    {dispatchingQuoteEmail ? 'Sending...' : 'Send Official Quote 🚀'}
+                  <button type="submit" disabled={dispatchingQuoteEmail} className="w-full sm:w-1/3 bg-[#B76E79] hover:bg-[#9E5B65] text-white p-2.5 rounded-xl font-black shadow-xs cursor-pointer btn-press">
+                    {dispatchingQuoteEmail ? 'Sending...' : 'Send via SMTP 🚀'}
                   </button>
+                  <a
+                    href={`mailto:${emailingPO.email}?subject=${encodeURIComponent(`Official Quotation Approved: ${emailingPO.school_name} (PO: ${emailingPO.tracking_id || 'REF'})`)}&body=${encodeURIComponent(
+                      `Dear ${emailingPO.educator_name},\n\nWe are pleased to provide the official approved quotation for ${emailingPO.school_name}.\n\nPO Tracking Reference: ${emailingPO.tracking_id || 'N/A'}\nTotal Estimated Value: Rs. ${emailingPO.total_estimated_amount}\n\nItemized Breakdown:\n${
+                        Array.isArray(emailingPO.items)
+                          ? emailingPO.items.map((i: any) => `- ${i.name} (Qty: ${i.quantity} x Rs. ${i.price})`).join('\n')
+                          : ''
+                      }\n\n${poEmailCustomNotes ? `Notes: ${poEmailCustomNotes}\n\n` : ''}Best Regards,\nMahin's One-Stop One-Store`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => handleUpdatePOStatus(emailingPO.id, 'Quote Sent')}
+                    className="w-full sm:w-1/3 text-center bg-[#2B2B2B] hover:bg-black text-white p-2.5 rounded-xl font-bold cursor-pointer"
+                  >
+                    Open Mail App ✉️
+                  </a>
                 </div>
               </form>
             </div>
@@ -3786,7 +3806,6 @@ export default function AdminPage() {
                     <h1 className="text-2xl font-black text-[#2B2B2B] mt-1 mb-2">{viewingProduct.name || viewingProduct.title}</h1>
                     <div className="text-3xl font-extrabold text-[#2B2B2B] mb-4">₹{viewingProduct.price}</div>
                     
-                    {/* Customer view shipping badge preview */}
                     <div className="mb-4 bg-[#F4EADE] p-3 rounded-2xl border border-[#8A7968]/30">
                       <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">Shipping Information</span>
                       <p className="text-xs font-bold text-[#2B2B2B] mt-0.5">
