@@ -6,6 +6,7 @@ import { createClient } from '../../../lib/supabase/client'
 import { useSchoolPOCart } from '../../context/SchoolPOCartContext'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Logo from '../../components/Logo'
 
 export default function SchoolPOAuthPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -111,16 +112,19 @@ export default function SchoolPOAuthPage() {
   return (
     <div className="min-h-screen bg-[#F4EADE] flex flex-col items-center justify-center p-4 text-[#2B2B2B]">
       <div className="w-full max-w-xl bg-[#EFE3D3] rounded-3xl p-6 sm:p-8 border border-[#8A7968]/30 shadow-xl space-y-6">
-        <div className="text-center space-y-1 border-b border-[#8A7968]/20 pb-4">
-          <div className="text-3xl">🏛️</div>
-          <h1 className="text-xl sm:text-2xl font-black">
-            {isLogin ? 'School PO Verification Login' : 'School PO Verification & Signup'}
-          </h1>
-          <p className="text-xs text-[#8A7968]">
-            {isLogin 
-              ? 'Access institutional bulk pricing with your registered Email, UDISE Code, and Password.'
-              : 'Register your school or Atal Tinkering Lab to verify bulk discount eligibility.'}
-          </p>
+        {/* Header with Logo */}
+        <div className="flex flex-col items-center text-center space-y-2.5 border-b border-[#8A7968]/20 pb-4">
+          <Logo size={54} variant="icon" />
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black">
+              {isLogin ? 'School PO Verification Login' : 'School PO Verification & Signup'}
+            </h1>
+            <p className="text-xs text-[#8A7968] mt-1">
+              {isLogin 
+                ? 'Access institutional bulk pricing with your registered Email, UDISE Code, and Password.'
+                : 'Register your school or Atal Tinkering Lab to verify bulk discount eligibility.'}
+            </p>
+          </div>
         </div>
 
         {errorMsg && (
@@ -176,9 +180,9 @@ export default function SchoolPOAuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press mt-2"
+              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press mt-2 shadow-xs"
             >
-              {loading ? 'Verifying...' : 'Login & Open School PO Portal 🏛️'}
+              {loading ? 'Verifying...' : 'Login & Open School PO Portal'}
             </button>
           </form>
         ) : (
@@ -287,7 +291,7 @@ export default function SchoolPOAuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press mt-2"
+              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press mt-2 shadow-xs"
             >
               {loading ? 'Submitting Details...' : 'Verify & Enter School PO Portal 🚀'}
             </button>
