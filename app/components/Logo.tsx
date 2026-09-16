@@ -29,12 +29,9 @@ export default function Logo({ className = '', variant = 'full', size = 46 }: Lo
       {/* Brand Typography */}
       {variant === 'full' && (
         <div className="flex flex-col leading-none">
-          <div className="flex items-center gap-1">
-            <span className="font-black text-base sm:text-lg md:text-xl tracking-tight text-[#2B2B2B]">
-              Mahin's
-            </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[#B76E79]" />
-          </div>
+          <span className="font-black text-base sm:text-lg md:text-xl tracking-tight text-[#2B2B2B]">
+            Mahin's
+          </span>
           <span className="text-[9px] sm:text-[10px] font-extrabold tracking-wider text-[#8A7968] uppercase mt-0.5">
             One-Stop One-Store
           </span>
