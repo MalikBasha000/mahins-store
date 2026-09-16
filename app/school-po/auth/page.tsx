@@ -22,7 +22,6 @@ export default function SchoolPOAuthPage() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
-  const [activeResetLink, setActiveResetLink] = useState('')
 
   const { setSchoolUser } = useSchoolPOCart()
   const router = useRouter()
@@ -116,7 +115,6 @@ export default function SchoolPOAuthPage() {
     setLoading(true)
     setErrorMsg('')
     setSuccessMsg('')
-    setActiveResetLink('')
 
     try {
       const res = await fetch('/api/school-po/forgot-password', {
@@ -133,10 +131,7 @@ export default function SchoolPOAuthPage() {
         throw new Error(data.error || 'Failed to dispatch password reset link.')
       }
 
-      setSuccessMsg(data.message || 'Password reset link generated!')
-      if (data.resetLink) {
-        setActiveResetLink(data.resetLink)
-      }
+      setSuccessMsg(data.message || 'Password reset link has been dispatched to your email!')
     } catch (err: any) {
       setErrorMsg(err.message)
     }
@@ -157,7 +152,7 @@ export default function SchoolPOAuthPage() {
             <p className="text-xs text-[#8A7968] mt-1">
               {authMode === 'LOGIN' && 'Access institutional bulk pricing with your registered Email, UDISE Code, and Password.'}
               {authMode === 'SIGNUP' && 'Register your school or Atal Tinkering Lab to verify bulk discount eligibility.'}
-              {authMode === 'FORGOT_PASSWORD' && 'Enter your registered official email to generate a secure password reset link.'}
+              {authMode === 'FORGOT_PASSWORD' && 'Enter your registered official email to receive a password reset link.'}
             </p>
           </div>
         </div>
@@ -169,18 +164,8 @@ export default function SchoolPOAuthPage() {
         )}
 
         {successMsg && (
-          <div className="p-4 bg-green-100 border border-green-300 text-green-800 text-xs rounded-xl font-bold space-y-2.5">
-            <div>✓ {successMsg}</div>
-            {activeResetLink && (
-              <div className="pt-2 border-t border-green-200 flex flex-col gap-2">
-                <a
-                  href={activeResetLink}
-                  className="bg-[#B76E79] hover:bg-[#9E5B65] text-white text-center py-2.5 px-4 rounded-xl font-black text-xs transition shadow-xs block"
-                >
-                  Proceed to Reset Password Page Now 🔑
-                </a>
-              </div>
-            )}
+          <div className="p-4 bg-green-100 border border-green-300 text-green-800 text-xs rounded-xl font-bold leading-relaxed">
+            ✓ {successMsg}
           </div>
         )}
 
@@ -213,7 +198,7 @@ export default function SchoolPOAuthPage() {
                 <label className="text-xs font-bold">Account Password *</label>
                 <button
                   type="button"
-                  onClick={() => { setAuthMode('FORGOT_PASSWORD'); setErrorMsg(''); setSuccessMsg(''); setActiveResetLink(''); }}
+                  onClick={() => { setAuthMode('FORGOT_PASSWORD'); setErrorMsg(''); setSuccessMsg(''); }}
                   className="text-[11px] font-bold text-[#B76E79] hover:underline cursor-pointer"
                 >
                   Forgot Password?
@@ -265,12 +250,12 @@ export default function SchoolPOAuthPage() {
               disabled={loading}
               className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press mt-2 shadow-xs"
             >
-              {loading ? 'Processing Request...' : 'Send / Generate Password Reset Link ✉️'}
+              {loading ? 'Dispatching Reset Link...' : 'Send Password Reset Link ✉️'}
             </button>
             <button
               type="button"
-              onClick={() => { setAuthMode('LOGIN'); setErrorMsg(''); setSuccessMsg(''); setActiveResetLink(''); }}
-              className="w-full text-center text-xs font-bold text-[#8A7968] hover:underline block pt-2"
+              onClick={() => { setAuthMode('LOGIN'); setErrorMsg(''); setSuccessMsg(''); }}
+              className="w-full text-center text-xs font-bold text-[#8A7968] hover:underline block pt-2 cursor-pointer"
             >
               ← Back to Sign In
             </button>
@@ -397,7 +382,6 @@ export default function SchoolPOAuthPage() {
               setAuthMode(authMode === 'LOGIN' ? 'SIGNUP' : 'LOGIN')
               setErrorMsg('')
               setSuccessMsg('')
-              setActiveResetLink('')
             }}
             className="text-[#B76E79] font-bold hover:underline cursor-pointer"
           >

@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: 'No registered institution found with this email address.' }, { status: 404 })
       }
 
-      // Generate secure token valid for 60 minutes
+      // Generate secure 32-byte token valid for 60 minutes
       const resetToken = crypto.randomBytes(32).toString('hex')
       const expiryDate = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
@@ -44,64 +44,70 @@ export async function POST(req: Request) {
 
       if (updateErr) throw updateErr
 
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mahinsonestoponestore.in'
-      const resetLink = `${siteUrl}/school-po/reset-password?token=${resetToken}`
+      // Clean site URL resolution (strictly prevents markdown duplicate string corruption)
+      const rawUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mahinsonestoponestore.in'
+      const cleanOrigin = rawUrl.replace(/[\[\]\(\)]/g, '').replace(/\/+$/, '')
+      const resetLink = `${cleanOrigin}/school-po/reset-password?token=${resetToken}`
 
-      // Attempt background mailer dispatch
-      let emailSent = false
-      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        try {
-          const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-              user: process.env.EMAIL_USER,
-              pass: process.env.EMAIL_PASS,
-            },
-          })
+      const emailUser = process.env.EMAIL_USER || 'mahinsonestoponestore@gmail.com'
+      const emailPass = process.env.EMAIL_PASS
 
-          await transporter.sendMail({
-            from: `"Mahin's One-Stop One-Store" <${process.env.EMAIL_USER}>`,
-            to: cleanEmail,
-            subject: `🔐 Reset Password - School PO Portal (${school.school_name})`,
-            html: `
-              <div style="font-family: sans-serif; background-color: #F4EADE; padding: 24px; color: #2B2B2B;">
-                <div style="max-width: 540px; margin: auto; background-color: #EFE3D3; border-radius: 20px; padding: 28px; border: 1px solid #8A796840;">
-                  <h2 style="color: #2B2B2B; margin-top: 0;">Institutional Password Reset</h2>
-                  <p style="font-size: 13px; color: #555;">Hello <strong>${school.educator_name || 'Educator'}</strong>,</p>
-                  <p style="font-size: 13px; color: #555; line-height: 1.5;">
-                    We received a password reset request for your school account at <strong>${school.school_name}</strong>.
-                  </p>
-                  <div style="text-align: center; margin: 28px 0;">
-                    <a href="${resetLink}" style="background-color: #B76E79; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; font-size: 14px; display: inline-block;">
-                      Reset School Password 🔑
-                    </a>
-                  </div>
-                  <p style="font-size: 11px; color: #8A7968;">
-                    This link will expire in 60 minutes.
-                  </p>
-                </div>
-              </div>
-            `,
-          })
-          emailSent = true
-        } catch (mailErr) {
-          console.warn('SMTP Dispatch failed, falling back to direct reset link response:', mailErr)
-        }
+      if (!emailPass) {
+        return NextResponse.json({
+          success: false,
+          error: 'Email service configuration error: EMAIL_PASS is not configured on the server.'
+        }, { status: 500 })
       }
 
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: emailUser,
+          pass: emailPass,
+        },
+      })
+
+      // Send the reset email
+      await transporter.sendMail({
+        from: `"Mahin's One-Stop One-Store" <${emailUser}>`,
+        to: cleanEmail,
+        subject: `🔐 Reset Password - School PO Portal (${school.school_name})`,
+        html: `
+          <div style="font-family: Arial, sans-serif; background-color: #F4EADE; padding: 30px 15px; color: #2B2B2B;">
+            <div style="max-width: 520px; margin: auto; background-color: #EFE3D3; border-radius: 20px; padding: 30px; border: 1px solid rgba(138, 121, 104, 0.3);">
+              <h2 style="color: #2B2B2B; margin-top: 0; font-size: 20px;">Institutional Password Reset</h2>
+              <p style="font-size: 14px; color: #4A3F35;">Dear <strong>${school.educator_name || 'Educator'}</strong>,</p>
+              <p style="font-size: 13px; color: #666; line-height: 1.6;">
+                A password reset request was initiated for your registered institution <strong>${school.school_name}</strong>.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetLink}" style="background-color: #B76E79; color: #ffffff; text-decoration: none; padding: 13px 26px; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-block;">
+                  Click Here to Reset Password 🔑
+                </a>
+              </div>
+              <p style="font-size: 11px; color: #8A7968; word-break: break-all;">
+                Or copy and paste this link into your browser:<br/>
+                <a href="${resetLink}" style="color: #B76E79;">${resetLink}</a>
+              </p>
+              <hr style="border: none; border-top: 1px solid rgba(138, 121, 104, 0.2); margin: 20px 0;" />
+              <p style="font-size: 11px; color: #8A7968; margin-bottom: 0;">
+                This link will automatically expire in 60 minutes. If you did not make this request, your account remains secure and you can ignore this email.
+              </p>
+            </div>
+          </div>
+        `,
+      })
+
+      // Strict security: Do NOT return the reset link in the response body
       return NextResponse.json({
         success: true,
-        emailSent,
-        resetLink,
-        message: emailSent
-          ? 'Password reset link sent to your registered email address!'
-          : 'Password reset link generated successfully.'
+        message: `Password reset link has been dispatched to ${cleanEmail}. Please check your inbox or spam folder.`
       })
     }
 
     if (action === 'VERIFY_AND_UPDATE') {
       if (!token || !newPassword || newPassword.length < 6) {
-        return NextResponse.json({ success: false, error: 'Valid token and minimum 6-character password required.' }, { status: 400 })
+        return NextResponse.json({ success: false, error: 'Valid token and a minimum 6-character password are required.' }, { status: 400 })
       }
 
       const { data: school, error: tokenErr } = await supabaseAdmin
@@ -111,7 +117,7 @@ export async function POST(req: Request) {
         .maybeSingle()
 
       if (tokenErr || !school) {
-        return NextResponse.json({ success: false, error: 'Invalid or expired password reset link.' }, { status: 400 })
+        return NextResponse.json({ success: false, error: 'Invalid or expired password reset link. Please request a new one.' }, { status: 400 })
       }
 
       if (new Date(school.reset_token_expiry) < new Date()) {
@@ -129,7 +135,7 @@ export async function POST(req: Request) {
 
       if (saveErr) throw saveErr
 
-      return NextResponse.json({ success: true, message: 'Password updated successfully!' })
+      return NextResponse.json({ success: true, message: 'Password updated successfully! You can now log in.' })
     }
 
     return NextResponse.json({ success: false, error: 'Invalid action.' }, { status: 400 })

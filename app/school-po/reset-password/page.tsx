@@ -24,7 +24,7 @@ function ResetPasswordContent() {
     setSuccessMsg('')
 
     if (!token) {
-      setErrorMsg('Missing or invalid reset token.')
+      setErrorMsg('Missing or invalid reset token. Please request a new link.')
       return
     }
 
