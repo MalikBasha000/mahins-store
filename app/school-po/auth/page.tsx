@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function SchoolPOAuthPage() {
-  const [isLogin, setIsLogin] = useState(false)
+  const [isLogin, setIsLogin] = useState(true)
   const [schoolName, setSchoolName] = useState('')
   const [educatorName, setEducatorName] = useState('')
   const [email, setEmail] = useState('')
@@ -16,6 +16,8 @@ export default function SchoolPOAuthPage() {
   const [udiseCode, setUdiseCode] = useState('')
   const [atlCode, setAtlCode] = useState('')
   const [address, setAddress] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -28,6 +30,12 @@ export default function SchoolPOAuthPage() {
     setLoading(true)
     setErrorMsg('')
 
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.')
+      setLoading(false)
+      return
+    }
+
     try {
       const payload = {
         school_name: schoolName.trim(),
@@ -37,6 +45,7 @@ export default function SchoolPOAuthPage() {
         udise_code: udiseCode.trim().toUpperCase(),
         atl_code: atlCode.trim().toUpperCase() || null,
         address: address.trim(),
+        password_hash: password,
         is_verified: true
       }
 
@@ -78,6 +87,19 @@ export default function SchoolPOAuthPage() {
         throw new Error('No verified institution found matching this Email and UDISE Code.')
       }
 
+      // Check password if account has one configured
+      if (data.password_hash && data.password_hash !== password) {
+        throw new Error('Incorrect password for this institutional account.')
+      }
+
+      // If legacy account had no password yet, assign this password to secure it
+      if (!data.password_hash && password) {
+        await supabase
+          .from('school_accounts')
+          .update({ password_hash: password })
+          .eq('id', data.id)
+      }
+
       setSchoolUser(data)
       router.push('/school-po')
     } catch (err: any) {
@@ -96,7 +118,7 @@ export default function SchoolPOAuthPage() {
           </h1>
           <p className="text-xs text-[#8A7968]">
             {isLogin 
-              ? 'Access institutional bulk pricing with your registered School Email and UDISE Code.'
+              ? 'Access institutional bulk pricing with your registered Email, UDISE Code, and Password.'
               : 'Register your school or Atal Tinkering Lab to verify bulk discount eligibility.'}
           </p>
         </div>
@@ -131,10 +153,30 @@ export default function SchoolPOAuthPage() {
                 className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs font-mono uppercase focus:border-[#B76E79] focus:outline-hidden"
               />
             </div>
+            <div>
+              <label className="block text-xs font-bold mb-1">Account Password *</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter account password..."
+                  className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs focus:border-[#B76E79] focus:outline-hidden pr-16"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-2 text-[10px] font-bold text-[#8A7968] hover:text-[#2B2B2B] bg-[#EADBC8] border border-[#8A7968]/30 px-2 py-0.5 rounded-md cursor-pointer"
+                >
+                  {showPassword ? 'HIDE' : 'SHOW'}
+                </button>
+              </div>
+            </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press"
+              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press mt-2"
             >
               {loading ? 'Verifying...' : 'Login & Open School PO Portal 🏛️'}
             </button>
@@ -210,6 +252,27 @@ export default function SchoolPOAuthPage() {
             </div>
 
             <div>
+              <label className="block text-xs font-bold mb-1">Create Account Password *</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Choose password (min 6 characters)..."
+                  className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs focus:border-[#B76E79] focus:outline-hidden pr-16"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-2 text-[10px] font-bold text-[#8A7968] hover:text-[#2B2B2B] bg-[#EADBC8] border border-[#8A7968]/30 px-2 py-0.5 rounded-md cursor-pointer"
+                >
+                  {showPassword ? 'HIDE' : 'SHOW'}
+                </button>
+              </div>
+            </div>
+
+            <div>
               <label className="block text-[11px] font-bold mb-1">School Campus Delivery Address *</label>
               <textarea
                 rows={2}
@@ -224,7 +287,7 @@ export default function SchoolPOAuthPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press"
+              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press mt-2"
             >
               {loading ? 'Submitting Details...' : 'Verify & Enter School PO Portal 🚀'}
             </button>
