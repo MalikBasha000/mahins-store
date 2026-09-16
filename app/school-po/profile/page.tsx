@@ -151,18 +151,14 @@ export default function SchoolProfilePage() {
                 />
               </div>
 
-              {/* Official School Email (LOCKED / READ ONLY) */}
+              {/* Official School Email */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold">Official School Email</label>
-                  <span className="text-[10px] text-[#8A7968] font-bold">🔒 Locked (Primary Key)</span>
-                </div>
+                <label className="block text-xs font-bold mb-1">Official School Email</label>
                 <input
                   type="email"
                   disabled
                   value={schoolUser.email}
                   className="w-full border border-[#8A7968]/20 bg-[#EADBC8]/60 p-2.5 rounded-xl text-xs text-[#666] cursor-not-allowed select-none"
-                  title="Official school email cannot be altered as it is tied to authentication and order histories."
                 />
               </div>
 
