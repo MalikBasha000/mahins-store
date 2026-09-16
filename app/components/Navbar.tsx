@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useCart } from '../context/CartContext'
 import { useWishlist } from '../context/WishlistContext'
 import { useSchoolPOCart } from '../context/SchoolPOCartContext'
+import Logo from './Logo'
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null)
@@ -53,15 +54,20 @@ export default function Navbar() {
     return (
       <header className="bg-[#EFE3D3] px-3 sm:px-8 lg:px-12 py-3.5 sm:py-4 shadow-xs sticky top-0 z-50 w-full border-b border-[#8A7968]/30">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
-          {/* School Portal Brand Logo */}
+          {/* School Portal Brand Logo with Custom Vector Component */}
           <Link href="/school-po" className="hover:opacity-90 transition cursor-pointer min-w-0 shrink">
-            <div className="flex items-center gap-2">
-              <span className="text-xl sm:text-2xl">🏛️</span>
+            <div className="flex items-center gap-2.5">
+              <Logo size={36} variant="icon" />
               <div>
-                <h1 className="text-sm sm:text-lg md:text-xl font-black text-[#2B2B2B] tracking-tight truncate">
-                  Mahin's School PO Portal
-                </h1>
-                <span className="text-[10px] text-[#8A7968] font-bold block -mt-1">
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-sm sm:text-lg md:text-xl font-black text-[#2B2B2B] tracking-tight truncate">
+                    Mahin's School PO Portal
+                  </h1>
+                  <span className="hidden sm:inline-block text-[9px] bg-[#B76E79] text-white px-2 py-0.5 rounded-full font-bold uppercase">
+                    ATL Portal
+                  </span>
+                </div>
+                <span className="text-[10px] text-[#8A7968] font-bold block -mt-0.5">
                   Institutional Sales & ATL Lab Portal
                 </span>
               </div>
@@ -140,13 +146,11 @@ export default function Navbar() {
 
   // Default Storefront Header for Main Store
   return (
-    <header className="bg-[#EFE3D3] px-3 sm:px-8 lg:px-12 py-3.5 sm:py-5 shadow-xs sticky top-0 z-50 w-full border-b border-[#8A7968]/30">
+    <header className="bg-[#EFE3D3] px-3 sm:px-8 lg:px-12 py-3 sm:py-4 shadow-xs sticky top-0 z-50 w-full border-b border-[#8A7968]/30">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2">
-        {/* Brand Logo */}
-        <Link href="/" className="hover:opacity-90 transition cursor-pointer min-w-0 shrink">
-          <h1 className="text-sm sm:text-xl md:text-2xl font-black text-[#2B2B2B] tracking-tight truncate">
-            Mahin's One-Stop One-Store
-          </h1>
+        {/* Main Store Brand Logo */}
+        <Link href="/" className="hover:opacity-95 transition cursor-pointer min-w-0 shrink">
+          <Logo size={42} variant="full" />
         </Link>
 
         {/* Global Action Navigation Controls */}
