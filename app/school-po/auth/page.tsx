@@ -9,7 +9,7 @@ import Link from 'next/link'
 import Logo from '../../components/Logo'
 
 export default function SchoolPOAuthPage() {
-  const [isLogin, setIsLogin] = useState(true)
+  const [authMode, setAuthMode] = useState<'LOGIN' | 'SIGNUP' | 'FORGOT_PASSWORD'>('LOGIN')
   const [schoolName, setSchoolName] = useState('')
   const [educatorName, setEducatorName] = useState('')
   const [email, setEmail] = useState('')
@@ -21,6 +21,7 @@ export default function SchoolPOAuthPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
 
   const { setSchoolUser } = useSchoolPOCart()
   const router = useRouter()
@@ -30,6 +31,7 @@ export default function SchoolPOAuthPage() {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
+    setSuccessMsg('')
 
     if (password.length < 6) {
       setErrorMsg('Password must be at least 6 characters long.')
@@ -75,6 +77,7 @@ export default function SchoolPOAuthPage() {
     e.preventDefault()
     setLoading(true)
     setErrorMsg('')
+    setSuccessMsg('')
 
     try {
       const { data, error } = await supabase
@@ -88,12 +91,10 @@ export default function SchoolPOAuthPage() {
         throw new Error('No verified institution found matching this Email and UDISE Code.')
       }
 
-      // Check password if account has one configured
       if (data.password_hash && data.password_hash !== password) {
         throw new Error('Incorrect password for this institutional account.')
       }
 
-      // If legacy account had no password yet, assign this password to secure it
       if (!data.password_hash && password) {
         await supabase
           .from('school_accounts')
@@ -109,20 +110,49 @@ export default function SchoolPOAuthPage() {
     setLoading(false)
   }
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setErrorMsg('')
+    setSuccessMsg('')
+
+    try {
+      const res = await fetch('/api/school-po/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REQUEST_RESET',
+          email: email.trim()
+        })
+      })
+
+      const data = await res.json()
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to dispatch password reset link.')
+      }
+
+      setSuccessMsg(data.message || 'Password reset link has been dispatched to your email!')
+    } catch (err: any) {
+      setErrorMsg(err.message)
+    }
+    setLoading(false)
+  }
+
   return (
     <div className="min-h-screen bg-[#F4EADE] flex flex-col items-center justify-center p-4 text-[#2B2B2B]">
       <div className="w-full max-w-xl bg-[#EFE3D3] rounded-3xl p-6 sm:p-8 border border-[#8A7968]/30 shadow-xl space-y-6">
-        {/* Header with Logo */}
         <div className="flex flex-col items-center text-center space-y-2.5 border-b border-[#8A7968]/20 pb-4">
           <Logo size={54} variant="icon" />
           <div>
             <h1 className="text-xl sm:text-2xl font-black">
-              {isLogin ? 'School PO Verification Login' : 'School PO Verification & Signup'}
+              {authMode === 'LOGIN' && 'School PO Verification Login'}
+              {authMode === 'SIGNUP' && 'School PO Verification & Signup'}
+              {authMode === 'FORGOT_PASSWORD' && 'Reset Institutional Password'}
             </h1>
             <p className="text-xs text-[#8A7968] mt-1">
-              {isLogin 
-                ? 'Access institutional bulk pricing with your registered Email, UDISE Code, and Password.'
-                : 'Register your school or Atal Tinkering Lab to verify bulk discount eligibility.'}
+              {authMode === 'LOGIN' && 'Access institutional bulk pricing with your registered Email, UDISE Code, and Password.'}
+              {authMode === 'SIGNUP' && 'Register your school or Atal Tinkering Lab to verify bulk discount eligibility.'}
+              {authMode === 'FORGOT_PASSWORD' && 'Enter your registered official email to receive a secure password reset link.'}
             </p>
           </div>
         </div>
@@ -133,7 +163,13 @@ export default function SchoolPOAuthPage() {
           </div>
         )}
 
-        {isLogin ? (
+        {successMsg && (
+          <div className="p-3 bg-green-100 border border-green-300 text-green-800 text-xs rounded-xl font-bold">
+            {successMsg}
+          </div>
+        )}
+
+        {authMode === 'LOGIN' && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold mb-1">Official School Email *</label>
@@ -158,7 +194,16 @@ export default function SchoolPOAuthPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold mb-1">Account Password *</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs font-bold">Account Password *</label>
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('FORGOT_PASSWORD'); setErrorMsg(''); setSuccessMsg(''); }}
+                  className="text-[11px] font-bold text-[#B76E79] hover:underline cursor-pointer"
+                >
+                  Forgot Password?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -185,7 +230,39 @@ export default function SchoolPOAuthPage() {
               {loading ? 'Verifying...' : 'Login & Open School PO Portal'}
             </button>
           </form>
-        ) : (
+        )}
+
+        {authMode === 'FORGOT_PASSWORD' && (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold mb-1">Registered Official School Email *</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="incharge@school.edu.in"
+                className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs focus:border-[#B76E79] focus:outline-hidden"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#B76E79] hover:bg-[#9E5B65] text-white font-bold py-3 rounded-xl text-xs sm:text-sm transition cursor-pointer btn-press mt-2 shadow-xs"
+            >
+              {loading ? 'Dispatching Reset Link...' : 'Send Password Reset Link ✉️'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthMode('LOGIN'); setErrorMsg(''); setSuccessMsg(''); }}
+              className="w-full text-center text-xs font-bold text-[#8A7968] hover:underline block pt-2"
+            >
+              ← Back to Sign In
+            </button>
+          </form>
+        )}
+
+        {authMode === 'SIGNUP' && (
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
@@ -301,10 +378,14 @@ export default function SchoolPOAuthPage() {
         <div className="flex justify-between items-center text-xs pt-2 border-t border-[#8A7968]/20">
           <button
             type="button"
-            onClick={() => { setIsLogin(!isLogin); setErrorMsg(''); }}
+            onClick={() => {
+              setAuthMode(authMode === 'LOGIN' ? 'SIGNUP' : 'LOGIN')
+              setErrorMsg('')
+              setSuccessMsg('')
+            }}
             className="text-[#B76E79] font-bold hover:underline cursor-pointer"
           >
-            {isLogin ? '← Register new school' : 'Already registered? Sign In'}
+            {authMode === 'LOGIN' ? '← Register new school' : 'Already registered? Sign In'}
           </button>
           <Link href="/" className="text-[#8A7968] font-bold hover:underline">
             Return to Store
