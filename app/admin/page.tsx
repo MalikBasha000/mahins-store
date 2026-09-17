@@ -1635,18 +1635,44 @@ export default function AdminPage() {
                   <p className="text-sm font-semibold">No school purchase orders received yet.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {purchaseOrders.map((po) => {
                     const poDate = po.created_at ? new Date(po.created_at).toLocaleString() : 'N/A'
                     const trackingCode = po.tracking_id || `PO${po.id.replace(/-/g, '').slice(0, 11).toUpperCase()}`
                     
                     const matchedSchool = schoolAccounts.find((s) => s.email?.toLowerCase() === po.email?.toLowerCase())
                     const schoolRegistrationId = matchedSchool ? getTwelveDigitId(matchedSchool.id) : getTwelveDigitId(po.id)
-                    
                     const orderDiscountPercent = Number(po.discount_percent) || Number(poDiscountVal) || 15
 
+                    // Map status to progress step number
+                    const getProgressStep = (status: string) => {
+                      switch (status) {
+                        case 'Pending Review': return 1
+                        case 'Quote Sent': return 2
+                        case 'Quote Accepted by School':
+                        case 'PO Approved': return 3
+                        case 'In Transit': return 4
+                        case 'Delivered':
+                        case 'Completed':
+                        case 'Completed / Fulfilled': return 5
+                        default: return 1
+                      }
+                    }
+
+                    const currentStep = getProgressStep(po.status || 'Pending Review')
+                    const isDeclined = po.status === 'Rejected by School' || po.status === 'Cancelled'
+
+                    const steps = [
+                      { num: 1, label: 'Requested' },
+                      { num: 2, label: 'Quote Sent' },
+                      { num: 3, label: 'Accepted' },
+                      { num: 4, label: 'In Transit 🚚' },
+                      { num: 5, label: 'Delivered 📦' },
+                    ]
+
                     return (
-                      <div key={po.id} className="bg-[#F4EADE] rounded-3xl border border-[#8A7968]/30 p-5 space-y-4 shadow-2xs">
+                      <div key={po.id} className="bg-[#F4EADE] rounded-3xl border border-[#8A7968]/30 p-5 sm:p-6 space-y-4 shadow-2xs">
+                        {/* Card Header */}
                         <div className="flex flex-wrap justify-between items-center border-b border-[#8A7968]/20 pb-3 gap-2">
                           <div>
                             <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">13-Digit PO Tracking ID</span>
@@ -1672,7 +1698,7 @@ export default function AdminPage() {
                         {/* Customer Accepted Quotation Banner */}
                         {po.status === 'Quote Accepted by School' && (
                           <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs rounded-2xl font-bold flex items-center justify-between">
-                            <span>✓ School Accepted Quotation — Ready to prepare package & set "In Transit 🚚".</span>
+                            <span>✓ School Accepted Quotation — Ready to prepare package &amp; set "In Transit 🚚".</span>
                             <span className="text-[10px] bg-emerald-800 text-white px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">Accepted</span>
                           </div>
                         )}
@@ -1681,6 +1707,39 @@ export default function AdminPage() {
                         {po.rejection_reason && (
                           <div className="p-3 bg-red-100 border border-red-200 text-red-800 text-xs rounded-2xl font-bold">
                             ⚠️ School Declined Quote: "{po.rejection_reason}"
+                          </div>
+                        )}
+
+                        {/* Visual Progress Stepper with Green Tick Marks */}
+                        {!isDeclined ? (
+                          <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/25">
+                            <div className="grid grid-cols-5 gap-1 items-center text-center">
+                              {steps.map((st, idx) => {
+                                const isDone = currentStep >= st.num
+                                const isCurrent = currentStep === st.num
+                                return (
+                                  <div key={idx} className="flex flex-col items-center">
+                                    <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center font-black text-xs transition-all duration-300 ${
+                                      isDone 
+                                        ? 'bg-green-700 text-white shadow-xs' 
+                                        : 'bg-[#EADBC8] text-[#8A7968] border border-[#8A7968]/30'
+                                    } ${isCurrent ? 'ring-3 ring-green-600/30 ring-offset-1' : ''}`}>
+                                      {isDone ? '✓' : st.num}
+                                    </div>
+                                    <span className={`text-[9px] sm:text-[11px] mt-1 font-extrabold leading-tight ${
+                                      isDone ? 'text-green-800' : 'text-[#8A7968]'
+                                    }`}>
+                                      {st.label}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-3 bg-red-100 border border-red-200 text-red-800 text-xs rounded-2xl font-bold flex items-center justify-between">
+                            <span>⚠️ Purchase Order Declined / Cancelled</span>
+                            {po.rejection_reason && <span>Feedback: "{po.rejection_reason}"</span>}
                           </div>
                         )}
 
@@ -1702,7 +1761,7 @@ export default function AdminPage() {
                           {/* Itemized Table Breakdown */}
                           <div className="md:col-span-2 bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20">
                             <span className="text-[10px] font-bold text-[#B76E79] uppercase block mb-2">
-                              Requested Items (Click item name for photo & details cross-check)
+                              Requested Items (Click item name for photo &amp; details cross-check)
                             </span>
                             <div className="overflow-x-auto">
                               <table className="w-full text-left border-collapse text-xs">
@@ -1752,6 +1811,7 @@ export default function AdminPage() {
                           </div>
                         </div>
 
+                        {/* Status Controller & Actions */}
                         <div className="flex flex-wrap justify-between items-center pt-3 border-t border-[#8A7968]/20 gap-3">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-[#8A7968]">PO Status:</span>
@@ -3125,7 +3185,7 @@ export default function AdminPage() {
                       </button>
                       <button
                         onClick={() => deleteCoupon(c.id)}
-                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-3 py-1.5 rounded-xl transition cursor-pointer"
+                        className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-3.5 py-1.5 rounded-xl transition cursor-pointer"
                       >
                         Delete
                       </button>
