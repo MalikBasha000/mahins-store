@@ -73,21 +73,21 @@ export async function POST(req: Request) {
       updates.quote_response_at = new Date().toISOString()
     }
 
-    // Targets purchase_orders table
+    // Direct update without nested relational join
     const { data: po, error: updateErr } = await supabaseAdmin
       .from('purchase_orders')
       .update(updates)
       .eq('id', poId)
-      .select('*, school_accounts(school_name, educator_name, email)')
+      .select('*')
       .single()
 
     if (updateErr || !po) {
       throw updateErr || new Error('Purchase order not found.')
     }
 
-    const recipientEmail = po.school_accounts?.email || po.email
-    const schoolName = po.school_accounts?.school_name || po.school_name || 'Institution'
-    const educatorName = po.school_accounts?.educator_name || po.educator_name || 'Lab Incharge'
+    const recipientEmail = (po.email || '').trim().toLowerCase()
+    const schoolName = po.school_name || 'Institution'
+    const educatorName = po.educator_name || 'Lab Incharge'
     const statusMeta = STATUS_DETAILS[status] || {
       title: status,
       color: '#B76E79',
@@ -102,7 +102,7 @@ export async function POST(req: Request) {
         await transporter.sendMail({
           from: `"Mahin's School PO Portal" <${emailUser}>`,
           to: recipientEmail,
-          subject: `📦 PO Update [${po.tracking_id}]: ${statusMeta.title}`,
+          subject: `📦 PO Update [${po.tracking_id || 'PO'}] - ${statusMeta.title}`,
           html: `
             <!DOCTYPE html>
             <html>
@@ -124,9 +124,9 @@ export async function POST(req: Request) {
                 </p>
 
                 <div style="background-color: #F4EADE; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid rgba(138, 121, 104, 0.25);">
-                  <div style="font-size: 12px; margin-bottom: 6px;"><strong>Tracking ID:</strong> ${po.tracking_id}</div>
-                  <div style="font-size: 12px; margin-bottom: 6px;"><strong>Estimated Amount:</strong> ₹${po.total_estimate || po.total || 0}</div>
-                  ${rejectionReason ? `<div style="font-size: 12px; color: #dc2626; margin-top: 6px;"><strong>Feedback / Reason:</strong> ${rejectionReason}</div>` : ''}
+                  <div style="font-size: 12px; margin-bottom: 6px;"><strong>Tracking ID:</strong> ${po.tracking_id || 'PO Ref'}</div>
+                  <div style="font-size: 12px; margin-bottom: 6px;"><strong>Total Value:</strong> ₹${po.total_estimated_amount || po.total_estimate || po.total || 0}</div>
+                  ${rejectionReason ? `<div style="font-size: 12px; color: #dc2626; margin-top: 6px;"><strong>Reason for Declining:</strong> ${rejectionReason}</div>` : ''}
                 </div>
 
                 <div style="text-align: center; margin: 25px 0 10px;">
