@@ -286,7 +286,7 @@ export default function AdminPage() {
           educatorName: emailingPO.educator_name,
           customerEmail: emailingPO.email,
           items: emailingPO.items,
-          totalAmount: emailingPO.total_estimated_amount,
+          totalAmount: emailingPO.total_estimated_amount || emailingPO.total_estimate || emailingPO.total,
           customNotes: poEmailCustomNotes.trim()
         })
       })
@@ -1669,6 +1669,15 @@ export default function AdminPage() {
                           </div>
                         </div>
 
+                        {/* Customer Accepted Quotation Banner */}
+                        {po.status === 'Quote Accepted by School' && (
+                          <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-950 text-xs rounded-2xl font-bold flex items-center justify-between">
+                            <span>✓ School Accepted Quotation — Ready to prepare package & set "In Transit 🚚".</span>
+                            <span className="text-[10px] bg-emerald-800 text-white px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider">Accepted</span>
+                          </div>
+                        )}
+
+                        {/* Customer Declined Feedback Banner */}
                         {po.rejection_reason && (
                           <div className="p-3 bg-red-100 border border-red-200 text-red-800 text-xs rounded-2xl font-bold">
                             ⚠️ School Declined Quote: "{po.rejection_reason}"
@@ -1753,6 +1762,7 @@ export default function AdminPage() {
                             >
                               <option value="Pending Review">Pending Review</option>
                               <option value="Quote Sent">Quote Sent</option>
+                              <option value="Quote Accepted by School">Quote Accepted by School ✓</option>
                               <option value="PO Approved">PO Approved</option>
                               <option value="In Transit">In Transit 🚚</option>
                               <option value="Delivered">Delivered 📦</option>
@@ -3677,6 +3687,7 @@ export default function AdminPage() {
                           <div className="flex items-center gap-2 mb-1">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
                               po.status === 'Cancelled' || po.status === 'Rejected by School' ? 'bg-red-100 text-red-800 border-red-200' :
+                              po.status === 'Quote Accepted by School' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                               po.status === 'Completed' || po.status === 'PO Approved' || po.status === 'Delivered' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-[#EADBC8] text-[#B76E79] border-[#8A7968]/30'
                             }`}>
                               {po.status || 'Pending Review'}
