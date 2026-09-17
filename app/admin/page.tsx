@@ -249,13 +249,15 @@ export default function AdminPage() {
 
   const handleUpdatePOStatus = async (poId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
-        .from('purchase_orders')
-        .update({ status: newStatus })
-        .eq('id', poId)
+      const res = await fetch('/api/school-po/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poId, status: newStatus }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
 
-      if (error) throw error
-      setSuccessMsg(`School PO status updated to "${newStatus}"!`)
+      setSuccessMsg(`School PO status updated to "${newStatus}"! Notification email dispatched.`)
       fetchPurchaseOrders()
     } catch (err: any) {
       setErrorMsg(`Failed to update PO status: ${err.message}`)
@@ -291,7 +293,7 @@ export default function AdminPage() {
 
       const data = await res.json()
       if (data.success) {
-        await supabase.from('purchase_orders').update({ status: 'Quote Sent' }).eq('id', emailingPO.id)
+        await handleUpdatePOStatus(emailingPO.id, 'Quote Sent')
         setSuccessMsg(`Official Quotation email dispatched directly to ${emailingPO.email}!`)
         setEmailingPO(null)
         setPoEmailCustomNotes('')
@@ -1223,7 +1225,7 @@ export default function AdminPage() {
           tracking.includes(searchTarget) || 
           customerName.includes(searchTarget) || 
           customerEmail.includes(searchTarget) || 
-          shippingAddr.includes(searchTarget) ||
+          shippingAddr.includes(searchTarget) || 
           itemsList.includes(searchTarget)
       }
       if (!matchesSearch) return false
@@ -1364,7 +1366,7 @@ export default function AdminPage() {
                   <label className="text-xs font-bold text-[#2B2B2B]">Admin Password</label>
                   <button 
                     type="button" 
-                    onClick={() => { setAuthStep('forgot_password'); setErrorMsg(''); setSuccessMsg(''); }}
+                    onClick={() => { setAuthStep('forgot_password'); setErrorMsg(''); setSuccessMsg(''); }} 
                     className="text-[11px] font-bold text-[#B76E79] hover:underline cursor-pointer"
                   >
                     Forgot Password?
@@ -1641,7 +1643,6 @@ export default function AdminPage() {
                     const matchedSchool = schoolAccounts.find((s) => s.email?.toLowerCase() === po.email?.toLowerCase())
                     const schoolRegistrationId = matchedSchool ? getTwelveDigitId(matchedSchool.id) : getTwelveDigitId(po.id)
                     
-                    // Locked-in historical discount rate for this specific purchase order
                     const orderDiscountPercent = Number(po.discount_percent) || Number(poDiscountVal) || 15
 
                     return (
@@ -1664,9 +1665,15 @@ export default function AdminPage() {
                             <span className="text-[10px] font-extrabold text-[#8A7968] uppercase tracking-wider block">
                               Estimated Quote ({orderDiscountPercent}% OFF)
                             </span>
-                            <span className="text-xl font-black text-[#B76E79]">₹{po.total_estimated_amount}</span>
+                            <span className="text-xl font-black text-[#B76E79]">₹{po.total_estimated_amount || po.total_estimate || po.total}</span>
                           </div>
                         </div>
+
+                        {po.rejection_reason && (
+                          <div className="p-3 bg-red-100 border border-red-200 text-red-800 text-xs rounded-2xl font-bold">
+                            ⚠️ School Declined Quote: "{po.rejection_reason}"
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                           <div className="bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20 space-y-1">
@@ -1679,11 +1686,11 @@ export default function AdminPage() {
                               <div className="text-[#8A7968]">UDISE: <span className="font-mono font-bold text-[#2B2B2B]">{matchedSchool.udise_code}</span></div>
                             )}
                             <div className="pt-1 text-[#8A7968] leading-relaxed">
-                              <strong>Delivery:</strong> {po.shipping_address}
+                              <strong>Delivery:</strong> {po.shipping_address || po.address}
                             </div>
                           </div>
 
-                          {/* Itemized Table Breakdown with Locked Historical Discount Calculations */}
+                          {/* Itemized Table Breakdown */}
                           <div className="md:col-span-2 bg-[#EFE3D3] p-3.5 rounded-2xl border border-[#8A7968]/20">
                             <span className="text-[10px] font-bold text-[#B76E79] uppercase block mb-2">
                               Requested Items (Click item name for photo & details cross-check)
@@ -1747,7 +1754,10 @@ export default function AdminPage() {
                               <option value="Pending Review">Pending Review</option>
                               <option value="Quote Sent">Quote Sent</option>
                               <option value="PO Approved">PO Approved</option>
-                              <option value="Completed">Completed / Fulfilled</option>
+                              <option value="In Transit">In Transit 🚚</option>
+                              <option value="Delivered">Delivered 📦</option>
+                              <option value="Completed / Fulfilled">Completed / Fulfilled</option>
+                              <option value="Rejected by School">Rejected by School</option>
                               <option value="Cancelled">Cancelled</option>
                             </select>
                           </div>
@@ -1789,8 +1799,8 @@ export default function AdminPage() {
                 {schoolAccounts.map((sch) => {
                   const schoolPOs = purchaseOrders.filter((p) => p.email?.toLowerCase() === sch.email?.toLowerCase())
                   const totalSpend = schoolPOs
-                    .filter((p) => p.status !== 'Cancelled')
-                    .reduce((sum, p) => sum + (Number(p.total_estimated_amount) || 0), 0)
+                    .filter((p) => p.status !== 'Cancelled' && p.status !== 'Rejected by School')
+                    .reduce((sum, p) => sum + (Number(p.total_estimated_amount || p.total_estimate || p.total) || 0), 0)
                   const school12Id = getTwelveDigitId(sch.id)
 
                   return (
@@ -3419,7 +3429,7 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <label className="block font-bold mb-1 text-[#8A7968]">Total Quotation Amount</label>
-                  <input type="text" readOnly value={`₹${emailingPO.total_estimated_amount}`} className="w-full bg-[#F4EADE] p-2.5 rounded-xl border border-[#8A7968]/30 font-black text-[#B76E79]" />
+                  <input type="text" readOnly value={`₹${emailingPO.total_estimated_amount || emailingPO.total_estimate || emailingPO.total}`} className="w-full bg-[#F4EADE] p-2.5 rounded-xl border border-[#8A7968]/30 font-black text-[#B76E79]" />
                 </div>
                 <div>
                   <label className="block font-bold mb-1">Custom Notes / Terms & Conditions (Optional)</label>
@@ -3440,7 +3450,7 @@ export default function AdminPage() {
                   </button>
                   <a
                     href={`mailto:${emailingPO.email}?subject=${encodeURIComponent(`Official Quotation Approved: ${emailingPO.school_name} (PO: ${emailingPO.tracking_id || 'REF'})`)}&body=${encodeURIComponent(
-                      `Dear ${emailingPO.educator_name},\n\nWe are pleased to provide the official approved quotation for ${emailingPO.school_name}.\n\nPO Tracking Reference: ${emailingPO.tracking_id || 'N/A'}\nTotal Estimated Value: Rs. ${emailingPO.total_estimated_amount}\n\nItemized Breakdown:\n${
+                      `Dear ${emailingPO.educator_name},\n\nWe are pleased to provide the official approved quotation for ${emailingPO.school_name}.\n\nPO Tracking Reference: ${emailingPO.tracking_id || 'N/A'}\nTotal Estimated Value: Rs. ${emailingPO.total_estimated_amount || emailingPO.total_estimate || emailingPO.total}\n\nItemized Breakdown:\n${
                         Array.isArray(emailingPO.items)
                           ? emailingPO.items.map((i: any) => `- ${i.name} (Qty: ${i.quantity} x Rs. ${i.price})`).join('\n')
                           : ''
@@ -3666,8 +3676,8 @@ export default function AdminPage() {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase border ${
-                              po.status === 'Cancelled' ? 'bg-red-100 text-red-800 border-red-200' :
-                              po.status === 'Completed' || po.status === 'PO Approved' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-[#EADBC8] text-[#B76E79] border-[#8A7968]/30'
+                              po.status === 'Cancelled' || po.status === 'Rejected by School' ? 'bg-red-100 text-red-800 border-red-200' :
+                              po.status === 'Completed' || po.status === 'PO Approved' || po.status === 'Delivered' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-[#EADBC8] text-[#B76E79] border-[#8A7968]/30'
                             }`}>
                               {po.status || 'Pending Review'}
                             </span>
@@ -3675,6 +3685,11 @@ export default function AdminPage() {
                               Tracking: {po.tracking_id || `PO${po.id.slice(0, 11)}`}
                             </span>
                           </div>
+                          {po.rejection_reason && (
+                            <p className="text-[11px] text-red-700 font-bold mb-1">
+                              Declined Reason: {po.rejection_reason}
+                            </p>
+                          )}
                           <p className="text-xs text-[#8A7968]">
                             Items: {Array.isArray(po.items) ? po.items.map((i: any) => `${i.name} (${i.quantity}x)`).join(', ') : 'No items data'}
                           </p>
@@ -3682,7 +3697,7 @@ export default function AdminPage() {
                         </div>
 
                         <div className="text-right">
-                          <span className="text-sm font-black text-[#B76E79] block">₹{po.total_estimated_amount}</span>
+                          <span className="text-sm font-black text-[#B76E79] block">₹{po.total_estimated_amount || po.total_estimate || po.total}</span>
                         </div>
                       </div>
                     ))}

@@ -11,7 +11,13 @@ export default function SchoolPOOrdersPage() {
   const { schoolUser } = useSchoolPOCart()
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
+  
+  // Rejection modal state
+  const [rejectModalOrder, setRejectModalOrder] = useState<any | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+
   const router = useRouter()
   const supabase = createClient()
 
@@ -52,6 +58,53 @@ export default function SchoolPOOrdersPage() {
       alert('Purchase order cancelled successfully.')
       fetchSchoolOrders()
     }
+  }
+
+  const handleAcceptQuote = async (orderId: string) => {
+    if (!confirm('Are you sure you want to accept this official quotation and confirm order placement?')) return
+    setActionLoading(true)
+    try {
+      const res = await fetch('/api/school-po/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ poId: orderId, status: 'PO Approved' }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+      await fetchSchoolOrders()
+    } catch (err: any) {
+      alert(err.message || 'Failed to approve quotation.')
+    }
+    setActionLoading(false)
+  }
+
+  const handleConfirmReject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!rejectionReason.trim()) {
+      alert('Please state a reason for declining this quotation.')
+      return
+    }
+
+    setActionLoading(true)
+    try {
+      const res = await fetch('/api/school-po/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          poId: rejectModalOrder.id,
+          status: 'Rejected by School',
+          rejectionReason: rejectionReason.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+      setRejectModalOrder(null)
+      setRejectionReason('')
+      await fetchSchoolOrders()
+    } catch (err: any) {
+      alert(err.message || 'Failed to record rejection.')
+    }
+    setActionLoading(false)
   }
 
   if (loading) {
@@ -95,6 +148,7 @@ export default function SchoolPOOrdersPage() {
             {orders.map((po) => {
               const trackingCode = po.tracking_id || `PO${po.id.replace(/-/g, '').slice(0, 11).toUpperCase()}`
               const isPending = (po.status || 'Pending Review') === 'Pending Review'
+              const isQuoteSent = po.status === 'Quote Sent'
 
               return (
                 <div key={po.id} className="bg-[#EFE3D3] p-5 rounded-3xl border border-[#8A7968]/30 space-y-4 shadow-xs">
@@ -105,19 +159,61 @@ export default function SchoolPOOrdersPage() {
                     </div>
                     <div>
                       <span className="text-[10px] font-extrabold text-[#8A7968] uppercase block">PO Status</span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-black inline-block ${
-                        po.status === 'Cancelled' ? 'bg-red-100 text-red-800 border border-red-200' :
-                        po.status === 'PO Approved' || po.status === 'Completed' ? 'bg-green-100 text-green-800 border border-green-200' :
-                        'bg-amber-100 text-amber-900 border border-amber-300'
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-black inline-block border ${
+                        po.status === 'Quote Sent' ? 'bg-[#B76E79] text-white border-[#B76E79] animate-pulse' :
+                        po.status === 'PO Approved' ? 'bg-green-100 text-green-800 border-green-300' :
+                        po.status === 'In Transit' ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                        po.status === 'Delivered' || po.status === 'Completed' || po.status === 'Completed / Fulfilled' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                        po.status === 'Rejected by School' || po.status === 'Cancelled' ? 'bg-red-100 text-red-800 border-red-200' :
+                        'bg-amber-100 text-amber-900 border-amber-300'
                       }`}>
                         {po.status || 'Pending Review'}
                       </span>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] font-extrabold text-[#8A7968] uppercase block">Total Estimate</span>
-                      <div className="text-lg font-black text-[#B76E79]">₹{po.total_estimated_amount}</div>
+                      <div className="text-lg font-black text-[#B76E79]">₹{po.total_estimated_amount || po.total_estimate || po.total}</div>
                     </div>
                   </div>
+
+                  {/* QUOTE ACTION BANNER (When Quote Sent) */}
+                  {isQuoteSent && (
+                    <div className="bg-[#B76E79]/10 border border-[#B76E79]/30 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div>
+                        <div className="text-xs font-black text-[#B76E79] flex items-center gap-1.5">
+                          <span>🔔</span> Official Quotation Ready for Review
+                        </div>
+                        <p className="text-[11px] text-[#2B2B2B] mt-0.5">
+                          Please verify your requested items and total cost. You can accept this quotation to proceed with order fulfillment or decline it with your feedback.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setRejectModalOrder(po)}
+                          disabled={actionLoading}
+                          className="px-3 py-1.5 rounded-xl border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 text-xs font-bold transition cursor-pointer"
+                        >
+                          Reject Quote ✕
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptQuote(po.id)}
+                          disabled={actionLoading}
+                          className="px-4 py-1.5 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white text-xs font-black transition shadow-xs cursor-pointer"
+                        >
+                          Accept Quotation ✓
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If Rejected by School, display reason */}
+                  {po.status === 'Rejected by School' && po.rejection_reason && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-xs text-red-800">
+                      <strong>Reason for Declining Quotation:</strong> {po.rejection_reason}
+                    </div>
+                  )}
 
                   {/* Itemized Table */}
                   <div className="overflow-x-auto rounded-xl border border-[#8A7968]/20 bg-[#F4EADE]">
@@ -162,6 +258,7 @@ export default function SchoolPOOrdersPage() {
                     <span className="text-[#8A7968]">Submitted On: {new Date(po.created_at).toLocaleString()}</span>
                     {isPending && (
                       <button
+                        type="button"
                         onClick={() => handleCancelOrder(po.id)}
                         className="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1.5 rounded-xl border border-red-200 transition cursor-pointer"
                       >
@@ -182,6 +279,7 @@ export default function SchoolPOOrdersPage() {
               <div className="flex justify-between items-center border-b border-[#8A7968]/20 pb-2">
                 <h3 className="font-bold text-sm">Product Specifications</h3>
                 <button
+                  type="button"
                   onClick={() => setSelectedProduct(null)}
                   className="bg-[#EADBC8] text-xs px-2.5 py-1 rounded-full font-bold cursor-pointer"
                 >
@@ -213,6 +311,56 @@ export default function SchoolPOOrdersPage() {
                   Open Full Store Page ↗
                 </Link>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Rejection Modal */}
+        {rejectModalOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+            <div className="bg-[#EFE3D3] rounded-3xl p-6 sm:p-8 max-w-md w-full border border-[#8A7968]/40 shadow-2xl space-y-4">
+              <div>
+                <h3 className="text-lg font-black text-[#2B2B2B]">Decline Official Quotation</h3>
+                <p className="text-xs text-[#8A7968] mt-0.5">
+                  Tracking ID: <strong>{rejectModalOrder.tracking_id}</strong>
+                </p>
+              </div>
+
+              <form onSubmit={handleConfirmReject} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 text-[#2B2B2B]">
+                    Reason for Rejection *
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="e.g., Pricing exceeds lab budget, item specification changes needed, etc..."
+                    className="w-full border border-[#8A7968]/40 bg-[#F4EADE] p-2.5 rounded-xl text-xs focus:border-[#B76E79] focus:outline-hidden leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRejectModalOrder(null)
+                      setRejectionReason('')
+                    }}
+                    className="px-4 py-2 rounded-xl border border-[#8A7968]/30 bg-[#F4EADE] hover:bg-[#EADBC8] text-xs font-bold transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-black transition shadow-xs cursor-pointer"
+                  >
+                    {actionLoading ? 'Submitting...' : 'Confirm Rejection'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
