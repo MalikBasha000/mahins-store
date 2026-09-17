@@ -73,7 +73,6 @@ export async function POST(req: Request) {
       updates.quote_response_at = new Date().toISOString()
     }
 
-    // Direct update without nested relational join
     const { data: po, error: updateErr } = await supabaseAdmin
       .from('purchase_orders')
       .update(updates)
@@ -94,7 +93,6 @@ export async function POST(req: Request) {
       desc: `Your PO status has been updated to: ${status}`
     }
 
-    // Dispatch automated email notification
     if (recipientEmail && process.env.EMAIL_PASS) {
       try {
         const emailUser = process.env.EMAIL_USER || 'mahinsonestoponestore@gmail.com'
@@ -102,44 +100,127 @@ export async function POST(req: Request) {
         await transporter.sendMail({
           from: `"Mahin's School PO Portal" <${emailUser}>`,
           to: recipientEmail,
-          subject: `📦 PO Update [${po.tracking_id || 'PO'}] - ${statusMeta.title}`,
+          subject: `📦 PO Update [${po.tracking_id || 'PO Ref'}] - ${statusMeta.title}`,
           html: `
             <!DOCTYPE html>
-            <html>
-            <body style="font-family: Arial, sans-serif; background-color: #F4EADE; padding: 25px; margin: 0; color: #2B2B2B;">
-              <div style="max-width: 540px; margin: 0 auto; background-color: #EFE3D3; border-radius: 20px; padding: 30px; border: 1px solid rgba(138, 121, 104, 0.3);">
-                <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(138, 121, 104, 0.2); padding-bottom: 15px;">
-                  <h3 style="margin: 0; color: #2B2B2B; font-size: 18px;">Mahin's School PO Portal</h3>
-                  <span style="font-weight: bold; font-size: 11px; background-color: ${statusMeta.color}; color: #ffffff; padding: 5px 12px; border-radius: 9999px;">
-                    ${status}
-                  </span>
-                </div>
-                
-                <p style="margin-top: 20px; font-size: 14px; color: #2B2B2B;">
-                  Dear <strong>${educatorName}</strong> (${schoolName}),
-                </p>
-                
-                <p style="font-size: 13px; color: #4A3F35; line-height: 1.6;">
-                  ${statusMeta.desc}
-                </p>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Purchase Order Update</title>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #F4EADE; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+              
+              <!-- Outer Wrapper Table -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F4EADE; width: 100% !important; margin: 0; padding: 25px 12px;">
+                <tr>
+                  <td align="center">
+                    
+                    <!-- Main Card Table (max 540px) -->
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #EFE3D3; border-radius: 24px; border: 1px solid rgba(138, 121, 104, 0.35); overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                      
+                      <!-- Header Section -->
+                      <tr>
+                        <td style="padding: 24px 24px 18px 24px; border-bottom: 1px solid rgba(138, 121, 104, 0.25);">
+                          <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td valign="middle" align="left">
+                                <span style="font-size: 16px; font-weight: 900; color: #2B2B2B; display: block; letter-spacing: -0.3px;">
+                                  Mahin's School PO Portal
+                                </span>
+                                <span style="font-size: 11px; font-weight: 700; color: #8A7968; display: block; margin-top: 2px;">
+                                  Institutional Sales &amp; ATL Lab
+                                </span>
+                              </td>
+                              <td valign="middle" align="right">
+                                <span style="display: inline-block; background-color: ${statusMeta.color}; color: #ffffff !important; font-size: 11px; font-weight: 800; padding: 6px 14px; border-radius: 30px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;">
+                                  ${status}
+                                </span>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
 
-                <div style="background-color: #F4EADE; border-radius: 12px; padding: 15px; margin: 20px 0; border: 1px solid rgba(138, 121, 104, 0.25);">
-                  <div style="font-size: 12px; margin-bottom: 6px;"><strong>Tracking ID:</strong> ${po.tracking_id || 'PO Ref'}</div>
-                  <div style="font-size: 12px; margin-bottom: 6px;"><strong>Total Value:</strong> ₹${po.total_estimated_amount || po.total_estimate || po.total || 0}</div>
-                  ${rejectionReason ? `<div style="font-size: 12px; color: #dc2626; margin-top: 6px;"><strong>Reason for Declining:</strong> ${rejectionReason}</div>` : ''}
-                </div>
+                      <!-- Body Content -->
+                      <tr>
+                        <td style="padding: 24px;">
+                          
+                          <p style="margin: 0 0 12px 0; font-size: 15px; font-weight: 700; color: #2B2B2B;">
+                            Dear ${educatorName} <span style="font-weight: normal; color: #665c52;">(${schoolName})</span>,
+                          </p>
+                          
+                          <p style="margin: 0 0 20px 0; font-size: 13px; line-height: 1.6; color: #4A3F35;">
+                            ${statusMeta.desc}
+                          </p>
 
-                <div style="text-align: center; margin: 25px 0 10px;">
-                  <a href="https://mahinsonestoponestore.in/school-po/orders" target="_blank" rel="noopener noreferrer" style="background-color: #B76E79; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; font-size: 13px; display: inline-block;">
-                    Open School PO Portal
-                  </a>
-                </div>
-                
-                <hr style="border: none; border-top: 1px solid rgba(138, 121, 104, 0.2); margin: 20px 0;" />
-                <p style="font-size: 11px; color: #8A7968; margin-bottom: 0;">
-                  Institutional Sales & ATL Lab Portal • Mahin's One-Stop One-Store
-                </p>
-              </div>
+                          <!-- Order Summary Box -->
+                          <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F4EADE; border-radius: 16px; border: 1px solid rgba(138, 121, 104, 0.25); margin-bottom: 24px;">
+                            <tr>
+                              <td style="padding: 16px;">
+                                <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                                  <tr>
+                                    <td style="font-size: 11px; font-weight: 800; color: #8A7968; text-transform: uppercase; padding-bottom: 4px;">
+                                      PO Tracking ID
+                                    </td>
+                                    <td align="right" style="font-size: 11px; font-weight: 800; color: #8A7968; text-transform: uppercase; padding-bottom: 4px;">
+                                      Total Estimate
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td style="font-size: 14px; font-family: monospace, monospace; font-weight: 900; color: #2B2B2B;">
+                                      ${po.tracking_id || 'N/A'}
+                                    </td>
+                                    <td align="right" style="font-size: 16px; font-weight: 900; color: #B76E79;">
+                                      ₹${po.total_estimated_amount || po.total_estimate || po.total || 0}
+                                    </td>
+                                  </tr>
+                                  ${rejectionReason ? `
+                                  <tr>
+                                    <td colspan="2" style="padding-top: 10px; border-top: 1px solid rgba(138, 121, 104, 0.2); margin-top: 8px;">
+                                      <span style="font-size: 11px; font-weight: 700; color: #dc2626; display: block;">
+                                        Declined Reason: ${rejectionReason}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                  ` : ''}
+                                </table>
+                              </td>
+                            </tr>
+                          </table>
+
+                          <!-- Call to Action Button -->
+                          <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                            <tr>
+                              <td align="center">
+                                <a href="https://mahinsonestoponestore.in/school-po/orders" target="_blank" rel="noopener noreferrer" style="background-color: #B76E79; color: #ffffff !important; text-decoration: none; padding: 14px 28px; border-radius: 14px; font-weight: 800; font-size: 13px; display: inline-block; box-shadow: 0 2px 6px rgba(183, 110, 121, 0.35);">
+                                  Open School PO Portal 📋
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
+
+                        </td>
+                      </tr>
+
+                      <!-- Footer Section -->
+                      <tr>
+                        <td align="center" style="padding: 16px 24px 20px 24px; border-top: 1px solid rgba(138, 121, 104, 0.2); background-color: #EADBC8;">
+                          <p style="margin: 0; font-size: 11px; font-weight: 700; color: #8A7968;">
+                            Mahin's One-Stop One-Store • Institutional Division
+                          </p>
+                          <p style="margin: 4px 0 0 0; font-size: 10px; color: #8A7968;">
+                            Official ATL Lab &amp; STEM Equipment Supplier
+                          </p>
+                        </td>
+                      </tr>
+
+                    </table>
+
+                  </td>
+                </tr>
+              </table>
+
             </body>
             </html>
           `
